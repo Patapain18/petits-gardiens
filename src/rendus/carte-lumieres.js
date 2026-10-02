@@ -54,11 +54,13 @@ export class CarteDesLumieres {
       if (f < 0.02) continue;
       const x = (l.x - this.x0) * k, y = (l.y - this.z0) * k, r = l.rayon * k;
       const [R, G, B] = l.couleur.map((v) => Math.round(v * 255));
-      // forte au centre, puis elle s'éteint vite : une flaque de lumière, pas un disque plat
+      // forte au centre, puis elle s'éteint de plus en plus doucement vers le bord : une flaque de
+      // lumière, pas un disque plat (l'œil voit très bien les faibles lumières dans le noir)
       const g = c.createRadialGradient(x, y, 0, x, y, r);
       g.addColorStop(0, `rgba(${R},${G},${B},${f})`);
-      g.addColorStop(0.3, `rgba(${R},${G},${B},${f * 0.55})`);
-      g.addColorStop(0.65, `rgba(${R},${G},${B},${f * 0.18})`);
+      g.addColorStop(0.25, `rgba(${R},${G},${B},${f * 0.6})`);
+      g.addColorStop(0.5, `rgba(${R},${G},${B},${f * 0.28})`);
+      g.addColorStop(0.75, `rgba(${R},${G},${B},${f * 0.08})`);
       g.addColorStop(1, `rgba(${R},${G},${B},0)`);
       c.fillStyle = g;
       c.fillRect(x - r, y - r, r * 2, r * 2);

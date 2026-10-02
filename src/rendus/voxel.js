@@ -14,6 +14,8 @@ import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnee
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
+import { CarteDesLumieres } from './carte-lumieres.js';
+import { Lumieres } from './lumieres.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -86,6 +88,20 @@ function creerTextures() {
     grain: texture(() => choisir(['#ffffff', '#f2f2f2', '#e6e6e6', '#fafafa'])),
   };
 }
+
+// Les six faces d'un cube : sa direction (la « normale » n), et deux directions qui la longent
+// (u et v, choisies pour que les coins tournent dans le bon sens vus de dehors)
+const FACES_CUBE = [
+  { n: [1, 0, 0], u: [0, 0, -1], v: [0, 1, 0] },
+  { n: [-1, 0, 0], u: [0, 0, 1], v: [0, 1, 0] },
+  { n: [0, 1, 0], u: [1, 0, 0], v: [0, 0, -1] },
+  { n: [0, -1, 0], u: [1, 0, 0], v: [0, 0, 1] },
+  { n: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0] },
+  { n: [0, 0, -1], u: [-1, 0, 0], v: [0, 1, 0] },
+];
+const COINS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+// La clarté d'un coin de face selon les cubes qui l'entourent : de 0 (coin bouché) à 3 (coin libre)
+const CLARTE_COIN = [0.42, 0.6, 0.8, 1];
 
 // ═════════════════════════════════════════════════════════════
 // 2. LES AMBIANCES (couleurs du ciel, du soleil, de la brume…)
@@ -170,8 +186,8 @@ const GABARITS_VOXEL = {
       for (const sx of [-1, 1]) {
         for (const sz of [-1, 1]) r.boite(vue.corps, 0.1, 0.16, 0.1, sx * 0.19, 0.08, sz * 0.13, fonce); // pattes
         r.boite(vue.corps, 0.1, 0.12, 0.16, sx * 0.35, 0.36, 0.02, peau);                                   // bras
-        r.boite(vue.corps, 0.07, 0.11, 0.02, sx * 0.12, 0.42, 0.221, m(c.yeux));                            // oeil
-        r.boite(vue.corps, 0.025, 0.025, 0.01, sx * 0.12 + 0.016, 0.455, 0.232, r.matBrillant('#ffffff', 1.2)); // reflet
+        vue.yeux.push(r.boite(vue.corps, 0.07, 0.11, 0.02, sx * 0.12, 0.42, 0.221, m(c.yeux)));                            // oeil
+        vue.yeux.push(r.boite(vue.corps, 0.025, 0.025, 0.01, sx * 0.12 + 0.016, 0.455, 0.232, r.matBrillant('#ffffff', 1.2))); // reflet
       }
       vue.ancres = { sommet: 0.56, demiLargeur: 0.3, demiProfondeur: 0.22, ceinture: 0.27, yeux: { ecart: 0.12, y: 0.42, z: 0.221, taille: 0.06 } };
     },
@@ -577,6 +593,10 @@ export default class RenduVoxel {
     this.econome = reglages?.qualite === 'econome';
     this.tex = creerTextures();
     this.cacheMateriaux = new Map();
+    // les lumières du jeu (lanternes, feu, explosions…), peintes dans la carte des lumières
+    this.lumieres = new Lumieres(niveau);
+    this.carte = new CarteDesLumieres(niveau);
+    this.uTempsVent = { value: 0 }; // le temps, pour tout ce qui bouge au vent (plantes, feuilles)
 
     // Moteur de rendu WebGL. Sur un écran très fin (Retina), une image « complète » a deux fois plus
     // de pixels en largeur et en hauteur, donc quatre fois plus à calculer : l'économe s'en passe.
@@ -599,6 +619,7 @@ export default class RenduVoxel {
     this.creerDrapeaux();
     this.creerPoussieres();
     this.creerFaisceaux();
+    this.creerVie();
 
     this.particules = new Particules(this.scene, 1000);
     this.eclairs = []; // les éclairs d'Étincelle encore visibles
@@ -608,6 +629,7 @@ export default class RenduVoxel {
     // (clé « id:niveau » : un gardien amélioré est refabriqué avec sa nouvelle apparence)
     this.vuesTours = new Synchro(this.scene, (t) => this.creerVueTour(t), (v, t) => this.majVueTour(v, t), (v) => liberer(v.racine), (t) => t.id + ':' + t.niveau);
     this.vuesEnnemis = new Synchro(this.scene, (e) => this.creerVueEnnemi(e), (v, e) => this.majVueEnnemi(v, e), (v) => liberer(v.racine));
+    this.vuesEnnemis.sortie = (vue, t) => this.sortieEnnemi(vue, t); // un monstre battu s'écrase avant de disparaître
     this.vuesTirs = new Synchro(this.scene, (p) => this.creerVueTir(p), (v, p) => this.majVueTir(v, p));
 
     this.creerPostTraitement();
@@ -705,19 +727,16 @@ export default class RenduVoxel {
   }
 
   // ── Matériaux ──────────────────────────────────────────────
-  // Un matériau par type de bloc (certains blocs ont une texture différente dessus et sur les côtés)
-  materiauxBloc(type) {
-    const std = (map, extra = {}) => new THREE.MeshStandardMaterial({ map, roughness: 0.95, metalness: 0, ...extra });
+  // Le matériau d'un paquet de faces (l'herbe a trois paquets : dessus, côtés, dessous).
+  // vertexColors : chaque coin a sa couleur (la teinte du bloc × la clarté du coin).
+  materiauBloc(cle) {
+    const std = (map, extra = {}) => new THREE.MeshStandardMaterial({ map, roughness: 0.95, metalness: 0, vertexColors: true, ...extra });
     const t = this.tex;
-    switch (type) {
-      case 'herbe': {
-        const cote = std(t.herbeCote), dessus = std(t.herbe), dessous = std(t.terre);
-        return [cote, cote, dessus, dessous, cote, cote]; // ordre des faces : +x −x +y −y +z −z
-      }
+    switch (cle) {
       case 'feuilles': return std(t.feuilles, { alphaTest: 0.5, side: THREE.DoubleSide });
       case 'neige': return std(t.neige, { roughness: 0.7 });
       case 'lanterne': return std(t.lanterne, { emissive: '#ffb347', emissiveMap: t.lanterne, emissiveIntensity: 0 });
-      default: return std(t[type]);
+      default: return std(t[cle]);
     }
   }
 
@@ -726,7 +745,7 @@ export default class RenduVoxel {
     const { unique, ...reglages } = options; // unique = un matériau rien qu'à lui (pas partagé)
     const cle = couleur + JSON.stringify(reglages);
     if (!unique && this.cacheMateriaux.has(cle)) return this.cacheMateriaux.get(cle);
-    const mat = new THREE.MeshStandardMaterial({ color: couleur, map: this.tex.grain, roughness: 0.85, ...reglages });
+    const mat = this.carte.brancher(new THREE.MeshStandardMaterial({ color: couleur, map: this.tex.grain, roughness: 0.85, ...reglages }));
     if (!unique) this.cacheMateriaux.set(cle, mat);
     return mat;
   }
@@ -780,10 +799,10 @@ export default class RenduVoxel {
         else if (n >= 22) dessus = 'neige';
         else if (voisinMax - n >= 2 || n - voisinMin >= 3 || n >= 15) dessus = 'pierre';
 
-        // Petite variation de teinte : l'herbe jaunit par endroits, ombre au pied des falaises
+        // Petite variation de teinte : l'herbe jaunit par endroits
+        // (l'ombre au pied des falaises vient de l'occlusion ambiante, voir fabriquerBlocs)
         let teinte = 0.92 + alea() * 0.12;
         if (dessus === 'herbe') teinte *= 0.95 + bruitFractal(x * 0.3, z * 0.3, 2) * 0.12;
-        if (voisinMax > n) teinte *= 0.84; // fausse « occlusion ambiante »
 
         poser(dessus, bx, n, bz, teinte);
         // On remplit en dessous juste assez pour qu'on ne voie pas de trou sur les côtés
@@ -798,30 +817,115 @@ export default class RenduVoxel {
     chateau.construire(poser, enlever);
     this.planterArbres(poser, h);
 
-    // Création d'un InstancedMesh par type de bloc
-    const geo = new THREE.BoxGeometry(B, B, B);
-    const geoChemin = new THREE.BoxGeometry(B, B - 0.06, B); // le chemin est un poil plus bas
-    const m = new THREE.Matrix4();
-    const c = new THREE.Color();
-    for (const [type, liste] of Object.entries(blocs)) {
-      const mesh = new THREE.InstancedMesh(type === 'chemin' ? geoChemin : geo, this.materiauxBloc(type), liste.length);
-      liste.forEach(([bx, niveau, bz, teinte], i) => {
-        const y = (niveau - 0.5) * B - (type === 'chemin' ? 0.03 : 0);
-        m.makeTranslation((bx + 0.5) * B, y, (bz + 0.5) * B);
-        mesh.setMatrixAt(i, m);
-        // teinte = un nombre (plus clair / plus sombre) ou une vraie couleur (feuillages)
-        mesh.setColorAt(i, teinte.isColor ? teinte : c.setScalar(teinte));
-      });
-      mesh.castShadow = type !== 'chemin' && type !== 'sable';
-      mesh.receiveShadow = true;
-      if (type === 'feuilles') this.feuilles = mesh;
-      if (type === 'lanterne') this.blocsLanterne = mesh;
-      this.scene.add(mesh);
-    }
-    this.blocsParType = blocs;
+    this.fabriquerBlocs(blocs, X0, X1, Z0, Z1);
 
     this.creerEau();
     this.creerVegetation(h);
+  }
+
+  // ── Les blocs du monde, assemblés en quelques grands objets ──
+  // Dessiner chaque cube en entier serait du gâchis : la plupart de ses faces sont collées à un
+  // voisin, donc invisibles. On ne garde que les faces visibles (environ une sur six), rangées
+  // par matériau : quelques grands objets au lieu de 50 000 cubes.
+  // Chaque coin de face reçoit en plus une « occlusion ambiante » (comme dans Minecraft) : on
+  // regarde les trois cubes qui touchent ce coin, devant la face. Plus il y en a, moins la
+  // lumière du ciel arrive, plus le coin est sombre. Au pied d'un mur, sous un arbre, dans un
+  // creux : la lumière se pose tout en douceur.
+  fabriquerBlocs(blocs, X0, X1, Z0, Z1) {
+    // 1. une grille de tous les blocs (le numéro de leur type, 0 = vide), pour trouver vite un voisin
+    const types = Object.keys(blocs);
+    let nMin = Infinity, nMax = -Infinity;
+    for (const liste of Object.values(blocs)) for (const [, n] of liste) { if (n < nMin) nMin = n; if (n > nMax) nMax = n; }
+    const lx = X1 - X0, lz = Z1 - Z0, ly = nMax - nMin + 1;
+    const grille = new Uint8Array(lx * ly * lz);
+    const indice = (bx, n, bz) => (bx - X0) + lx * ((bz - Z0) + lz * (n - nMin));
+    const voisin = (bx, n, bz) => (bx < X0 || bx >= X1 || bz < Z0 || bz >= Z1 || n < nMin || n > nMax ? 0 : grille[indice(bx, n, bz)]);
+    types.forEach((type, t) => { for (const [bx, n, bz] of blocs[type]) grille[indice(bx, n, bz)] = t + 1; });
+    const FEUILLES = types.indexOf('feuilles') + 1, CHEMIN = types.indexOf('chemin') + 1;
+
+    // 2. les faces visibles, rangées par matériau (un « paquet » par matériau)
+    const paquets = new Map();
+    const paquet = (cle) => {
+      if (!paquets.has(cle)) paquets.set(cle, { positions: [], normales: [], uvs: [], couleurs: [], indices: [] });
+      return paquets.get(cle);
+    };
+    const c = new THREE.Color();
+    types.forEach((type, t) => {
+      const id = t + 1, chemin = id === CHEMIN;
+      for (const [bx, n, bz, teinte] of blocs[type]) {
+        // teinte = un nombre (plus clair / plus sombre) ou une vraie couleur (feuillages)
+        if (teinte.isColor) c.copy(teinte); else c.setScalar(teinte);
+        for (const f of FACES_CUBE) {
+          const [nx, ny, nz] = f.n;
+          const v = voisin(bx + nx, n + ny, bz + nz);
+          if (v) {
+            // entre deux blocs de feuilles, une seule face (vue des deux côtés) ; un voisin plein cache
+            // la face, sauf le chemin (un peu plus bas) pour les faces de côté de ses voisins
+            if (v === FEUILLES) { if (id === FEUILLES && nx + ny + nz < 0) continue; }
+            else if (!(v === CHEMIN && ny === 0 && !chemin)) continue;
+          }
+          const cle = type === 'herbe' ? (ny > 0 ? 'herbe' : ny < 0 ? 'terre' : 'herbeCote') : type;
+          const p = paquet(cle);
+          const debut = p.positions.length / 3;
+          const ao = COINS.map(([su, sv]) => {
+            const [ux, uy, uz] = f.u, [vx, vy, vz] = f.v;
+            const cote1 = voisin(bx + nx + su * ux, n + ny + su * uy, bz + nz + su * uz) ? 1 : 0;
+            const cote2 = voisin(bx + nx + sv * vx, n + ny + sv * vy, bz + nz + sv * vz) ? 1 : 0;
+            const coin = voisin(bx + nx + su * ux + sv * vx, n + ny + su * uy + sv * vy, bz + nz + su * uz + sv * vz) ? 1 : 0;
+            const niveau = cote1 && cote2 ? 0 : 3 - (cote1 + cote2 + coin);
+            // la place du coin, dans le monde : le centre du cube + la moitié de n, u et v
+            const x = (bx + 0.5 + (nx + su * ux + sv * vx) * 0.5) * B;
+            let y = (n - 0.5 + (ny + su * uy + sv * vy) * 0.5) * B;
+            const z = (bz + 0.5 + (nz + su * uz + sv * vz) * 0.5) * B;
+            if (chemin && y > (n - 0.5) * B) y -= 0.06; // le chemin est un poil plus bas que l'herbe
+            const k = CLARTE_COIN[niveau];
+            p.positions.push(x, y, z);
+            p.normales.push(nx, ny, nz);
+            p.uvs.push((su + 1) / 2, (sv + 1) / 2);
+            p.couleurs.push(c.r * k, c.g * k, c.b * k);
+            return niveau;
+          });
+          // deux triangles ; on coupe le carré par la diagonale qui relie les deux coins les plus
+          // proches en clarté (sinon le dégradé fait un pli visible)
+          if (ao[0] + ao[2] >= ao[1] + ao[3]) p.indices.push(debut, debut + 1, debut + 2, debut, debut + 2, debut + 3);
+          else p.indices.push(debut + 1, debut + 2, debut + 3, debut + 1, debut + 3, debut);
+        }
+      }
+    });
+
+    // 3. un objet par paquet, avec son matériau
+    for (const [cle, p] of paquets) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(p.positions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(p.normales, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(p.uvs, 2));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(p.couleurs, 3));
+      geo.setIndex(p.indices);
+      const materiau = this.materiauBloc(cle);
+      const mesh = new THREE.Mesh(geo, this.carte.brancher(cle === 'feuilles' ? this.onduler(materiau) : materiau));
+      mesh.castShadow = cle !== 'chemin' && cle !== 'sable';
+      mesh.receiveShadow = true;
+      if (cle === 'feuilles') this.feuilles = mesh;
+      if (cle === 'lanterne') this.blocsLanterne = mesh;
+      this.scene.add(mesh);
+    }
+  }
+
+  // Les feuilles qui ondulent (comme dans les « shaders » de Minecraft) : chaque coin bouge un tout
+  // petit peu, selon sa place et le temps. Deux blocs de feuilles voisins partagent leurs coins :
+  // ils bougent ensemble, sans se décoller.
+  onduler(m) {
+    const avant = m.onBeforeCompile, cle = m.customProgramCacheKey();
+    m.onBeforeCompile = (shader, renderer) => {
+      avant?.call(m, shader, renderer);
+      shader.uniforms.uTemps = this.uTempsVent;
+      shader.vertexShader = 'uniform float uTemps;\n' + shader.vertexShader.replace('#include <begin_vertex>', /* glsl */ `#include <begin_vertex>
+        transformed.x += sin(uTemps * 1.7 + position.x * 1.3 + position.z * 0.9) * 0.025 + sin(uTemps * 3.1 + position.y * 2.3) * 0.01;
+        transformed.z += cos(uTemps * 1.3 + position.z * 1.1 + position.x * 0.7) * 0.018;
+        transformed.y += sin(uTemps * 2.3 + position.x * 0.8 + position.z * 1.7) * 0.012;`);
+    };
+    m.customProgramCacheKey = () => `${cle}|onde`;
+    return m;
   }
 
   // Hauteur du sol (en unités 3D) sous un point du jeu
@@ -902,13 +1006,9 @@ export default class RenduVoxel {
           poser('laine', x0 + 1, k, porteZ[0] - 1);
           poser('laine', x0 + 1, k, porteZ[1] + 1);
         }
-        // 7. Lanternes devant les tours de la porte
+        // 7. Lanternes devant les tours de la porte (leur lumière, la nuit : celle de la porte, dans lumieres.js)
         poser('lanterne', x0 - 2, 3, porteZ[0] - 2);
         poser('lanterne', x0 - 2, 3, porteZ[1] + 2);
-        this.torches = [
-          new THREE.Vector3((x0 - 2.5) * B, 3 * B, (porteZ[0] - 1.5) * B),
-          new THREE.Vector3((x0 - 2.5) * B, 3 * B, (porteZ[1] + 2.5) * B),
-        ];
       },
     };
   }
@@ -937,6 +1037,7 @@ export default class RenduVoxel {
       const tronc = d.type === 'bouleau' ? 'bouleau' : 'tronc';
       // dans la zone de jeu : des buissons bas (pour ne rien cacher), ailleurs de vrais arbres
       const hTronc = d.dedans ? 1 : Math.round(3 + d.taille * 2);
+      if (d.type === 'automne' && !d.dedans) (this.arbresAutomne ||= []).push({ x: (bx + 0.5) * B, y: (n + hTronc) * B, z: (bz + 0.5) * B });
       for (let k = 1; k <= hTronc; k++) poser(tronc, bx, n + k, bz);
       // Le feuillage : une boule de blocs, plus large au milieu, irrégulière sur les bords
       const grand = d.taille > 1.1 && !d.dedans;
@@ -956,14 +1057,28 @@ export default class RenduVoxel {
   }
 
   // ── L'eau des étangs ───────────────────────────────────────
+  // Une texture d'eau en pixels (16 × 16, comme les blocs) qui glisse doucement, comme l'eau de
+  // Minecraft. L'eau était très lisse (roughness 0,15) : à midi, elle renvoyait le soleil comme
+  // un miroir, une grande tache blanche (repérée par l'atelier des lumières). Un peu plus rugueuse,
+  // son reflet s'étale et ne brûle plus.
   creerEau() {
-    this.matEau = new THREE.MeshStandardMaterial({
-      color: '#3f8fb0', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.78,
-      emissive: '#123848', emissiveIntensity: 0.4,
+    const hasardEau = creerAleatoire(11); // un hasard à part : le décor qui suit ne change pas
+    this.texEau = texture((x, y) => {
+      const v = Math.sin((x + y * 0.5) * 0.8) + Math.sin(y * 1.3 - x * 0.4) + (hasardEau() - 0.5) * 0.5;
+      return v > 1.25 ? '#a8dcf2' : v > 0.35 ? '#66b4dc' : v < -1.2 ? '#2f78a6' : '#4898c6';
     });
+    this.texEau.wrapS = this.texEau.wrapT = THREE.RepeatWrapping;
+    this.matEau = this.carte.brancher(new THREE.MeshStandardMaterial({
+      map: this.texEau, roughness: 0.42, metalness: 0, transparent: true, opacity: 0.84,
+      // une lueur bleue : sous le soleil orangé de l'heure dorée, l'eau devenait grise
+      emissive: '#1d5a80', emissiveIntensity: 0.4,
+    }));
     this.eaux = this.niveau.etangs.map((etang) => {
       const geo = new THREE.CircleGeometry(etang.rayon + 0.2, 48);
       geo.rotateX(-Math.PI / 2);
+      // la texture est posée « dans le monde » : un motif par bloc, quel que soit l'étang
+      const pos = geo.attributes.position, uv = geo.attributes.uv;
+      for (let i = 0; i < pos.count; i++) uv.setXY(i, (etang.x + pos.getX(i)) / B, -(etang.y + pos.getZ(i)) / B);
       const eau = new THREE.Mesh(geo, this.matEau);
       eau.position.set(etang.x, -0.18, etang.y);
       eau.receiveShadow = true;
@@ -1022,8 +1137,7 @@ export default class RenduVoxel {
     }
 
     // Matériau « vent » : on décale le haut des plantes avec une sinusoïde
-    const temps = { value: 0 };
-    this.uTempsVent = temps;
+    const temps = this.uTempsVent;
     this.uLueur = { value: 0 }; // les fleurs brillent un peu à contre-jour
     const matVent = (tete) => {
       const mat = new THREE.MeshStandardMaterial({ roughness: 0.8, map: this.tex.grain });
@@ -1054,7 +1168,11 @@ export default class RenduVoxel {
           gl_Position = projectionMatrix * mvPosition;`,
         );
       };
-      return mat;
+      // la clé du programme dit s'il s'agit des têtes ou des tiges : sans elle, Three.js croirait
+      // que c'est le même programme (le texte de la fonction est le même) et donnerait aux têtes
+      // celui des tiges (ou l'inverse)
+      mat.customProgramCacheKey = () => (tete ? 'vent-tete' : 'vent-tige');
+      return this.carte.brancher(mat);
     };
 
     const geo = new THREE.BoxGeometry(1, 1, 1);
@@ -1083,9 +1201,9 @@ export default class RenduVoxel {
     this.socles = this.niveau.socles.map((e, i) => {
       const groupe = new THREE.Group();
       groupe.position.set(e.x, this.sol(e.x, e.y), e.y);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.18, 1.1), new THREE.MeshStandardMaterial({ map: this.tex.pierre, roughness: 0.95 }));
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.18, 1.1), this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.pierre, roughness: 0.95 })));
       base.position.y = 0.09;
-      const dessus = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.12, 0.86), new THREE.MeshStandardMaterial({ map: this.tex.briques, roughness: 0.9, emissive: '#ffc260', emissiveIntensity: 0 }));
+      const dessus = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.12, 0.86), this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.briques, roughness: 0.9, emissive: '#ffc260', emissiveIntensity: 0 })));
       dessus.position.y = 0.24;
       for (const mesh of [base, dessus]) { mesh.castShadow = mesh.receiveShadow = true; groupe.add(mesh); }
       // Petit cube doré qui flotte au-dessus des socles libres
@@ -1106,8 +1224,8 @@ export default class RenduVoxel {
   // ── Drapeaux du château (ils ondulent) ─────────────────────
   creerDrapeaux() {
     this.drapeaux = [];
-    const bois = new THREE.MeshStandardMaterial({ map: this.tex.planches, roughness: 0.9 });
-    const tissu = new THREE.MeshStandardMaterial({ map: this.tex.laine, roughness: 1 });
+    const bois = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.planches, roughness: 0.9 }));
+    const tissu = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.laine, roughness: 1 }));
     for (const m of this.mats) {
       const haut = m.grand ? 1.6 : 1.0;
       const mat = new THREE.Mesh(new THREE.BoxGeometry(0.07, haut, 0.07), bois);
@@ -1135,10 +1253,11 @@ export default class RenduVoxel {
     }
   }
 
-  // ── Lanternes le long du chemin + leur lumière la nuit ─────
+  // ── Lanternes le long du chemin ────────────────────────────
+  // Leur lumière, la nuit, vient de la carte des lumières (voir lumieres.js), comme celle de la
+  // porte du château.
   creerLanternes() {
-    this.lumieresNuit = [];
-    const poteau = new THREE.MeshStandardMaterial({ map: this.tex.planches, roughness: 0.9 });
+    const poteau = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.planches, roughness: 0.9 }));
     this.matLanterne = new THREE.MeshStandardMaterial({ map: this.tex.lanterne, emissive: '#ffb347', emissiveMap: this.tex.lanterne, emissiveIntensity: 0.2 });
     for (const l of this.niveau.lanternes) {
       const y0 = this.sol(l.x, l.y);
@@ -1149,16 +1268,6 @@ export default class RenduVoxel {
       const lanterne = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18), this.matLanterne);
       lanterne.position.set(l.x + 0.24, y0 + 0.74, l.y);
       for (const o of [p, bras, lanterne]) { o.castShadow = true; this.scene.add(o); }
-      const lumiere = new THREE.PointLight('#ffb35a', 0, 5.5, 1.6);
-      lumiere.position.copy(lanterne.position);
-      this.scene.add(lumiere);
-      this.lumieresNuit.push(lumiere);
-    }
-    for (const t of this.torches) {
-      const lumiere = new THREE.PointLight('#ff9a40', 0, 6, 1.6);
-      lumiere.position.copy(t);
-      this.scene.add(lumiere);
-      this.lumieresNuit.push(lumiere);
     }
   }
 
@@ -1216,6 +1325,171 @@ export default class RenduVoxel {
     });
     pos.needsUpdate = true;
     col.needsUpdate = true;
+  }
+
+  // ── La vie autour : feuilles qui tombent, poissons, oiseaux, papillons ──
+  creerVie() {
+    const niv = this.niveau;
+    this.outilsVie = { m: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3(), s: new THREE.Vector3(), e: new THREE.Euler(), c: new THREE.Color() };
+    // les feuilles d'automne : 24 petits cubes qui servent et resservent, tous dans un InstancedMesh
+    this.arbresAutomne = (this.arbresAutomne || []).filter((a) => a.x > -3 && a.x < niv.largeur + 3 && a.z > -3 && a.z < niv.hauteur + 3);
+    this.feuillesQuiTombent = Array.from({ length: 24 }, () => ({ actif: false }));
+    this.cubesFeuilles = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.025, 0.07), this.matUnite('#ffffff'), 24);
+    this.cubesFeuilles.frustumCulled = false;
+    this.cubesFeuilles.castShadow = true;
+    const couleurs = ['#ec8a2c', '#f2b23a', '#d9602a'];
+    for (let i = 0; i < 24; i++) this.cubesFeuilles.setColorAt(i, this.outilsVie.c.set(couleurs[i % 3]));
+    this.scene.add(this.cubesFeuilles);
+    this.prochaineFeuille = 0;
+    // un poisson qui saute de temps en temps hors d'un étang
+    this.poisson = null;
+    this.prochainPoisson = 4 + Math.random() * 6;
+    if (niv.etangs.length) {
+      const g = new THREE.Group();
+      this.boite(g, 0.08, 0.07, 0.18, 0, 0, 0, this.matUnite('#ff8a3a'));
+      this.boite(g, 0.02, 0.06, 0.06, 0, 0, -0.12, this.matUnite('#ffc070')); // la queue
+      this.boite(g, 0.085, 0.02, 0.02, 0, 0.015, 0.06, this.matUnite('#1a1014')); // les yeux
+      g.visible = false;
+      this.scene.add(g);
+      this.poisson = { objet: g, t: 1, depart: new THREE.Vector3(), arrivee: new THREE.Vector3() };
+    }
+    // les oiseaux : une petite volée traverse la carte de temps en temps (le jour)
+    this.oiseaux = [];
+    this.prochainsOiseaux = 6;
+    // les papillons volettent au-dessus des fleurs (le jour)
+    this.papillons = Array.from({ length: 6 }, (_, i) => {
+      const g = new THREE.Group();
+      const mat = this.matUnite(['#ffffff', '#ffe14a', '#ff9ab8', '#9ad0ff', '#ffb04a', '#ffffff'][i]);
+      const ailes = [1, -1].map((cote) => {
+        const aile = new THREE.Group();
+        this.boite(aile, 0.06, 0.008, 0.05, cote * 0.03, 0, 0, mat).castShadow = false;
+        g.add(aile);
+        return aile;
+      });
+      const x = alea() * niv.largeur, z = alea() * niv.hauteur;
+      g.position.set(x, this.sol(x, z) + 0.5, z);
+      this.scene.add(g);
+      return { objet: g, ailes, cible: null, pause: 0, phase: i * 1.7 };
+    });
+  }
+
+  // Une volée de 3 à 5 oiseaux en V, haut dans le ciel (le soleil dessine leur ombre sur le sol)
+  envoyerOiseaux() {
+    const niv = this.niveau, sens = Math.random() < 0.5 ? 1 : -1, z = niv.hauteur * (0.15 + Math.random() * 0.7);
+    const mat = this.matUnite('#2e2430');
+    for (let i = 0, n = 3 + Math.floor(Math.random() * 3); i < n; i++) {
+      const objet = new THREE.Group();
+      this.boite(objet, 0.1, 0.08, 0.2, 0, 0, 0, mat);
+      const ailes = [1, -1].map((cote) => {
+        const aile = new THREE.Group();
+        this.boite(aile, 0.22, 0.02, 0.1, cote * 0.11, 0, 0, mat);
+        objet.add(aile);
+        return aile;
+      });
+      const rang = Math.ceil(i / 2), cote = i % 2 ? 1 : -1; // le premier devant, les autres de chaque côté
+      objet.position.set(sens > 0 ? -10 - rang * 0.7 : niv.largeur + 10 + rang * 0.7, 6 + Math.random() * 0.4, z + cote * rang * 0.5);
+      objet.rotation.y = sens * Math.PI / 2; // ils regardent là où ils vont
+      this.scene.add(objet);
+      this.oiseaux.push({ objet, ailes, vx: sens * 2.6, phase: Math.random() * 6 });
+    }
+  }
+
+  majVie(dt) {
+    const niv = this.niveau, jour = this.ambiance.nuit < 0.5;
+    const { m, q, v, s, e } = this.outilsVie;
+    // les feuilles d'automne : elles tombent en tournoyant, se posent, puis rapetissent
+    this.prochaineFeuille -= dt;
+    if (this.prochaineFeuille <= 0 && this.arbresAutomne.length) {
+      this.prochaineFeuille = 0.35 + Math.random() * 0.6;
+      const f = this.feuillesQuiTombent.find((x) => !x.actif);
+      if (f) {
+        const a = this.arbresAutomne[Math.floor(Math.random() * this.arbresAutomne.length)];
+        Object.assign(f, { actif: true, vie: 0, posee: 0, x: a.x + (Math.random() - 0.5) * 1.6, y: a.y + Math.random() * 0.6, z: a.z + (Math.random() - 0.5) * 1.6 });
+        f.sol = this.sol(f.x, f.z) + 0.02;
+      }
+    }
+    this.feuillesQuiTombent.forEach((f, i) => {
+      if (!f.actif) { this.cubesFeuilles.setMatrixAt(i, m.makeScale(0, 0, 0)); return; }
+      f.vie += dt;
+      if (f.y > f.sol) {
+        f.y = Math.max(f.sol, f.y - dt * 0.55);
+        f.x += (0.35 + Math.sin(f.vie * 2.6) * 0.4) * dt;
+        e.set(f.vie * 2.7, f.vie * 1.9, f.vie * 1.2);
+      } else {
+        f.posee += dt;
+        e.set(0, f.vie, 0);
+        if (f.posee > 2.5) f.actif = false;
+      }
+      const taille = f.posee > 1.5 ? Math.max(0.01, 1 - (f.posee - 1.5)) : 1;
+      this.cubesFeuilles.setMatrixAt(i, m.compose(v.set(f.x, f.y, f.z), q.setFromEuler(e), s.setScalar(taille)));
+    });
+    this.cubesFeuilles.instanceMatrix.needsUpdate = true;
+    // le poisson : un saut en arc au-dessus d'un étang, avec des éclaboussures
+    if (this.poisson) {
+      const p = this.poisson;
+      if (p.t >= 1) {
+        this.prochainPoisson -= dt;
+        if (this.prochainPoisson <= 0) {
+          this.prochainPoisson = 6 + Math.random() * 9;
+          const etang = niv.etangs[Math.floor(Math.random() * niv.etangs.length)];
+          const a = Math.random() * Math.PI * 2, d = etang.rayon * 0.35, dir = Math.random() * Math.PI * 2;
+          p.depart.set(etang.x + Math.cos(a) * d, -0.2, etang.y + Math.sin(a) * d);
+          p.arrivee.set(p.depart.x + Math.cos(dir) * 0.9, -0.2, p.depart.z + Math.sin(dir) * 0.9);
+          p.t = 0;
+          p.objet.visible = true;
+          this.gerbe(p.depart.x, -0.15, p.depart.z, 8, ['#cfeeff', '#ffffff'], { force: 0.8, haut: 1.6, taille: 0.05, vie: 0.5 });
+        }
+      } else {
+        p.t = Math.min(1, p.t + dt * 1.25);
+        p.objet.position.lerpVectors(p.depart, p.arrivee, p.t);
+        p.objet.position.y = -0.2 + Math.sin(p.t * Math.PI) * 0.7;
+        p.objet.lookAt(p.arrivee.x, p.objet.position.y + Math.cos(p.t * Math.PI) * 0.7, p.arrivee.z);
+        if (p.t >= 1) {
+          p.objet.visible = false;
+          this.gerbe(p.arrivee.x, -0.15, p.arrivee.z, 10, ['#cfeeff', '#ffffff'], { force: 0.9, haut: 1.8, taille: 0.05, vie: 0.5 });
+        }
+      }
+    }
+    // les oiseaux (ils planent de temps en temps)
+    this.prochainsOiseaux -= dt;
+    if (this.prochainsOiseaux <= 0) {
+      this.prochainsOiseaux = 18 + Math.random() * 20;
+      if (jour) this.envoyerOiseaux();
+    }
+    this.oiseaux = this.oiseaux.filter((o) => {
+      o.objet.position.x += o.vx * dt;
+      const battement = Math.sin(this.temps * 0.8 + o.phase) > 0.5 ? 0.12 : Math.sin(this.temps * 12 + o.phase) * 0.7;
+      o.ailes[0].rotation.z = battement;
+      o.ailes[1].rotation.z = -battement;
+      const parti = o.vx > 0 ? o.objet.position.x > niv.largeur + 12 : o.objet.position.x < -12;
+      if (parti) {
+        this.scene.remove(o.objet);
+        o.objet.traverse((x) => x.geometry?.dispose()); // (le matériau, lui, sert aux autres oiseaux)
+      }
+      return !parti;
+    });
+    // les papillons : ils volent vers un point proche, s'y posent un moment, puis repartent
+    for (const pap of this.papillons) {
+      pap.objet.visible = jour;
+      if (!jour) continue;
+      const battement = pap.pause > 0 ? 0.25 + Math.abs(Math.sin(this.temps * 2 + pap.phase)) * 0.5 : 0.2 + Math.abs(Math.sin(this.temps * 18 + pap.phase)) * 1.1;
+      pap.ailes[0].rotation.z = battement;
+      pap.ailes[1].rotation.z = -battement;
+      if (pap.pause > 0) { pap.pause -= dt; continue; }
+      const p = pap.objet.position;
+      if (!pap.cible) {
+        const x = Math.min(niv.largeur, Math.max(0, p.x + (Math.random() - 0.5) * 5)), z = Math.min(niv.hauteur, Math.max(0, p.z + (Math.random() - 0.5) * 5));
+        if (niv.distanceAuChemin(x, z) > 0.8) pap.cible = { x, z, y: this.sol(x, z) + 0.3 };
+        continue;
+      }
+      const dx = pap.cible.x - p.x, dz = pap.cible.z - p.z, dist = Math.hypot(dx, dz);
+      if (dist < 0.05) { pap.cible = null; pap.pause = 1 + Math.random() * 2.5; continue; }
+      const pas = Math.min(dist, 0.9 * dt);
+      p.x += (dx / dist) * pas;
+      p.z += (dz / dist) * pas;
+      p.y = pap.cible.y + Math.min(1, dist) * (0.35 + Math.sin(this.temps * 5 + pap.phase) * 0.08);
+      pap.objet.rotation.y = Math.atan2(dx, dz);
+    }
   }
 
   // ── Faisceaux de lumière ───────────────────────────────────
@@ -1322,7 +1596,7 @@ export default class RenduVoxel {
       return mat;
     };
     const vue = {
-      racine, corps, materiaux, pattes: [], animations: [], gabarit: app.gabarit, taille: app.taille,
+      racine, corps, materiaux, pattes: [], animations: [], yeux: [], gabarit: app.gabarit, taille: app.taille,
       apparition: 0, hauteurBarre: 0.6, largeurBarre: 0.4,
     };
     GABARITS_VOXEL[app.gabarit].fabriquer(this, vue, app, m);
@@ -1367,6 +1641,14 @@ export default class RenduVoxel {
     const coup = tour.attaque > 0 ? Math.sin((tour.attaque / 0.25) * Math.PI) * 0.18 : 0;
     vue.corps.scale.y = vue.taille * (1 + respire - coup);
     vue.corps.position.y = coup * 0.15;
+    // il recule un peu quand il tire (à l'opposé de là où il regarde : son avant, c'est +Z)
+    vue.racine.position.x -= Math.sin(vue.racine.rotation.y) * coup * 0.3;
+    vue.racine.position.z -= Math.cos(vue.racine.rotation.y) * coup * 0.3;
+    // une vague vient d'être repoussée : tout le monde saute de joie (chacun à son rythme)
+    if (this.joie > 0) vue.racine.position.y += Math.abs(Math.sin((1 - this.joie) * Math.PI * 3 + tour.id)) * 0.3 * this.joie;
+    // il cligne des yeux de temps en temps (et les ferme quand il est assommé)
+    const cligne = tour.assomme > 0 || (this.temps + tour.id * 1.7) % 4 < 0.12;
+    for (const oeil of vue.yeux) oeil.scale.y = cligne ? 0.15 : 1;
     vue.attaque = tour.attaque; // les accessoires réagissent quand il attaque (antennes, moulinet)
     vue.chauffe = tour.rayon ? tour.chauffe : 0; // et quand son rayon chauffe (le cristal du Prisme)
     for (const animer of vue.animations) animer(this.temps, vue);
@@ -1402,6 +1684,10 @@ export default class RenduVoxel {
     const y = this.sol(e.x, e.y) - 0.06;
     vue.racine.position.set(e.x, y, e.y);
     vue.racine.rotation.y = Math.atan2(e.dx, e.dy);
+    // il arrive avec un petit « pop » élastique (il grandit, dépasse un peu, puis se pose)
+    vue.apparition = Math.min(1, vue.apparition + this.dtReel * 3.5);
+    const a = vue.apparition;
+    vue.racine.scale.setScalar(TAILLE_MONSTRE * (a < 1 ? 1 - Math.cos(a * Math.PI * 2.5) * Math.pow(1 - a, 2) : 1));
     // sous terre (la Taupe) : on cache le monstre, on montre un tas de terre en blocs qui avance
     vue.corps.visible = !e.cache;
     if (e.cache && !vue.butte) {
@@ -1442,6 +1728,16 @@ export default class RenduVoxel {
       mat.emissiveIntensity = flash || (lent < 1 ? 0.45 * k : 0);
     }
     majBarreDeVie(vue.barre, e.pv / e.pvMax, this.camera);
+  }
+
+  // Un monstre battu (ou entré dans le château) : il s'écrase en 0,2 seconde, puis disparaît
+  sortieEnnemi(vue, t) {
+    const duree = 0.2;
+    if (t >= duree) return false;
+    const k = t / duree;
+    vue.corps.scale.set(vue.taille * (1 + k * 0.6), vue.taille * Math.max(0.05, 1 - k), vue.taille * (1 + k * 0.6));
+    vue.barre.visible = false;
+    return true;
   }
 
   creerVueTir(p) {
@@ -1576,6 +1872,7 @@ export default class RenduVoxel {
   }
 
   traiterEvenements(evenements) {
+    this.lumieres.evenements(evenements);
     for (const ev of evenements) {
       const y = this.sol(ev.x, ev.y);
       switch (ev.type) {
@@ -1707,11 +2004,12 @@ export default class RenduVoxel {
     e.uContraste.value = a.contraste;
     e.uRayons.value = a.rayons;
     e.uRayonsCouleur.value.copy(a.rayonsCouleur);
-    // La nuit, les lanternes s'allument
+    // La nuit, les lanternes s'allument (leur lumière vient de la carte des lumières ; ici, c'est
+    // seulement la lanterne elle-même qui brille, sans éblouir : avec le halo, 2 était bien trop fort)
     const nuit = a.nuit;
-    for (const l of this.lumieresNuit) l.intensity = nuit * (4 + Math.sin(this.temps * 9 + l.id) * 0.4);
-    this.matLanterne.emissiveIntensity = 0.2 + nuit * 2.2;
-    if (this.blocsLanterne) this.blocsLanterne.material.emissiveIntensity = 0.2 + nuit * 2.2;
+    this.carte.uniforms.uCarteForce.value = a.lumieres;
+    this.matLanterne.emissiveIntensity = 0.2 + nuit * 0.9;
+    if (this.blocsLanterne) this.blocsLanterne.material.emissiveIntensity = 0.2 + nuit * 0.9;
     this.matEau.emissiveIntensity = 0.4 - nuit * 0.3;
     this.uLueur.value = a.lueur;
   }
@@ -1794,21 +2092,33 @@ export default class RenduVoxel {
       this.majEclairs(Infinity); // les éclairs de la partie d'avant disparaissent
     }
     this.temps += dtReel;
+    this.dtReel = dtReel;
     this.secousse = Math.max(0, this.secousse - dtReel * 1.2);
+    // une vague vient d'être repoussée : les gardiens vont sauter de joie
+    if (this.statutAvant === 'vague' && etat.statut === 'preparation') this.joie = 1;
+    this.statutAvant = etat.statut;
+    this.joie = Math.max(0, (this.joie || 0) - dtReel * 1.1);
 
     this.traiterEvenements(etat.evenements);
     this.vuesTours.appliquer(etat.tours);
     this.vuesEnnemis.appliquer(etat.ennemis);
+    this.vuesEnnemis.majSortants(dtReel);
     this.vuesTirs.appliquer(etat.projectiles);
     this.particules.maj(dtJeu || 0);
     this.majEclairs(dtReel);
     this.majRayons(etat);
+    // les lumières du jeu : la liste du moment, peinte dans la carte des lumières
+    this.lumieres.maj(dtReel);
+    this.carte.dessiner(this.lumieres.liste(etat, this.ambiance.nuit), 1);
 
     // Socles : surbrillance au survol, petit repère doré sur les socles libres
+    // (la nuit, le repère brille moins : sinon chaque socle libre ressemble à une lampe)
     const occupes = new Set(etat.tours.map((t) => t.socle));
+    const eclatRepere = 1.6 * (1 - this.ambiance.nuit * 0.5);
     this.socles.forEach((s, i) => {
       const actif = i === ui.survol || i === ui.selection;
       s.dessus.material.emissiveIntensity += ((actif ? 0.45 : 0) - s.dessus.material.emissiveIntensity) * 0.3;
+      s.repere.material.color.set('#ffcc55').multiplyScalar(eclatRepere);
       s.repere.visible = !occupes.has(i);
       s.repere.rotation.y = this.temps * 1.5;
       s.repere.position.y = 0.7 + Math.sin(this.temps * 2 + i) * 0.06 + (actif ? 0.1 : 0);
@@ -1831,6 +2141,8 @@ export default class RenduVoxel {
     this.uTempsVent.value = this.temps;
     this.uniformesCiel.uTemps.value = this.temps;
     for (const eau of this.eaux) eau.position.y = -0.18 + Math.sin(this.temps * 1.2) * 0.01;
+    this.texEau.offset.set(this.temps * 0.05, this.temps * 0.03); // l'eau glisse doucement
+    this.majVie(dtReel);
     this.drapeaux.forEach((morceaux, j) => morceaux.forEach((p, i) => {
       p.rotation.y = Math.sin(this.temps * 4 - i * 0.9 + j) * (0.18 + i * 0.12) + (i === 0 ? 0.5 : 0);
     }));
@@ -1888,6 +2200,7 @@ export default class RenduVoxel {
   detruire() {
     this.renderer.setAnimationLoop(null);
     this.appareilPhoto?.dispose();
+    this.carte.dispose();
     liberer(this.scene);
     Object.values(this.tex).forEach((t) => t.dispose());
     this.composer.dispose?.();

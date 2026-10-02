@@ -162,7 +162,8 @@
       "lucioles": 0,
       "etoiles": 0,
       "nuit": 0,
-      "lueur": 0.32
+      "lueur": 0.32,
+      "lumieres": 0.5
     },
     "aube": {
       "soleil": "#ffd0d8",
@@ -190,7 +191,8 @@
       "lucioles": 0,
       "etoiles": 0,
       "nuit": 0,
-      "lueur": 0.12
+      "lueur": 0.12,
+      "lumieres": 0.6
     },
     "midi": {
       "soleil": "#fff6e6",
@@ -218,35 +220,37 @@
       "lucioles": 0,
       "etoiles": 0,
       "nuit": 0,
-      "lueur": 0
+      "lueur": 0,
+      "lumieres": 0.25
     },
     "nuit": {
-      "soleil": "#8fb0ff",
-      "intensite": 1,
+      "soleil": "#9fb6ff",
+      "intensite": 1.6,
       "elevation": 38,
       "azimut": 160,
-      "ciel": "#3a4c8a",
-      "sol": "#16121e",
-      "hemi": 0.75,
-      "brume": "#1a2244",
+      "ciel": "#4a5c9e",
+      "sol": "#2a2440",
+      "hemi": 1.1,
+      "brume": "#24305a",
       "densite": 0.009,
       "haut": "#060920",
-      "horizon": "#1e2858",
+      "horizon": "#2a3570",
       "bas": "#141a38",
       "halo": "#b8ccff",
-      "expo": 1.15,
-      "bloom": 0.9,
-      "seuil": 0.55,
+      "expo": 1.25,
+      "bloom": 0.55,
+      "seuil": 0.72,
       "chaleur": -0.2,
       "saturation": 1,
-      "contraste": 1.08,
+      "contraste": 1.04,
       "rayons": 0.12,
       "rayonsCouleur": "#9fb8ff",
       "poussiere": 0,
       "lucioles": 1,
       "etoiles": 1,
       "nuit": 1,
-      "lueur": 0.05
+      "lueur": 0.05,
+      "lumieres": 0.9
     }
   }
 }

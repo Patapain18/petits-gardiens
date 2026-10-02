@@ -454,6 +454,19 @@ Pour « brancher » un matériau, on modifie son programme (son *shader*) juste 
 - **La vie autour** : des volées d'oiseaux (leur ombre passe sur le sol), des papillons qui se posent de fleur en fleur, des feuilles d'automne qui tombent en tournoyant, des lucioles la nuit.
 - **Les personnages** : les monstres arrivent avec un petit « pop » élastique et s'écrasent en disparaissant quand ils sont battus (`Synchro` sait maintenant faire partir un objet en douceur) ; les gardiens reculent quand ils tirent et sautent de joie quand une vague est repoussée.
 
+### Le monde 3 (voxel)
+
+- **L'occlusion ambiante, comme dans Minecraft.** Le monde était fait de 50 000 cubes entiers, dont la plupart des faces étaient collées à un voisin, donc invisibles. Il est maintenant assemblé face par face (`fabriquerBlocs`) : on ne garde que les faces visibles, rangées par matériau, soit quelques grands objets. Et chaque coin de face reçoit une clarté : on regarde les trois cubes qui touchent ce coin, devant la face ; plus il y en a, moins la lumière du ciel arrive, plus le coin est sombre. Au pied d'un mur, sous un arbre, au bord d'un étang, la lumière se pose tout en douceur. Bonus : une image se calcule plus vite (environ 5,5 ms au lieu de 7,5 en pleine bataille).
+- **Les feuilles ondulent** (comme dans les *shaders* de Minecraft) : chaque coin bouge un tout petit peu selon sa place et le temps ; deux blocs voisins partagent leurs coins, donc bougent ensemble sans se décoller.
+- **Des nuits lisibles et des lumières qui n'éblouissent plus.** L'atelier mesurait jusqu'à 39 % d'image presque noire la nuit ; c'est maintenant entre 6 et 9 %, avec un clair de lune plus fort, un halo (*bloom*) plus discret, les lanternes et les repères dorés des socles moins brillants, et les flaques de lumière de la carte des lumières (qui remplacent les lampes `PointLight`).
+- **L'eau** : une texture en pixels qui glisse doucement, et un peu plus rugueuse. Trop lisse, elle renvoyait le soleil de midi comme un miroir (la seule vraie tache brûlée trouvée par l'atelier, sur le niveau 3-1).
+- **La vie autour** : des feuilles d'automne qui tombent des arbres roux, un poisson qui saute de temps en temps hors d'un étang (avec ses éclaboussures), des volées d'oiseaux et leur ombre, des papillons.
+- **Les personnages** : les mêmes animations qu'en cartoon (« pop », écrasement, recul, saut de joie), et les gardiens clignent des yeux.
+
+Au passage, un vieux défaut est réparé : les têtes et les tiges des fleurs avaient la même « clé de programme », donc Three.js donnait à l'une le programme de l'autre.
+
+Le tour complet final de l'atelier : 168 images (15 niveaux, dans les trois styles, aux quatre moments de la journée), sans aucune zone brûlée de taille notable (au plus 0,1 % de l'image, de petits reflets blancs voulus du pixel art).
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -554,7 +567,7 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 
 ### Les trois styles, techniquement
 
-- **Voxel doré** (Three.js). Le monde est fait d'environ 50 000 cubes affichés avec des `InstancedMesh`, ce qui revient à un seul envoi à la carte graphique par type de bloc. Les textures 16 × 16 sont dessinées par le code. L'éclairage vient d'un soleil bas qui projette de vraies ombres. Par-dessus, un post-traitement ajoute le halo des lumières (*bloom*), les rayons de soleil, la chaleur des couleurs et la vignette. Il y a 4 ambiances et 2 caméras.
+- **Voxel doré** (Three.js). Le monde est fait d'environ 50 000 cubes, assemblés face par face (seulement les faces visibles, avec leur occlusion ambiante) en quelques grands objets, un par matériau. Les textures 16 × 16 sont dessinées par le code. L'éclairage vient d'un soleil bas qui projette de vraies ombres. Par-dessus, un post-traitement ajoute le halo des lumières (*bloom*), les rayons de soleil, la chaleur des couleurs et la vignette. Il y a 4 ambiances et 2 caméras.
 - **Diorama cartoon** (Three.js). Il utilise un *toon shading*, c'est-à-dire 3 tons seulement au lieu d'un dégradé. Les contours sombres viennent d'une copie de l'objet légèrement gonflée et vue de l'intérieur. La caméra est orthographique, donc sans perspective, ce qui donne l'effet maquette. Le sol est peint dans un canvas puis collé sur le terrain. Ses 4 ambiances changent la couleur et la position du soleil, la lumière du ciel, la couleur de l'eau, le vent et les ombres des nuages ; les lumières du jeu passent par la carte des lumières.
 - **Pixel art** (Canvas 2D, sans Three.js). Chaque sprite est dessiné case par case par le code, et le contour sombre est ajouté automatiquement. La scène est dessinée en petite résolution (une case = 16 pixels), puis agrandie d'un nombre entier de fois sans lissage, pour garder des pixels bien carrés. L'ordre d'une image : le sol (le fond peint d'avance, l'eau, l'herbe, les socles), le calque des ombres, les ombres des nuages, tout ce qui a de la hauteur trié du haut vers le bas de l'écran, la vie (papillons, feuilles, oiseaux), puis la lumière. Ses 4 ambiances sont des voiles de couleur posés sur l'image ; la nuit, tout s'assombrit en bleu (« multiply ») et les lumières du jeu ajoutent des halos (« lighter »), avec des lucioles.
 
