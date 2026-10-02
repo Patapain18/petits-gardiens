@@ -11,6 +11,7 @@ import { creerAleatoire, bruit2D } from '../jeu/aleatoire.js';
 import { socleProche } from './outils3d.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import { Lumieres } from './lumieres.js';
+import { ficheDe, socleActif } from '../jeu/benedictions.js';
 
 const T = 16; // taille d'une case en pixels
 const CONTOUR = '#24161c';
@@ -943,6 +944,9 @@ export default class RenduPixel {
     this.papillons = null;
     this.flash = 0;                    // l'éclair d'un orage d'Étincelle, la nuit
     this.ondes = [];                   // les ondes de choc du Météore (des cercles qui s'agrandissent)
+    // les socles bonus débloqués (bénédiction « Nouveau socle ») : la terre n'est peinte que sous eux
+    this.debloques = new Set();
+    this.cleSocles = '';
     this.creerNuages();
     this.redimensionner();
   }
@@ -950,6 +954,7 @@ export default class RenduPixel {
   // ── Le sol, peint pixel par pixel une fois pour toutes (à chaque redimensionnement) ──
   peindreSol() {
     const niv = this.niveau, ch = niv.chateau;
+    const soclesPeints = niv.socles.filter((s, i) => !s.bonus || this.debloques.has(i)); // (pas les socles bonus endormis)
     const l = this.ecran.width, h = this.ecran.height;
     const fond = document.createElement('canvas');
     fond.width = l;
@@ -983,7 +988,7 @@ export default class RenduPixel {
           c = tache > 0.62 ? C.herbeClair : tache < 0.3 ? C.herbeFonce : C.herbe;
           if (g > 0.965) c = C.herbeFonce;            // brins d'herbe
           else if (g < 0.03) c = C.herbeClair;
-          for (const e of niv.socles) {               // terre sous les socles
+          for (const e of soclesPeints) {             // terre sous les socles
             if (Math.hypot(x - e.x, y - e.y) < 0.68) c = C.terre;
           }
         }
@@ -1092,6 +1097,12 @@ export default class RenduPixel {
         this.emettre(v.x, v.y, 10, ['#4a4048', '#7a6a70', '#ff8a2a'], 30, 60, 0.6, 10); // de la fumée sur le gardien
       }
       if (ev.type === 'construction' || ev.type === 'vente') this.emettre(p.x, p.y, 16, ['#e8dcc0', '#c8b898', '#ffd24a'], 45, 40, 0.5);
+      if (ev.type === 'nouveauSocle') {
+        // un nouveau socle sort de terre : un nuage de poussière et des étincelles dorées
+        this.poufs.push({ x: p.x, y: p.y + 4, haut: 0, t: 0, gros: false });
+        this.emettre(p.x, p.y, 20, ['#e8dcc0', '#c8b898', '#a08868'], 50, 45, 0.6);
+        this.emettre(p.x, p.y - 4, 24, ['#ffd24a', '#fff4b0', '#ffffff'], 25, 110, 0.9, 6);
+      }
       if (ev.type === 'amelioration') this.emettre(p.x, p.y - 6, 24, ['#ffd24a', '#fff4b0', '#ffffff'], 25, 110, 0.8); // étincelles dorées
       if (ev.type === 'fuite') { this.emettre(p.x, p.y, 30, ['#ff4a3a', '#2a1a1a'], 70, 80, 1); this.secousse = 0.4; }
     }
@@ -1129,7 +1140,21 @@ export default class RenduPixel {
     this.temps += dtReel;
     this.secousse = Math.max(0, this.secousse - dtReel);
     this.flash = Math.max(0, this.flash - dtReel);
+    // un socle bonus vient d'être débloqué (ou une nouvelle partie commence) : on repeint le sol
+    const cleSocles = etat.soclesDebloques.join(',');
+    if (cleSocles !== this.cleSocles) {
+      this.cleSocles = cleSocles;
+      this.debloques = new Set(etat.soclesDebloques);
+      this.peindreSol();
+    }
     this.traiterEvenements(etat.evenements);
+    if (etat.evenements.some((ev) => ev.type === 'benediction')) {
+      // une bénédiction : une fontaine d'étincelles dorées sur chaque gardien
+      for (const t of etat.tours) {
+        const p = this.versPixel(t.x, t.y);
+        this.emettre(p.x, p.y - 6, 14, ['#ffd24a', '#fff4b0', '#ffffff'], 22, 100, 0.9, 10);
+      }
+    }
     if (etat.evenements.some((ev) => ev.type === 'grandFroid')) {
       // le Grand froid : une bouffée de flocons sur chaque monstre gelé
       for (const e of etat.ennemis) {
@@ -1160,6 +1185,7 @@ export default class RenduPixel {
       c.drawImage(img, p.x - (img.width >> 1), p.y - img.height + 1);
     }
     this.niveau.socles.forEach((e, i) => {
+      if (e.bonus && !this.debloques.has(i)) return; // un socle bonus encore endormi
       const p = this.versPixel(e.x, e.y);
       this.dessinerImage(i === ui.survol || i === ui.selection ? this.sprites.socleSurligne : this.sprites.socle, p.x, p.y + 7);
     });
@@ -1181,6 +1207,7 @@ export default class RenduPixel {
     }
     // les gardiens (et le « + » doré des socles libres)
     this.niveau.socles.forEach((e, i) => {
+      if (e.bonus && !this.debloques.has(i)) return;
       const p = this.versPixel(e.x, e.y);
       const tour = occupes.get(i);
       if (!tour) {
@@ -1368,7 +1395,7 @@ export default class RenduPixel {
     // cercle de portée
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
     const tour = occupes.get(iPortee);
-    const portee = tour ? ui.apercuPortee ?? caracteristiques(tour.type, tour.niveau).portee : 0;
+    const portee = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : 0; // (avec les bénédictions)
     if (portee > 0) { // (un gardien qui ne tire pas, comme la Pépite, n'a pas de cercle)
       const p = this.versPixel(tour.x, tour.y);
       // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
@@ -1376,7 +1403,7 @@ export default class RenduPixel {
     }
     // le Météore : là où il va tomber, pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
     const meteore = etat.projectiles.find((t) => t.type === 'meteore');
-    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: POUVOIRS.meteore.rayon });
+    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: meteore.rayon });
     if (visee && (!meteore || Math.floor(this.temps * 10) % 2)) {
       const p = this.versPixel(visee.x, visee.y);
       const couleur = meteore ? '#ff5a3a' : '#ffb46a';
@@ -1873,7 +1900,8 @@ export default class RenduPixel {
   socleSous(px, py) {
     const r = this.canvas.getBoundingClientRect();
     const ix = ((px - r.left) * this.dpr) / this.echelle, iy = ((py - r.top) * this.dpr) / this.echelle;
-    return socleProche(this.niveau.socles, (ix - this.ox) / T, (iy - this.oy - 2) / T, 0.75);
+    const i = socleProche(this.niveau.socles, (ix - this.ox) / T, (iy - this.oy - 2) / T, 0.75);
+    return i >= 0 && (!this.partie || socleActif(this.partie, i)) ? i : -1; // (pas un socle bonus endormi)
   }
 
   // Le point du sol (en cases) sous un point de l'écran (pour viser le Météore)

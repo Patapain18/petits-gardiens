@@ -13,6 +13,7 @@ import {
   pouvoirPret, lancerMeteore, lancerGrandFroid,
 } from './moteur.js';
 import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS } from './donnees.js';
+import { choisirBenediction, pouvoirDe } from './benedictions.js';
 import { DIFFICULTES } from './niveau.js';
 
 // Le mélange du bon joueur. Les gardiens des mondes 2 (Étincelle, Bourrasque) et 3 (Prisme,
@@ -59,7 +60,9 @@ function cheminVu(niveau, s, portee) {
 }
 export function classerSocles(niveau, portee = PORTEE_CLASSEMENT) {
   return niveau.socles
-    .map((s, i) => ({ socle: i, vue: cheminVu(niveau, s, portee) }))
+    .map((s, i) => ({ socle: i, vue: cheminVu(niveau, s, portee), bonus: s.bonus }))
+    .filter((s) => !s.bonus) // un socle bonus dort jusqu'à la bénédiction « Nouveau socle »
+    .map(({ socle, vue }) => ({ socle, vue }))
     .sort((a, b) => b.vue - a.vue || a.socle - b.socle);
 }
 
@@ -179,7 +182,7 @@ function utiliserPouvoirs(etat, malin) {
   }
   if (pouvoirPret(etat, 'froid') && (niveau.longueurChemin - premier.d < URGENCE || sousLeFeu(etat, visibles))) lancerGrandFroid(etat);
   if (!pouvoirPret(etat, 'meteore')) return;
-  const { chute, rayon, part } = POUVOIRS.meteore;
+  const { chute, rayon, part } = pouvoirDe(etat, 'meteore');
   // où sera chaque monstre quand le Météore tombera, et la vie qu'il lui enlèverait
   const futurs = visibles.map((e) => {
     const vitesse = e.gele > chute ? 0 : MONSTRES[e.type].vitesse * e.facteurRalenti;
@@ -211,6 +214,53 @@ function sousLeFeu(etat, visibles) {
   return couverte >= total * 0.7;
 }
 
+// ── Les bénédictions ─────────────────────────────────────────
+// Le bon joueur prend celle qui va le mieux avec sa défense (une estimation : ce qu'elle
+// ajoute à sa puissance) ; le maladroit prend toujours la première proposée.
+function valeurBenediction(etat, id) {
+  const parts = {};
+  let total = 0;
+  for (const t of etat.tours) {
+    const p = puissance(t.type, t.niveau);
+    parts[t.type] = (parts[t.type] || 0) + p;
+    total += p;
+  }
+  const part = (type) => (total ? (parts[type] || 0) / total : 0);
+  const debut = etat.vague <= 5 ? 1 : etat.vague <= 10 ? 0.6 : 0.3; // l'or compte surtout au début
+  switch (id) {
+    case 'feu': return 0.35 * part('braise');
+    case 'hiver': return part('givrine') ? 0.2 : 0;
+    case 'rochers': return 0.4 * part('grondin');
+    case 'lynx': return 0.13;
+    case 'entrainement': return 0.15;
+    case 'furie': return 0.136;
+    case 'etoiles': return etat.pouvoirs ? 0.18 : 0;
+    case 'comete': return etat.pouvoirs ? 0.1 : 0;
+    case 'polaire': return etat.pouvoirs ? 0.07 : 0;
+    case 'tresor': return 0.2 * debut;
+    case 'butin': return 0.3 * debut;
+    case 'socle': return 1 / Math.max(6, etat.tours.length);
+    default: return 0;
+  }
+}
+// Après le choix, s'il a pris un « Nouveau socle », il y posera son gardien préféré (le plus
+// présent dans sa défense) et l'améliorera comme les autres
+function choisirPourLeBot(etat, malin, poses, aFaire) {
+  const id = malin
+    ? etat.offre.reduce((a, b) => (valeurBenediction(etat, b) > valeurBenediction(etat, a) ? b : a))
+    : etat.offre[0];
+  const avant = etat.soclesDebloques.length;
+  choisirBenediction(etat, id);
+  if (etat.soclesDebloques.length > avant) {
+    const socle = etat.soclesDebloques[etat.soclesDebloques.length - 1];
+    const compte = {};
+    for (const p of poses) compte[p.type] = (compte[p.type] || 0) + 1;
+    const type = Object.keys(compte).sort((a, b) => compte[b] - compte[a])[0];
+    poses.push({ action: 'poser', type, socle });
+    aFaire.push({ action: 'poser', type, socle }, { action: 'ameliorer', socle, niveau: 2 }, { action: 'ameliorer', socle, niveau: 3 });
+  }
+}
+
 // Essaie une action du plan ; renvoie true si elle a pu être faite
 function essayer(etat, action) {
   if (action.action === 'poser') return construire(etat, action.socle, action.type);
@@ -234,6 +284,8 @@ export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'mal
   let marge = niveau.longueurChemin; // la plus petite distance entre un monstre et le château
 
   for (let v = 0; v < niveau.vagues.length; v++) {
+    // une bénédiction à choisir d'abord (bien choisie, sauf par les joueurs maladroits)
+    if (etat.offre) choisirPourLeBot(etat, pouvoirs !== 'naif', poses, aFaire);
     if (malin) {
       acheterMalin(etat, poses, vues, bons);
     } else {

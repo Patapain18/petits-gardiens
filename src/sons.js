@@ -27,6 +27,9 @@ const BRUITAGES = [
   ['Les pouvoirs du château', [
     ['meteore', 'Météore lancé'], ['explosion', 'Météore qui s’écrase', { quoi: 'meteore' }], ['grandFroid', 'Grand froid'],
   ]],
+  ['Les bénédictions', [
+    ['benediction', 'Bénédiction choisie'], ['nouveauSocle', 'Un nouveau socle'],
+  ]],
   ['L’or et les gardiens', [
     ['recolte', 'Récolte de la Pépite'], ['construction', 'Gardien posé'], ['amelioration', 'Amélioration'], ['vente', 'Gardien revendu'],
   ]],

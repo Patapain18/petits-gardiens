@@ -12,6 +12,7 @@ import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
+import { ficheDe, socleActif } from '../jeu/benedictions.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -719,7 +720,8 @@ export default class RenduCartoon {
 
     // 2. sous les socles : un carré de terre (comme un emplacement de chantier)
     const niv = this.niveau;
-    for (const e of niv.socles) { rond(e.x, e.y, 0.78, '#5c9c34'); rond(e.x, e.y, 0.7, '#a8865a'); }
+    // (pas sous les socles bonus encore endormis : leur terre sera peinte au déblocage, voir majTerreSocles)
+    for (const e of niv.socles) { if (!e.bonus) { rond(e.x, e.y, 0.78, '#5c9c34'); rond(e.x, e.y, 0.7, '#a8865a'); } }
 
     // 3. la cour du château et la berge des étangs
     ctx.fillStyle = '#c9bda4';
@@ -1114,7 +1116,7 @@ export default class RenduCartoon {
       zone.userData.index = i;
       g.add(zone);
       this.scene.add(g);
-      return { base, plus, zone };
+      return { groupe: g, base, plus, zone };
     });
   }
 
@@ -1160,6 +1162,33 @@ export default class RenduCartoon {
     g.visible = false;
     this.scene.add(g);
     return g;
+  }
+
+  // Un socle bonus vient d'être débloqué (bénédiction « Nouveau socle ») : on peint sa terre sur la
+  // toile du sol, un peu plus petite que celle des autres (elle ne doit pas mordre sur le chemin),
+  // en gardant ce qu'il y avait dessous : si une nouvelle partie commence, on remet l'herbe.
+  majTerreSocles(etat) {
+    const cle = etat.soclesDebloques.join(',');
+    if (cle === (this.cleSocles ?? '')) return;
+    this.cleSocles = cle;
+    const { ctx, X, Z, ppc } = this.toileSol;
+    this.terresSocles ||= new Map();
+    for (const [i, dessous] of this.terresSocles) {
+      if (etat.soclesDebloques.includes(i)) continue;
+      ctx.putImageData(dessous.pixels, dessous.x, dessous.y);
+      this.terresSocles.delete(i);
+    }
+    for (const i of etat.soclesDebloques) {
+      if (this.terresSocles.has(i)) continue;
+      const e = this.niveau.socles[i];
+      const r = Math.ceil(0.7 * ppc), x = Math.round(X(e.x)) - r, y = Math.round(Z(e.y)) - r;
+      this.terresSocles.set(i, { x, y, pixels: ctx.getImageData(x, y, r * 2, r * 2) });
+      for (const [rayon, couleur] of [[0.66, '#5c9c34'], [0.6, '#a8865a']]) {
+        ctx.fillStyle = couleur;
+        ctx.beginPath(); ctx.arc(X(e.x), Z(e.y), rayon * ppc, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    this.texSol.needsUpdate = true;
   }
 
   // Le cercle du Météore : là où il va tomber (sa couleur change dans dessiner())
@@ -1779,6 +1808,11 @@ export default class RenduCartoon {
         case 'vente':
           this.pouf(ev.x, y + 0.1, ev.y, 1.2);
           break;
+        case 'nouveauSocle': // un nouveau socle sort de terre : un nuage et des étincelles dorées
+          this.pouf(ev.x, y + 0.1, ev.y, 1.6);
+          this.gerbe(ev.x, y + 0.5, ev.y, 24, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.3, haut: 4.2, taille: 0.08, vie: 1, eclat: 1.4, gravite: -2 });
+          break;
+
         case 'fuite':
           this.gerbe(ev.x, y + 0.5, ev.y, 30, ['#ff4a3a', '#ff9a8a', '#2a1a1a'], { force: 3, haut: 4, taille: 0.14, vie: 1.2 });
           this.secousse = 0.4;
@@ -1825,7 +1859,12 @@ export default class RenduCartoon {
     if (this.statutAvant === 'vague' && etat.statut === 'preparation') this.joie = 1;
     this.statutAvant = etat.statut;
     this.joie = Math.max(0, (this.joie || 0) - dtReel * 1.1);
+    this.majTerreSocles(etat);
     this.traiterEvenements(etat.evenements);
+    if (etat.evenements.some((ev) => ev.type === 'benediction')) {
+      // une bénédiction : une fontaine d'étincelles dorées sur chaque gardien
+      for (const t of etat.tours) this.gerbe(t.x, this.sol(t.x, t.y) + 0.8, t.y, 16, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1, haut: 4, taille: 0.08, vie: 1, eclat: 1.4, gravite: -2 });
+    }
     if (etat.evenements.some((ev) => ev.type === 'grandFroid')) {
       // le Grand froid : une bouffée de flocons sur chaque monstre gelé
       for (const e of etat.ennemis) {
@@ -1846,6 +1885,16 @@ export default class RenduCartoon {
 
     const occupes = new Set(etat.tours.map((t) => t.socle));
     this.socles.forEach((s, i) => {
+      // un socle bonus n'existe qu'une fois débloqué (bénédiction « Nouveau socle ») : il sort alors
+      // de terre avec un petit « pop » élastique
+      const existe = socleActif(etat, i);
+      s.groupe.visible = existe;
+      if (!existe) { s.apparition = 0; return; }
+      if (s.apparition !== undefined && s.apparition < 1) {
+        s.apparition = Math.min(1, s.apparition + dtReel * 2.5);
+        const a = s.apparition;
+        s.groupe.scale.setScalar(1 - Math.cos(a * Math.PI * 2.5) * Math.pow(1 - a, 2));
+      }
       const actif = i === ui.survol || i === ui.selection;
       s.base.material.emissiveIntensity += ((actif ? 0.5 : 0) - s.base.material.emissiveIntensity) * 0.3;
       s.plus.visible = !occupes.has(i);
@@ -1856,7 +1905,7 @@ export default class RenduCartoon {
     // cercle de portée (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
     const tour = etat.tours.find((t) => t.socle === iPortee);
-    const r = tour ? ui.apercuPortee ?? caracteristiques(tour.type, tour.niveau).portee : 0;
+    const r = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : 0; // (avec les bénédictions)
     this.anneau.visible = r > 0; // (un gardien qui ne tire pas, comme la Pépite, n'a pas de cercle)
     if (r > 0) {
       this.anneau.scale.set(r, 1, r);
@@ -1864,7 +1913,7 @@ export default class RenduCartoon {
     }
     // le cercle du Météore : pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
     const meteore = etat.projectiles.find((t) => t.type === 'meteore');
-    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: POUVOIRS.meteore.rayon });
+    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: meteore.rayon });
     this.anneauMeteore.visible = Boolean(visee) && (!meteore || Math.floor(this.temps * 10) % 2 === 1);
     if (visee) {
       this.anneauMeteore.scale.set(visee.rayon, 1, visee.rayon);
@@ -1902,11 +1951,14 @@ export default class RenduCartoon {
     const r = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((px - r.left) / r.width) * 2 - 1, -((py - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const touche = this.raycaster.intersectObjects(this.socles.map((s) => s.zone), false)[0];
+    // (pas les socles bonus encore endormis)
+    const existe = (i) => !this.partie || socleActif(this.partie, i);
+    const touche = this.raycaster.intersectObjects(this.socles.filter((s, i) => existe(i)).map((s) => s.zone), false)[0];
     if (touche) return touche.object.userData.index;
     const p = new THREE.Vector3();
     if (!this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.25), p)) return -1;
-    return socleProche(this.niveau.socles, p.x, p.z, 0.7);
+    const i = socleProche(this.niveau.socles, p.x, p.z, 0.7);
+    return i >= 0 && existe(i) ? i : -1;
   }
 
   // Le point du sol (en cases) sous un point de l'écran (pour viser le Météore)

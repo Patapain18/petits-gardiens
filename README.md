@@ -36,6 +36,7 @@ Ce qui change en ligne :
 - Clique sur un gardien déjà posé : tu vois ses chiffres et sa portée, tu peux l'**améliorer** (niveau 2, puis 3) ou le revendre (tu récupères 60 % de tout ce que tu as dépensé pour lui).
 - Le bouton **Options**, en bas à droite, règle le son, la vitesse et l'affichage (voir « L'écran d'options ») ; la touche **M** coupe tout le son.
 - Dans l'arène, deux **pouvoirs du château** aident pendant les vagues : le **Météore** (touche **1**), que l'on vise sur le chemin, et le **Grand froid** (touche **2**). Voir « Les pouvoirs du château ».
+- Dans l'arène aussi, toutes les 5 vagues tenues, une **bénédiction** : un bonus à choisir parmi 3 (clic, ou touches 1, 2, 3), qui reste jusqu'à la fin de la partie. Voir « Les bénédictions ».
 
 | Gardien | Prix | Pouvoir |
 |---|---|---|
@@ -146,7 +147,7 @@ Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagu
 
 **Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **20 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
 
-**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château : le bon joueur tient 25 vagues, un joueur maladroit environ 21, des Braise seules 16, et sans jamais améliorer 13 ou 14. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
+**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château et les bénédictions : le bon joueur tient 25 à 29 vagues, des Braise seules 16 à 21, et sans jamais améliorer 16 à 18. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
 
 **Le réglage d'octobre 2026.** L'arène était trop facile, surtout avec Givrine + Grondin. Les mesures (des parties simulées, et une recherche automatique de la meilleure composition, socle par socle) l'ont confirmé : ce mélange tenait 34 à 36 vagues, plus d'une demi-heure, contre 26 pour le bon joueur. La raison : les monstres gelés se tassent les uns contre les autres, et dans les dernières vagues un seul rocher en touchait 20 à 40 (jusqu'à 75 !). Autre problème : toute la défense était achetée dès la vague 13. Pendant plus de 20 vagues, il ne restait rien à décider, et l'or s'entassait (22 000 pièces à la fin). Trois changements :
 
@@ -166,9 +167,9 @@ Givrine + Grondin reste le meilleur mélange de l'arène (c'est le rôle du Gron
 
 **Le classement** (`src/classement.js`) est **en ligne** : tous les joueurs se comparent (voir la partie suivante). Ses fonctions répondaient déjà « plus tard » (`async`) quand les scores étaient gardés sur l'ordinateur : pour passer en ligne, ce fichier a changé, et le reste du jeu presque pas. Les pseudos sont toujours affichés tels quels (`textContent`), jamais interprétés comme du HTML.
 
-**Créer une arène** : dans l'éditeur, coche « Mode survie » (et « Pouvoirs du château » pour donner le Météore et le Grand froid). Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
+**Créer une arène** : dans l'éditeur, coche « Mode survie » (et « Pouvoirs du château » pour donner le Météore et le Grand froid, « Bénédictions » pour les bonus toutes les 5 vagues). Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
 
-**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château (faits, ci-dessous), puis des bénédictions entre les vagues et un héros à déplacer.
+**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château et les bénédictions (faits, ci-dessous), puis un héros à déplacer.
 
 ### Les pouvoirs du château
 
@@ -184,6 +185,40 @@ Ils ne se rechargent que **pendant les vagues** : on ne peut pas attendre tranqu
 - Au premier essai, le Météore enlevait la moitié de la vie **maximale** : deux Météores battaient n'importe quel monstre, même dans les vagues les plus solides, et une défense de **Givrine seules tenait les 150 vagues** ! Une part de la vie **qui reste**, c'est toujours utile (en survie, les monstres deviennent de plus en plus solides), mais seul, le Météore ne bat plus personne.
 - Le Grand froid ne servait presque à rien avec des Givrine : des monstres déjà ralentis, qu'on arrête tout à fait, n'avancent guère moins. D'où les monstres **fragiles** pendant le gel. Et un combo : un Météore sur des monstres gelés (deux fois la moitié) les bat tous. Ce n'est pas une astuce sans fin : garder le Météore pour ce combo fait tenir **moins** longtemps que de le lancer librement.
 - Avec Givrine + Grondin : 24,6 vagues sans pouvoirs, 25,9 avec un Météore lancé au hasard, 29,4 avec un Météore bien visé. **Bien viser compte**, et le meilleur score n'est plus fixé par la composition seule.
+
+### Les bénédictions
+
+Dans les arènes dont la fiche dit `"benedictions": true` : après les vagues 5, 10, 15… une carte s'ouvre avec **3 bonus**. On en choisit un (clic, ou touches 1, 2, 3), et il reste jusqu'à la fin de la partie ; on ne peut pas lancer la vague suivante avant d'avoir choisi. Les bénédictions déjà prises s'affichent en petites étiquettes sous la barre du haut (le détail au survol).
+
+**Les mêmes pour tout le monde.** Les 3 propositions sont tirées au hasard, mais avec une graine fixe (celle de la partie, et le numéro de l'étape) : à la même vague, tout le monde voit les mêmes, s'il a fait les mêmes choix avant. Le classement reste juste, et ce qui départage, c'est de bien choisir : un bonus qui va avec sa défense, ou une défense qu'on change pour profiter d'un bonus.
+
+| Bénédiction | Ce qu'elle fait | Famille | Au plus |
+|---|---|---|---|
+| Feu de joie | les Braise font 35 % de dégâts en plus | un gardien | à volonté |
+| Hiver éternel | le gel des Givrine dure 1,5 s de plus et ralentit encore plus (vitesse × 0,8) | un gardien | 2 fois |
+| Rochers géants | les rochers des Grondin touchent 2 monstres de plus, explosion plus large (+0,25) | un gardien | 2 fois |
+| Œil de lynx | tous les gardiens voient 0,5 case plus loin | tous les gardiens | 2 fois |
+| Entraînement | tous les gardiens font 15 % de dégâts en plus | tous les gardiens | à volonté |
+| Furie | tous les gardiens tirent 12 % plus vite | tous les gardiens | à volonté |
+| Pluie d'étoiles | le Météore se recharge 30 % plus vite | un pouvoir | 2 fois |
+| Comète | le Météore touche 0,4 case plus loin et enlève 10 % de vie en plus | un pouvoir | 2 fois |
+| Froid polaire | le Grand froid dure 1 s de plus et se recharge 10 s plus vite | un pouvoir | 2 fois |
+| Coffre au trésor | 400 pièces tout de suite (jusqu'à la vague 15) | l'or | à volonté |
+| Butin | les monstres rapportent 50 % d'or en plus (jusqu'à la vague 15) | l'or | 1 fois |
+| Nouveau socle | un socle de plus sort de terre : une place pour un gardien de plus | un socle | tant qu'il en reste |
+
+Jamais deux bonus d'or à la fois ; un bonus de gardien n'est proposé que si ce gardien est dans le niveau.
+
+**Les socles bonus** sont rangés dans la fiche, à part : `"soclesBonus": [{ "x": 9.25, "y": 6.75 }, …]`. Ils viennent après les autres socles (les numéros des socles normaux ne changent pas) et dorment jusqu'à la bénédiction « Nouveau socle » : pas dessinés, impossibles à cliquer, et le moteur refuse d'y construire. Le décor est calculé avec les socles normaux seulement, pour que l'arène garde exactement les mêmes arbres : la place d'un socle bonus doit donc déjà être libre (pour L'arène pixel, un petit programme a cherché les places loin des arbres et des rochers, près du chemin). Au déblocage, le socle sort de terre (avec un « pop » en 3D), et la terre est peinte dessous.
+
+Les chiffres d'un gardien dans une partie viennent de `ficheDe(etat, type, niveau)` (`src/jeu/benedictions.js`) : sa fiche, avec les bénédictions ; ceux d'un pouvoir, de `pouvoirDe(etat, nom)`. Le moteur, la fiche d'un gardien en partie et le cercle de portée s'en servent.
+
+**Ce que les joueurs imaginaires ont mesuré** (le bon joueur choisit la bénédiction qui va le mieux avec sa défense ; le maladroit prend toujours la première) : avec les bénédictions, le bon joueur passe de 25 à 25-29 vagues. Pour juger chaque bénédiction, un banc d'essai l'a donnée **seule**, à la vague 5 (et 10), sans aucune autre :
+
+- **Pluie d'étoiles** (le Météore 40 % plus vite) prise deux fois faisait gagner 4 vagues à presque tout le monde, et **Froid polaire** (+2 s et 15 s de recharge en moins) jusqu'à 5 vagues à des Givrine : trop forts pour des bonus que tout le monde voudrait. Réglés à 30 %, et +1 s / −10 s.
+- **Comète** (un Météore plus gros) ne changeait presque rien : le Météore touche déjà les paquets. Il est maintenant aussi plus fort (10 % de vie en plus).
+- Les bonus de gardien (Feu de joie, Hiver éternel, Rochers géants) rapportent 2 à 4 vagues… mais seulement à une défense qui a ce gardien : c'est voulu.
+- L'or et le nouveau socle comptent peu pour un bon joueur, dont la défense est complète vers la vague 14 ; ils aident surtout au début.
 
 ## Le classement en ligne
 
@@ -541,6 +576,7 @@ src/
 ├── jeu/               LES RÈGLES (aucun dessin ici)
 │   ├── campagne.js    les mondes et leurs niveaux, dans l'ordre ; quel niveau est ouvert
 │   ├── survie.js      le mode survie : les vagues fabriquées, de plus en plus dures
+│   ├── benedictions.js les bénédictions : la liste, le tirage des 3 propositions, les chiffres avec les bonus
 │   ├── niveau.js      lit et vérifie une fiche, puis calcule chemin, relief et décor
 │   ├── equilibrage.js les joueurs imaginaires et le verdict d'équilibrage
 │   ├── donnees.js     les fiches des personnages : chiffres de jeu + apparence
@@ -746,6 +782,8 @@ Un niveau est un fichier JSON rangé dans `src/niveaux/`. Toutes les positions s
 | `didacticiel` | les leçons et les personnages à présenter (voir « Le didacticiel »). Facultatif |
 | `survie` | `true` : une arène du mode survie (après les vagues écrites, des vagues sans fin). Facultatif |
 | `pouvoirs` | `true` : le joueur a les pouvoirs du château (le Météore et le Grand froid). Facultatif |
+| `benedictions` | `true` : toutes les 5 vagues tenues, une bénédiction à choisir parmi 3. Facultatif |
+| `soclesBonus` | des socles en plus (`[{ "x": …, "y": … }]`), qui dorment jusqu'à la bénédiction « Nouveau socle ». Facultatif |
 | `vagues` | la liste des vagues. Chaque vague contient des groupes `{ "type", "nombre", "ecart", "delai" }` : quel monstre, combien, les secondes entre deux monstres et les secondes avant le premier. Un groupe peut ajouter `"force": 2` pour des monstres deux fois plus résistants |
 
 Si une fiche contient une erreur (champ manquant, mauvais type de monstre…), le jeu affiche la liste des problèmes à l'écran au lieu de démarrer.

@@ -4,6 +4,7 @@
   "description": "Les vagues ne s’arrêtent jamais, et chacune est plus dure que la précédente. Jusqu’où tiendras-tu ?",
   "survie": true,
   "pouvoirs": true,
+  "benedictions": true,
   "style": "pixel",
   "ambiance": "doree",
   "largeur": 24,
@@ -36,6 +37,10 @@
     { "x": 8.5, "y": 13.2 },
     { "x": 16.5, "y": 13.2 },
     { "x": 20.2, "y": 11.5 }
+  ],
+  "soclesBonus": [
+    { "x": 9.25, "y": 6.75 },
+    { "x": 4.5, "y": 12.75 }
   ],
   "chateau": { "x": 21.9, "y": 6.5 },
   "etangs": [

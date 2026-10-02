@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 import { GARDIENS, MONSTRES, POUVOIRS, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
 import { creerAleatoire } from './aleatoire.js';
+import { ficheDe, pouvoirDe, socleActif, bonusDeDepart, proposerBenedictions, TOUTES_LES } from './benedictions.js';
 
 // Le vent de Bourrasque : le monstre poussé glisse en arrière à VITESSE_RECUL cases
 // par seconde, puis s'accroche au sol pendant ACCROCHE secondes (un autre coup de
@@ -23,6 +24,7 @@ const DUREE_BOND = 0.4; // le petit saut d'un monstre qui vient de naître (les 
 export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
   return {
     niveau,
+    graine,                   // le point de départ du hasard (les bénédictions proposées en dépendent)
     alea: creerAleatoire(graine),
     or: niveau.or,
     vague: 0,                 // nombre de vagues déjà lancées
@@ -38,6 +40,13 @@ export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
     // les pouvoirs du château (si la fiche du niveau en donne) : le temps qu'il reste avant
     // que chacun soit prêt (0 = prêt). Voir POUVOIRS dans donnees.js.
     pouvoirs: niveau.pouvoirs ? { meteore: 0, froid: 0 } : null,
+    // les bénédictions (voir benedictions.js) : les bonus de la partie, celles déjà choisies,
+    // les 3 proposées en ce moment (null s'il n'y a rien à choisir), et les socles bonus débloqués
+    bonus: niveau.benedictions ? bonusDeDepart() : null,
+    benedictions: [],
+    offre: null,
+    soclesDebloques: [],
+    fiches: new Map(),        // les chiffres des gardiens avec les bonus (calculés une fois)
   };
 }
 
@@ -65,7 +74,7 @@ export function construire(etat, indexSocle, type) {
   if (!GARDIENS[type] || !estDisponible(etat, type)) return false;
   const { cout } = caracteristiques(type, 1);
   const socle = etat.niveau.socles[indexSocle];
-  if (!socle || etat.or < cout || tourSur(etat, indexSocle) || partieFinie(etat)) return false;
+  if (!socle || !socleActif(etat, indexSocle) || etat.or < cout || tourSur(etat, indexSocle) || partieFinie(etat)) return false;
   etat.or -= cout;
   etat.tours.push({
     id: etat.prochainId++,
@@ -115,6 +124,7 @@ export function vendre(etat, indexSocle) {
 export function lancerVague(etat) {
   const { vagues } = etat.niveau;
   if (etat.statut !== 'preparation' || etat.vague >= vagues.length) return false;
+  if (etat.offre) return false; // une bénédiction attend d'être choisie
   // On transforme la description de la vague en une liste d'apparitions datées.
   // force : les points de vie sont multipliés (des monstres renforcés, en mode survie)
   for (const groupe of vagues[etat.vague]) {
@@ -136,9 +146,9 @@ export const pouvoirPret = (etat, nom) => Boolean(etat.pouvoirs) && etat.statut 
 // autres, rangé avec eux : les styles le dessinent pendant sa chute)
 export function lancerMeteore(etat, x, y) {
   if (!pouvoirPret(etat, 'meteore')) return false;
-  const { recharge, chute, hauteur } = POUVOIRS.meteore;
+  const { recharge, chute, hauteur, rayon, part } = pouvoirDe(etat, 'meteore'); // (avec les bénédictions)
   etat.pouvoirs.meteore = recharge;
-  etat.projectiles.push({ id: etat.prochainId++, type: 'meteore', x, y, z: hauteur, reste: chute, chute });
+  etat.projectiles.push({ id: etat.prochainId++, type: 'meteore', x, y, z: hauteur, reste: chute, chute, rayon, part });
   etat.evenements.push({ type: 'meteore', x, y });
   return true;
 }
@@ -146,7 +156,7 @@ export function lancerMeteore(etat, x, y) {
 // Le Grand froid : tous les monstres sur le chemin gèlent sur place (pas ceux qui sont sous terre)
 export function lancerGrandFroid(etat) {
   if (!pouvoirPret(etat, 'froid')) return false;
-  const { recharge, duree } = POUVOIRS.froid;
+  const { recharge, duree } = pouvoirDe(etat, 'froid');
   etat.pouvoirs.froid = recharge;
   for (const e of etat.ennemis) {
     if (e.pv > 0 && !e.cache) e.gele = duree * (MONSTRES[e.type].gel ?? 1);
@@ -264,7 +274,7 @@ export const hauteurDe = (ennemi) => 0.35 + (MONSTRES[ennemi.type].volant ? HAUT
 
 function faireTirerLesTours(etat, dt) {
   for (const tour of etat.tours) {
-    const fiche = caracteristiques(tour.type, tour.niveau); // les chiffres de son niveau actuel
+    const fiche = ficheDe(etat, tour.type, tour.niveau); // les chiffres de son niveau actuel (avec les bénédictions)
     tour.attaque = Math.max(0, tour.attaque - dt);
     tour.rayon = null; // le monstre que touche son rayon en ce moment (le Prisme)
     if (!fiche.projectile) continue; // un gardien qui ne tire pas (la Pépite)
@@ -486,11 +496,10 @@ function exploser(etat, p, fiche) {
 // la vie maximale : deux Météores battaient n'importe quel monstre, et une défense de
 // Givrine seules tenait les 150 vagues de l'arène !)
 function meteoreTombe(etat, p) {
-  const { rayon, part } = POUVOIRS.meteore;
   for (const e of etat.ennemis) {
-    if (e.pv > 0 && !e.cache && Math.hypot(e.x - p.x, e.y - p.y) <= rayon) blesser(etat, e, e.pv * part, { perce: true });
+    if (e.pv > 0 && !e.cache && Math.hypot(e.x - p.x, e.y - p.y) <= p.rayon) blesser(etat, e, e.pv * p.part, { perce: true });
   }
-  etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon });
+  etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon: p.rayon });
 }
 
 // perce : le coup traverse les carapaces ; flash : le monstre clignote (pas pour un rayon
@@ -509,8 +518,9 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true } = {}) {
   if (ennemi.pv <= 0) {
     const fiche = MONSTRES[ennemi.type];
     etat.battus++;
-    etat.or += fiche.prime;
-    etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, quoi: ennemi.type, prime: fiche.prime });
+    const prime = Math.round(fiche.prime * (etat.bonus?.primes ?? 1)); // (la bénédiction « Butin »)
+    etat.or += prime;
+    etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, quoi: ennemi.type, prime });
     if (fiche.enfants) faireNaitre(etat, ennemi, fiche.enfants);
   }
 }
@@ -538,5 +548,10 @@ function verifierFinDeVague(etat) {
     if (!recolte) continue;
     etat.or += recolte;
     etat.evenements.push({ type: 'recolte', x: tour.x, y: tour.y, quoi: tour.type, or: recolte });
+  }
+  // toutes les 5 vagues tenues, le joueur choisit une bénédiction (avant de lancer la suivante)
+  if (etat.niveau.benedictions && etat.vague % TOUTES_LES === 0) {
+    const offre = proposerBenedictions(etat);
+    if (offre.length) etat.offre = offre;
   }
 }

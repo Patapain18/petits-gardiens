@@ -203,7 +203,10 @@ export function chargerNiveau(fiche) {
     or: fiche.or,
     chemin,
     cheminVisuel,
-    socles,
+    // les socles bonus (débloqués par la bénédiction « Nouveau socle ») viennent après les autres,
+    // marqués « bonus » : les numéros des socles normaux ne changent pas. (Le décor, lui, est
+    // calculé avec les socles normaux seulement : leurs places doivent déjà être libres.)
+    socles: [...socles, ...(fiche.soclesBonus || []).map((s) => ({ ...s, bonus: true }))],
     chateau,
     etangs,
     lanternes: fiche.lanternes || [],
@@ -212,6 +215,8 @@ export function chargerNiveau(fiche) {
     vagues: fiche.survie ? vaguesDeSurvie(fiche.vagues) : fiche.vagues,
     // les pouvoirs du château (le Météore et le Grand froid), que le joueur déclenche lui-même
     pouvoirs: Boolean(fiche.pouvoirs),
+    // les bénédictions : toutes les 5 vagues tenues, un bonus à choisir parmi 3 (voir benedictions.js)
+    benedictions: Boolean(fiche.benedictions),
     // pour chaque gardien proposé, la vague à partir de laquelle on peut le poser
     // (si la fiche ne dit rien : tous les gardiens, dès la vague 1)
     gardiens: fiche.gardiens || Object.fromEntries(Object.keys(GARDIENS).map((type) => [type, 1])),
@@ -255,6 +260,7 @@ export function problemesFiche(fiche) {
   nombre(fiche.or, 'or');
   listeDePoints(fiche.chemin, 'chemin', 2);
   listeDePoints(fiche.socles, 'socles', 1);
+  if (fiche.soclesBonus !== undefined) listeDePoints(fiche.soclesBonus, 'soclesBonus', 0);
   point(fiche.chateau, 'chateau');
   if (fiche.lanternes !== undefined) listeDePoints(fiche.lanternes, 'lanternes', 0);
   if (fiche.etangs !== undefined) {
@@ -296,6 +302,9 @@ export function problemesFiche(fiche) {
   }
   if (fiche.pouvoirs !== undefined && typeof fiche.pouvoirs !== 'boolean') {
     erreurs.push('"pouvoirs" doit valoir true (les pouvoirs du château : Météore et Grand froid) ou false');
+  }
+  if (fiche.benedictions !== undefined && typeof fiche.benedictions !== 'boolean') {
+    erreurs.push('"benedictions" doit valoir true (toutes les 5 vagues, un bonus à choisir parmi 3) ou false');
   }
   if (fiche.difficulte !== undefined && !DIFFICULTES[fiche.difficulte]) {
     erreurs.push(`"difficulte" doit valoir ${liste(DIFFICULTES)}`);

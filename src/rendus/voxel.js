@@ -16,6 +16,7 @@ import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
+import { ficheDe, socleActif } from '../jeu/benedictions.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -1994,6 +1995,10 @@ export default class RenduVoxel {
         case 'vente':
           this.gerbe(ev.x, y + 0.3, ev.y, 20, ['#e8d8b8', '#c8b898'], { force: 2, haut: 1.5, taille: 0.1, vie: 0.6 });
           break;
+        case 'nouveauSocle': // un nouveau socle sort de terre : des blocs de poussière et des étincelles dorées
+          this.gerbe(ev.x, y + 0.2, ev.y, 24, ['#e8d8b8', '#c8b898', '#a08868'], { force: 2.2, haut: 2, taille: 0.12, vie: 0.7 });
+          this.gerbe(ev.x, y + 0.5, ev.y, 24, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.3, haut: 4.2, taille: 0.07, vie: 1, eclat: 2, gravite: -2 });
+          break;
         case 'fuite':
           this.gerbe(ev.x, y + 0.5, ev.y, 40, ['#ff4a3a', '#ff8a6a', '#2a1a1a'], { force: 3, haut: 4, taille: 0.12, vie: 1.2 });
           this.secousse = 0.5;
@@ -2154,6 +2159,10 @@ export default class RenduVoxel {
     this.joie = Math.max(0, (this.joie || 0) - dtReel * 1.1);
 
     this.traiterEvenements(etat.evenements);
+    if (etat.evenements.some((ev) => ev.type === 'benediction')) {
+      // une bénédiction : une fontaine d'étincelles dorées sur chaque gardien
+      for (const t of etat.tours) this.gerbe(t.x, this.sol(t.x, t.y) + 0.8, t.y, 16, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1, haut: 4, taille: 0.07, vie: 1, eclat: 2, gravite: -2 });
+    }
     if (etat.evenements.some((ev) => ev.type === 'grandFroid')) {
       // le Grand froid : une bouffée de flocons sur chaque monstre gelé
       for (const e of etat.ennemis) {
@@ -2176,6 +2185,16 @@ export default class RenduVoxel {
     const occupes = new Set(etat.tours.map((t) => t.socle));
     const eclatRepere = 1.6 * (1 - this.ambiance.nuit * 0.5);
     this.socles.forEach((s, i) => {
+      // un socle bonus n'existe qu'une fois débloqué (bénédiction « Nouveau socle ») : il sort alors
+      // de terre avec un petit « pop » élastique
+      const existe = socleActif(etat, i);
+      s.groupe.visible = existe;
+      if (!existe) { s.apparition = 0; return; }
+      if (s.apparition !== undefined && s.apparition < 1) {
+        s.apparition = Math.min(1, s.apparition + dtReel * 2.5);
+        const a = s.apparition;
+        s.groupe.scale.setScalar(1 - Math.cos(a * Math.PI * 2.5) * Math.pow(1 - a, 2));
+      }
       const actif = i === ui.survol || i === ui.selection;
       s.dessus.material.emissiveIntensity += ((actif ? 0.45 : 0) - s.dessus.material.emissiveIntensity) * 0.3;
       s.repere.material.color.set('#ffcc55').multiplyScalar(eclatRepere);
@@ -2188,7 +2207,7 @@ export default class RenduVoxel {
     // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
     const tour = etat.tours.find((t) => t.socle === iPortee);
-    const r = tour ? ui.apercuPortee ?? caracteristiques(tour.type, tour.niveau).portee : 0;
+    const r = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : 0; // (avec les bénédictions)
     this.anneau.visible = r > 0; // (un gardien qui ne tire pas, comme la Pépite, n'a pas de cercle)
     if (r > 0) {
       this.anneau.scale.set(r, 1, r);
@@ -2196,7 +2215,7 @@ export default class RenduVoxel {
     }
     // le cercle du Météore : pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
     const meteore = etat.projectiles.find((t) => t.type === 'meteore');
-    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: POUVOIRS.meteore.rayon });
+    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: meteore.rayon });
     this.anneauMeteore.visible = Boolean(visee) && (!meteore || Math.floor(this.temps * 10) % 2 === 1);
     if (visee) {
       this.anneauMeteore.scale.set(visee.rayon, 1, visee.rayon);
@@ -2241,13 +2260,16 @@ export default class RenduVoxel {
     const r = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((px - r.left) / r.width) * 2 - 1, -((py - r.top) / r.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const touche = this.raycaster.intersectObjects(this.socles.map((s) => s.zone), false)[0];
+    // (pas les socles bonus encore endormis)
+    const existe = (i) => !this.partie || socleActif(this.partie, i);
+    const touche = this.raycaster.intersectObjects(this.socles.filter((s, i) => existe(i)).map((s) => s.zone), false)[0];
     if (touche) return touche.object.userData.index;
     // sinon : point du sol visé, et socle le plus proche
     const plan = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.3);
     const p = new THREE.Vector3();
     if (!this.raycaster.ray.intersectPlane(plan, p)) return -1;
-    return socleProche(this.niveau.socles, p.x, p.z, 0.7);
+    const i = socleProche(this.niveau.socles, p.x, p.z, 0.7);
+    return i >= 0 && existe(i) ? i : -1;
   }
 
   // Le point du sol (en cases) sous un point de l'écran (pour viser le Météore)

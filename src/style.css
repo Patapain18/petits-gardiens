@@ -160,6 +160,49 @@ button.principal {
   100% { opacity: 0; }
 }
 
+/* ── Les bénédictions ── */
+/* une couleur par famille : un gardien, tous les gardiens, un pouvoir, l'or, un socle */
+[data-sorte='gardien'] { --couleur-sorte: #ff9a4a; }
+[data-sorte='gardiens'] { --couleur-sorte: #ffd24a; }
+[data-sorte='pouvoir'] { --couleur-sorte: #b89cff; }
+[data-sorte='or'] { --couleur-sorte: #f2c230; }
+[data-sorte='socle'] { --couleur-sorte: #8fe06a; }
+.voile-benediction { z-index: 25; background: rgba(20, 12, 24, 0.55); }
+/* (.carte.benediction : plus précis que .carte, qui est plus loin dans ce fichier et fixe 460 px) */
+.carte.benediction { max-width: 820px; width: 100%; align-items: stretch; }
+.benediction h2 { margin: 0 0 4px; font-size: 1.5em; line-height: 1.1; }
+.aide-benediction { margin: 0 0 12px; color: var(--texte-doux); }
+.choix-benedictions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.choix-benediction {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 150px;
+  padding: 12px 14px;
+  text-align: left;
+  border-left: 6px solid var(--couleur-sorte);
+}
+.choix-benediction strong { font-size: 1.15em; }
+.choix-benediction .sorte-benediction { font-size: 0.75em; color: var(--couleur-sorte); }
+.choix-benediction .texte-benediction { font-size: 0.9em; line-height: 1.35; color: var(--texte-doux); }
+.choix-benediction .deja-benediction { margin-top: auto; font-size: 0.75em; opacity: 0.8; }
+.choix-benediction kbd { font: inherit; font-size: 0.75em; padding: 0 5px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.7; }
+body[data-style='pixel'] .choix-benediction { line-height: 1.5; }
+@media (max-width: 640px) { .choix-benedictions { grid-template-columns: 1fr; } .choix-benediction { min-height: 0; } }
+/* celles déjà choisies : des petites étiquettes sous la barre du haut (le détail au survol) */
+.mes-benedictions { position: fixed; top: 70px; left: 12px; display: flex; flex-wrap: wrap; gap: 6px; max-width: 46vw; }
+.mes-benedictions[hidden] { display: none; }
+.mes-benedictions span {
+  padding: 2px 8px;
+  font-size: 0.75em;
+  color: var(--texte);
+  background: var(--fond-panneau);
+  border: 2px solid var(--bord-sombre);
+  border-left: 4px solid var(--couleur-sorte);
+  border-radius: calc(var(--rayon) * 0.6);
+}
+
 /* ── Barres du haut et du bas ── */
 .barre {
   position: fixed;
@@ -305,7 +348,7 @@ body[data-style='pixel'] .carte p { line-height: 1.8; }
 .carte .surtitre { margin: 0 0 4px; color: var(--accent); font-size: 0.8em; font-weight: 700; }
 .carte .description-niveau { color: var(--texte); }
 .carte .mention-didacticiel { color: var(--accent); }
-.carte .mention-pouvoirs { color: var(--accent); }
+.carte .mention-pouvoirs, .carte .mention-benedictions { color: var(--accent); }
 
 /* ── Mode survie : le record, le pseudo et le classement ── */
 #ligne-record.battu b { color: var(--accent); }

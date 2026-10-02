@@ -110,6 +110,18 @@ export const RECETTES = {
     o.bruit({ duree: 0.8, volume: 0.14, type: 'bandpass', de: 1600, a: 400, q: 0.8 });
   },
 
+  // ── Les bénédictions ──
+  // une bénédiction choisie : un arpège magique qui monte, et un scintillement
+  benediction: (o) => {
+    o.arpege([72, 76, 79, 84, 88, 91, 96], { ecart: 0.06, duree: 0.28, volume: 0.26 });
+    o.bruit({ duree: 0.9, volume: 0.08, type: 'highpass', de: 5000, a: 8000 });
+  },
+  // un nouveau socle sort de terre : un « boum » sourd, puis trois notes qui montent
+  nouveauSocle: (o) => {
+    o.coup({ volume: 0.35 });
+    o.arpege([67, 72, 76, 79], { ecart: 0.07, duree: 0.12, volume: 0.28, retard: 0.1 });
+  },
+
   // ── L'or et les gardiens ──
   // la Pépite rapporte sa récolte : « ding-ding » comme des pièces
   recolte: (o) => o.arpege([88, 93], { ecart: 0.08, duree: 0.14, volume: 0.4 }),
@@ -154,5 +166,7 @@ export const LIMITES = {
   flamme: { max: 1, ecart: 0.3 },
   recolte: { max: 4, ecart: 0.09 },
   meteore: { max: 1, ecart: 0.5 },
+  benediction: { max: 1, ecart: 0.5 },
+  nouveauSocle: { max: 1, ecart: 0.5 },
   grandFroid: { max: 1, ecart: 0.5 },
 };

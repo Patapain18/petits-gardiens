@@ -13,6 +13,7 @@ import {
   vaguesTerminees, pouvoirPret, lancerMeteore, lancerGrandFroid,
 } from './jeu/moteur.js';
 import { NIVEAU_MAX, POUVOIRS, caracteristiques } from './jeu/donnees.js';
+import { BENEDICTIONS, TOUTES_LES, choisirBenediction, ficheDe, pouvoirDe } from './jeu/benedictions.js';
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
 import { noterVictoire } from './progression.js';
@@ -203,7 +204,10 @@ function majInterface() {
     $('#ligne-record').classList.toggle('battu', tenues > recordAvant); // on est en train de battre le record
   }
   const bouton = $('#lancer');
-  if (etat.statut === 'preparation') {
+  if (etat.statut === 'preparation' && etat.offre) {
+    bouton.disabled = true; // une bénédiction attend d'être choisie
+    bouton.textContent = 'Choisis une bénédiction';
+  } else if (etat.statut === 'preparation') {
     bouton.disabled = false;
     bouton.textContent = `Lancer la vague ${etat.vague + 1}`;
   } else {
@@ -211,6 +215,7 @@ function majInterface() {
     bouton.textContent = etat.statut === 'vague' ? 'Vague en cours…' : 'Partie terminée';
   }
   if (etat.pouvoirs) majPouvoirs();
+  if (niveau.benedictions) majBenedictions();
   // Le menu ouvert se met à jour si l'or change, ou si un gardien arrive (boutons grisés ou non)
   if (!menu.hidden) {
     menu.querySelectorAll('[data-prix]').forEach((b) => {
@@ -297,7 +302,7 @@ function ouvrirMenu(index) {
       menu.append(b);
     }
   } else {
-    const c = caracteristiques(tour.type, tour.niveau);
+    const c = ficheDe(etat, tour.type, tour.niveau); // ses chiffres, avec les bénédictions
     menu.setAttribute('aria-label', `${c.nom}, niveau ${tour.niveau}`);
     menu.insertAdjacentHTML('beforeend', `
       <h2>${c.nom} <span class="niveau-gardien">niveau ${tour.niveau}/${NIVEAU_MAX}</span></h2>
@@ -306,7 +311,7 @@ function ouvrirMenu(index) {
 
     const prix = prixAmelioration(tour);
     if (prix !== null) {
-      const suivant = caracteristiques(tour.type, tour.niveau + 1);
+      const suivant = ficheDe(etat, tour.type, tour.niveau + 1);
       const b = document.createElement('button');
       b.className = 'option amelioration';
       b.dataset.prix = prix;
@@ -399,7 +404,7 @@ function majPouvoirs() {
     if (!pret && document.activeElement === b) b.blur(); // un bouton grisé ne garde pas le clavier
     b.disabled = !pret;
     b.classList.toggle('pret', pret);
-    b.style.setProperty('--charge', String(1 - reste / POUVOIRS[nom].recharge));
+    b.style.setProperty('--charge', String(1 - reste / pouvoirDe(etat, nom).recharge));
     b.querySelector('.etat-pouvoir').textContent = reste > 0 ? `${Math.ceil(reste)} s` : '';
     if (nom === 'meteore') b.setAttribute('aria-pressed', String(ui.visee === 'meteore'));
   }
@@ -409,10 +414,67 @@ function majPouvoirs() {
 // Le voile de givre du Grand froid (une animation CSS, relancée à chaque fois)
 function montrerGivre() {
   const givre = $('#givre');
-  givre.style.setProperty('--duree-givre', `${POUVOIRS.froid.duree}s`);
+  givre.style.setProperty('--duree-givre', `${pouvoirDe(etat, 'froid').duree}s`);
   givre.classList.remove('actif');
   void givre.offsetWidth; // le navigateur « oublie » l'animation, pour pouvoir la rejouer
   givre.classList.add('actif');
+}
+
+// ── Les bénédictions ─────────────────────────────────────────
+// Après la vague 5, 10, 15… le moteur propose 3 bénédictions (etat.offre) : une carte s'ouvre,
+// et le joueur en choisit une (clic, ou touches 1, 2, 3) avant de lancer la vague suivante.
+const SORTES = { gardien: 'Un gardien', gardiens: 'Tous les gardiens', pouvoir: 'Un pouvoir', or: 'L’or', socle: 'Un socle' };
+let offreAffichee = null; // l'offre que montre la carte (on ne la remplit qu'une fois)
+
+function majBenedictions() {
+  const voile = $('#benediction');
+  const montrer = Boolean(etat.offre) && !$('#message').dataset.fin;
+  if (montrer && offreAffichee !== etat.offre) remplirBenediction();
+  if (voile.hidden === montrer) voile.hidden = !montrer;
+  if (!montrer) offreAffichee = null;
+}
+
+function remplirBenediction() {
+  offreAffichee = etat.offre;
+  fermerMenu();
+  arreterVisee();
+  $('#benediction-titre').textContent = `Vague ${vaguesTerminees(etat)} tenue !`;
+  $('#choix-benedictions').replaceChildren(...etat.offre.map((id, i) => {
+    const b = BENEDICTIONS[id];
+    const bouton = element('button', 'choix-benediction');
+    bouton.dataset.sorte = b.sorte;
+    bouton.append(element('kbd', '', String(i + 1)), element('span', 'sorte-benediction', SORTES[b.sorte]),
+      element('strong', '', b.nom), element('span', 'texte-benediction', b.texte));
+    const deja = etat.benedictions.filter((x) => x === id).length;
+    if (deja) bouton.append(element('span', 'deja-benediction', deja === 1 ? 'Déjà choisie une fois' : `Déjà choisie ${deja} fois`));
+    bouton.addEventListener('click', () => prendreBenediction(id));
+    return bouton;
+  }));
+  son.effet('fiche');
+  $('#choix-benedictions button').focus({ preventScroll: true });
+}
+
+function prendreBenediction(id) {
+  if (!choisirBenediction(etat, id)) return;
+  $('#benediction').hidden = true;
+  offreAffichee = null;
+  afficherMesBenedictions();
+  document.activeElement?.blur?.(); // Espace lancera la vague suivante
+}
+
+// Les bénédictions déjà choisies, en petites étiquettes (« Comète ×2 »), le détail au survol
+function afficherMesBenedictions() {
+  const comptes = new Map();
+  for (const id of etat.benedictions) comptes.set(id, (comptes.get(id) || 0) + 1);
+  const zone = $('#mes-benedictions');
+  zone.hidden = !comptes.size;
+  zone.replaceChildren(...[...comptes].map(([id, n]) => {
+    const b = BENEDICTIONS[id];
+    const etiquette = element('span', '', n > 1 ? `${b.nom} ×${n}` : b.nom);
+    etiquette.dataset.sorte = b.sorte;
+    etiquette.title = b.texte;
+    return etiquette;
+  }));
 }
 
 // ── Les cartes de début et de fin ────────────────────────────
@@ -434,6 +496,9 @@ function afficherIntro() {
     : 'Des monstres suivent le chemin vers le château : ');
   regle.append(element('strong', '', niveau.survie ? 'Un seul monstre dans le château, et la partie s’arrête.' : 'si un seul entre, c’est perdu.'));
   carte.append(regle);
+  if (niveau.benedictions) {
+    carte.append(element('p', 'mention-benedictions', `Toutes les ${TOUTES_LES} vagues tenues, une bénédiction : un bonus à choisir parmi 3, pour le reste de la partie.`));
+  }
   if (niveau.pouvoirs) {
     const { meteore, froid } = POUVOIRS;
     carte.append(element('p', 'mention-pouvoirs', `Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`));
@@ -582,6 +647,9 @@ function afficherFin(victoire) {
 function recommencer() {
   etat = nouvellePartie();
   arreterVisee();
+  offreAffichee = null;
+  $('#benediction').hidden = true;
+  afficherMesBenedictions(); // (plus aucune)
   lireRecord(); // un score vient peut-être d'être enregistré
   fermerMenu();
   const m = $('#message');
@@ -627,7 +695,7 @@ conteneur.addEventListener('pointermove', (e) => {
   if (ui.visee) {
     // on vise le Météore : le cercle suit la souris
     const p = rendu.versSol(e.clientX, e.clientY);
-    ui.viseeMeteore = p && { ...p, rayon: POUVOIRS.meteore.rayon };
+    ui.viseeMeteore = p && { ...p, rayon: pouvoirDe(etat, 'meteore').rayon };
     ui.survol = -1;
     return;
   }
@@ -651,6 +719,12 @@ conteneur.addEventListener('contextmenu', (e) => {
   arreterVisee();
 });
 addEventListener('keydown', (e) => {
+  // la carte des bénédictions est ouverte : 1, 2 et 3 choisissent (et rien d'autre ne réagit)
+  if (!$('#benediction').hidden) {
+    const id = etat.offre?.[Number(e.key) - 1];
+    if (id) { e.preventDefault(); prendreBenediction(id); }
+    return;
+  }
   if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); }
   // Espace lance la vague, sauf si un bouton actif a le clavier (Espace appuie alors sur lui)
   if (e.key === ' ' && (e.target === document.body || e.target.disabled)) { e.preventDefault(); $('#lancer').click(); }
