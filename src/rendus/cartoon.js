@@ -9,6 +9,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
+import REGLAGES_AMBIANCES from './ambiances.json';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -18,16 +19,12 @@ const choisir = (liste) => liste[Math.floor(alea() * liste.length)];
 const TAILLE_GARDIEN = 1.5;
 const TAILLE_MONSTRE = 1.45;
 
-// Les ambiances (le moment de la journée), comme dans les deux autres styles :
+// Les ambiances (le moment de la journée), comme dans les deux autres styles. Elles sont
+// rangées dans ambiances.json (partie « cartoon ») et se règlent dans l'atelier des lumières :
 // le soleil (sa couleur, sa force, et d'où il vient : « depuis » est un décalage par
 // rapport au centre de la carte, en cases), la lumière du ciel et du sol, la couleur
 // du fond, et la nuit (les lanternes et la porte du château éclairent autour d'elles).
-const AMBIANCES_CARTOON = {
-  midi: { soleil: '#fff3dc', intensite: 2.6, depuis: [-14, 24, 6], ciel: '#cfeaff', sol: '#8a7448', hemi: 1.1, fond: '#4f8f34', nuit: 0 },
-  doree: { soleil: '#ffb066', intensite: 2.9, depuis: [-24, 11, 9], ciel: '#ffd8b4', sol: '#7a5640', hemi: 0.95, fond: '#5e7a30', nuit: 0 },
-  aube: { soleil: '#ffa8c4', intensite: 2.3, depuis: [22, 10, 10], ciel: '#a8b4ff', sol: '#584e70', hemi: 1.0, fond: '#466c52', nuit: 0 },
-  nuit: { soleil: '#a4b8ff', intensite: 0.75, depuis: [-8, 24, 12], ciel: '#5664b0', sol: '#221c36', hemi: 0.75, fond: '#1a2636', nuit: 1 },
-};
+const AMBIANCES_CARTOON = REGLAGES_AMBIANCES.cartoon;
 
 // Une forme plate dessinée point par point (vue de dessus), épaissie pour avoir un vrai
 // contour. Les points (x, z) sont posés à plat : z > 0 = vers l'avant du personnage.

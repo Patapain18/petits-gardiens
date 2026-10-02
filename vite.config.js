@@ -5,13 +5,17 @@
 // - /__son      : enregistre un son calculé hors ligne dans captures/ (pour le vérifier)
 // - /__niveaux  : liste, ouvre et enregistre les fiches de niveau de src/niveaux/
 //                 (c'est ce qu'utilise l'éditeur de niveaux)
+// - /__ambiances : enregistre les réglages des ambiances (src/rendus/ambiances.json)
+//                 (c'est ce qu'utilise l'atelier des lumières)
 import { defineConfig } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
 import { problemesFiche } from './src/jeu/niveau.js';
 import { formaterFiche } from './src/editeur/format.js';
+import { problemesAmbiances, formaterAmbiances } from './src/rendus/format-ambiances.js';
 
 const DOSSIER_NIVEAUX = path.resolve('src/niveaux');
+const FICHIER_AMBIANCES = path.resolve('src/rendus/ambiances.json');
 // Un nom de fichier sûr : des minuscules, des chiffres et des tirets, rien d'autre.
 // (Impossible d'écrire « ../../quelque-chose » ailleurs que dans src/niveaux.)
 const ID_VALIDE = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -67,6 +71,23 @@ const outilsDev = {
       } catch {
         repondre(res, 400, { erreur: 'son illisible' });
       }
+    });
+
+    // Les réglages des ambiances (l'atelier des lumières) : on revérifie tout, en comparant
+    // avec le fichier actuel (mêmes styles, mêmes réglages, des valeurs du bon genre)
+    server.middlewares.use('/__ambiances', async (req, res) => {
+      if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' });
+      let donnees;
+      try {
+        donnees = JSON.parse(await lireCorps(req, TAILLE_MAX_FICHE));
+      } catch {
+        return repondre(res, 400, { erreur: 'Réglages illisibles (JSON invalide ou trop gros).' });
+      }
+      const modele = JSON.parse(fs.readFileSync(FICHIER_AMBIANCES, 'utf8'));
+      const problemes = problemesAmbiances(donnees, modele);
+      if (problemes.length) return repondre(res, 422, { erreur: `Réglages incorrects : ${problemes[0]}`, problemes });
+      fs.writeFileSync(FICHIER_AMBIANCES, formaterAmbiances(donnees));
+      repondre(res, 200, { fichier: 'src/rendus/ambiances.json' });
     });
 
     // Les fiches de niveau
@@ -126,12 +147,12 @@ export default defineConfig({
   // Des adresses relatives (« ./assets/… » plutôt que « /assets/… ») : le site marche aussi
   // rangé dans un sous-dossier, comme sur GitHub Pages (patapain18.github.io/petits-gardiens/)
   base: './',
-  // Cinq pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
-  // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html)
-  // et la salle des sons (sons.html)
+  // Six pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
+  // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html),
+  // la salle des sons (sons.html) et l'atelier des lumières (lumieres.html)
   build: {
     rollupOptions: {
-      input: { accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html' },
+      input: { accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html', lumieres: 'lumieres.html' },
     },
   },
 });

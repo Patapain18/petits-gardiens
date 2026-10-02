@@ -1,0 +1,85 @@
+/* ─────────────────────────────────────────────────────────────
+   L'atelier des lumières (lumieres.html) : il reprend le look de la galerie
+   des personnages. À gauche la vue et ses mesures, à droite les curseurs.
+   ───────────────────────────────────────────────────────────── */
+@import './personnages.css';
+
+.entete, .choix, .atelier, .tour { max-width: 1500px; }
+.entete p { max-width: 900px; }
+
+/* ── ce qu'on regarde ── */
+.choix { margin: 6px auto 12px; display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; }
+.choix-liste { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; color: #c8b8a8; }
+.choix-liste select, .panneau button {
+  font: inherit;
+  font-size: 0.9rem;
+  color: #fff4e0;
+  background: #2a1d36;
+  border: 1px solid rgba(255, 210, 122, 0.35);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+.choix-case { display: flex; align-items: center; gap: 6px; padding-bottom: 6px; }
+.choix-case input { width: 1.1em; height: 1.1em; accent-color: #ffb547; }
+.choix select:focus-visible, .panneau button:focus-visible, .panneau input:focus-visible { outline: 3px solid #ffd27a; outline-offset: 2px; }
+
+/* ── la vue (le style y met son canvas) et les zébrures par-dessus ── */
+.atelier { margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.vue {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+.vue canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.vue .zebrures { z-index: 2; pointer-events: none; }
+
+/* ── les mesures ── */
+.mesures { margin-top: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 14px; align-items: center; }
+.mesure { margin: 0; display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); }
+.mesure span { color: #c8b8a8; }
+.mesure.attention { background: rgba(255, 180, 60, 0.18); }
+.mesure.trop { background: rgba(255, 70, 50, 0.28); }
+.histogramme { width: 100%; max-width: 256px; height: 56px; image-rendering: pixelated; background: rgba(0, 0, 0, 0.3); border-radius: 6px; }
+.legende-histo { margin: 0; font-size: 0.75rem; color: #a8988c; }
+
+/* ── les curseurs ── */
+.panneau {
+  position: sticky;
+  top: 10px;
+  max-height: calc(100vh - 20px);
+  overflow: auto;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+.panneau h2 { margin: 0 0 10px; font-size: 1.15rem; }
+.reglage { display: grid; grid-template-columns: 1fr 1fr 3.4em; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 0.82rem; }
+.reglage .nom { color: #e9d6b8; line-height: 1.15; }
+.reglage input[type='range'] { width: 100%; accent-color: #ffb547; }
+.reglage input[type='color'] { width: 100%; height: 24px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; background: none; }
+.reglage output { font-variant-numeric: tabular-nums; color: #c8b8a8; text-align: right; font-size: 0.75rem; overflow: hidden; }
+.groupe { margin: 4px 0 10px; padding: 6px 8px 2px; border: 1px solid rgba(255, 210, 122, 0.2); border-radius: 8px; }
+.groupe legend { padding: 0 4px; color: #ffd27a; font-size: 0.82rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.panneau button { cursor: pointer; background: rgba(255, 255, 255, 0.08); }
+.panneau button:hover { background: rgba(255, 210, 122, 0.16); }
+.panneau button.principal { color: #2a1a10; background: #ffd27a; border-color: #ffd27a; }
+.note, .etat-enregistrement { margin: 8px 0 0; font-size: 0.8rem; color: #c8b8a8; }
+.etat-enregistrement.erreur { color: #ffb0a0; }
+
+/* ── le tour complet ── */
+.tour { margin: 20px auto 0; }
+.resultats { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.resultats th { text-align: left; color: #c8b8a8; font-weight: 500; padding: 4px 8px; }
+.resultats td { padding: 4px 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.resultats td.attention { background: rgba(255, 180, 60, 0.18); }
+.resultats td.trop { background: rgba(255, 70, 50, 0.28); }
+
+@media (max-width: 900px) {
+  .atelier { grid-template-columns: 1fr; }
+  .panneau { position: static; max-height: none; }
+}

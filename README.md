@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:5180 : c'est la **carte des époques**, d'où l'on choisit un niveau. L'éditeur de niveaux est à http://localhost:5180/editeur.html, la galerie des personnages (chacun dans les trois styles) à http://localhost:5180/personnages.html, et la salle des sons à http://localhost:5180/sons.html.
+Puis ouvrir http://localhost:5180 : c'est la **carte des époques**, d'où l'on choisit un niveau. L'éditeur de niveaux est à http://localhost:5180/editeur.html, la galerie des personnages (chacun dans les trois styles) à http://localhost:5180/personnages.html, la salle des sons à http://localhost:5180/sons.html, et l'atelier des lumières à http://localhost:5180/lumieres.html.
 
 Pour jouer un niveau précis : `http://localhost:5180/jeu.html?niveau=monde1-3` (le nom du fichier, sans `.json`).
 
@@ -395,6 +395,47 @@ Le bouton **Options** (en haut à droite de la carte des époques, et en bas à 
 
 **« Seulement la première fois ».** Quand une fiche est fermée ou une leçon réussie, `progression.js` le retient (la liste `vus`). Avec cette option, le didacticiel saute ce qui est déjà dans la liste. La liste est remplie même avec l'option « À chaque partie » : si on change d'avis, le jeu sait déjà ce qu'on a vu.
 
+## Les lumières et les animations
+
+Chaque monde a reçu plus de vie (du vent, de l'eau qui bouge, des oiseaux…) et des lumières et des ombres mieux réglées. Chaque changement a été vérifié dans **l'atelier des lumières**, pour qu'aucune lumière ne soit trop forte.
+
+### L'atelier des lumières
+
+La page `lumieres.html` (un outil d'atelier, comme l'éditeur ou la galerie) montre un niveau dans un style et une ambiance, pendant qu'**une partie se joue toute seule** : chaque socle reçoit un gardien (au niveau 1, 2 ou 3 selon le socle), les vagues s'enchaînent, et on voit les tirs, les explosions, les monstres battus. À droite, **des curseurs** pour régler l'ambiance affichée, appliqués tout de suite.
+
+Pour ne pas se fier seulement à ses yeux, l'atelier mesure l'image (réduite à 640 pixels de large) :
+
+| Mesure | Ce qu'elle veut dire |
+|---|---|
+| Zones brûlées | la part de l'image presque blanche (luminosité au-dessus de 0,93) : là, on ne voit plus aucun détail. Les **zébrures** rouges les montrent sur l'image, comme sur l'écran d'un appareil photo |
+| Points brûlés | les taches presque blanches d'au moins 4 pixels : une lumière trop forte, même petite |
+| Zones bouchées | la part presque noire (en dessous de 0,035) |
+| Luminosité moyenne | de 0 (noir) à 1 (blanc) |
+| Une image | le temps de calcul d'une image, en millisecondes (au-delà de 16 ms, on passe sous 60 images par seconde) |
+
+La luminosité d'un pixel, c'est 0,21 × rouge + 0,72 × vert + 0,07 × bleu : l'œil voit le vert bien plus clair que le bleu.
+
+- **Planche des 4 ambiances** : les quatre moments de la journée côte à côte, avec leurs mesures et leurs zébrures, dans `captures/atelier-<niveau>-<style>.jpg`. La partie est toujours arrêtée au même moment (la graine du hasard est fixe : on cherche d'abord le moment où il y a le plus de monstres à l'écran, puis on rejoue la partie jusque-là), pour comparer d'une fois sur l'autre.
+- **Tour complet** : une planche pour chaque niveau, et un tableau de toutes les mesures.
+- **Enregistrer dans le jeu** (avec `npm run dev`) : les réglages sont écrits dans `src/rendus/ambiances.json`, après avoir été revérifiés par le serveur de développement (les mêmes réglages, des nombres, des couleurs « #rrggbb »). Ce fichier range les ambiances des trois styles : ce sont des données, comme les fiches de niveau.
+
+Le premier tour complet a trouvé ce que l'œil devinait : aucune grande zone brûlée, mais des nuits du voxel bien trop sombres (jusqu'à 39 % de l'image presque noire), ce qui fait paraître les lumières trop fortes, et l'étang du niveau 3-1 qui renvoyait le soleil de midi comme un miroir.
+
+### Les lumières du jeu, partagées par les trois styles
+
+`src/rendus/lumieres.js` fait, à chaque image, la liste des lumières allumées : les lanternes et la porte du château (la nuit), les boules de feu, la cible du rayon du Prisme, la flamme sur la tête de Braise, la lampe du casque de la Pépite, la lave du Colosse… et des **éclats** qui ne durent qu'un instant : une explosion, un éclair, un monstre battu, une amélioration. Une lumière, c'est une place, une hauteur, un rayon, une couleur et une force. Chaque style la dessine à sa façon, et chaque ambiance dit à quel point on la voit (`lumieres` : presque rien en plein midi, tout la nuit).
+
+### Le monde 1 (pixel)
+
+- **Des ombres portées qui suivent le soleil.** Chaque arbre, rocher, lanterne et personnage a une vraie ombre : sa silhouette, couchée sur le sol du côté opposé au soleil. Le `transform` du Canvas fait le travail : un pixel à la hauteur *h* au-dessus du pied du sprite est décalé de *h* × `dx` vers la droite et de *h* × `dy` vers le bas. Le sprite est donc retourné, penché et écrasé. Longues vers la droite à l'heure dorée, courtes à midi, vers la gauche à l'aube. Toutes les ombres vont dans un même calque, posé d'un coup : là où deux ombres se croisent, ce n'est pas plus sombre. Celles du décor sont peintes une fois pour toutes (et repeintes quand l'ambiance change) ; le château, vu de trois quarts, a une ombre « balayée » sur sa hauteur.
+- **Le vent.** Des rafales traversent la carte de gauche à droite : chaque arbre a trois images (penché à gauche, droit, penché à droite), comme les touffes d'herbe et les fleurs qui poussent maintenant partout. Un arbre penche quand la rafale passe sur lui, puis se redresse. Le vent est plus fort à l'heure dorée, presque nul la nuit.
+- **L'eau qui bouge.** Les pixels d'eau sont repérés une fois, puis repeints 8 fois par seconde : des vaguelettes, un liseré d'écume qui tourne le long du bord, de petits reflets. La nuit, l'eau prend des couleurs plus sombres (sous la lumière bleue de la nuit, les étangs brillaient comme des lampes).
+- **Les ombres des nuages** glissent sur le sol : un grand motif de taches au bord tramé, qui se répète sans couture tous les 256 pixels.
+- **La vie autour** : des volées d'oiseaux (avec leur ombre), des papillons qui volettent de fleur en fleur, des feuilles d'automne qui tombent en se balançant, les drapeaux du château qui flottent, les gardiens qui clignent des yeux et reculent d'un pixel quand ils tirent, un petit nuage « pouf » quand un monstre est battu.
+- **Des lumières en pixels.** Chaque lumière pose un halo en quatre paliers, avec du tramage entre eux (comme les jeux 16 bits), ajouté à l'image (« lighter »). La nuit, la flamme de chaque Braise éclaire le sol autour d'elle, et un éclair d'Étincelle illumine un instant toute la carte.
+
+Le *tramage* (« dithering ») sert partout : une grille de seuils qui alterne d'un pixel à l'autre. Un pixel est peint si sa valeur dépasse le seuil de sa case. On fait ainsi des dégradés avec très peu de couleurs.
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -405,11 +446,13 @@ jeu.html               le jeu (jeu.html?niveau=monde1-1)
 editeur.html           l'éditeur de niveaux
 personnages.html       la galerie des personnages, chacun dans les trois styles
 sons.html              la salle des sons : le thème et les bruitages, dans les trois époques
+lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
 src/
 ├── accueil.js         la carte des époques : les mondes, les niveaux, la progression
 ├── accueil.css        son allure (chaque monde dans le style de son époque)
 ├── personnages.js     la galerie des personnages (+ personnages.css)
 ├── sons.js           la salle des sons (+ sons.css)
+├── atelier-lumieres.js l'atelier des lumières : la partie automatique, les curseurs, les mesures (+ atelier-lumieres.css)
 ├── main.js            le chef d'orchestre du jeu : boucle, boutons, menu, cartes de début et de fin
 ├── didacticiel.js     les leçons, les fiches de présentation et la flèche
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
@@ -448,6 +491,9 @@ src/
     ├── voxel.js       style 1 : cubes façon Minecraft + lumière de coucher de soleil
     ├── cartoon.js     style 2 : formes rondes et contours, façon Kingdom Rush
     ├── pixel.js       style 3 : vrai pixel art 16 bits, dessiné en Canvas 2D
+    ├── ambiances.json les réglages des quatre ambiances de chaque style (l'atelier des lumières les modifie)
+    ├── format-ambiances.js  vérifier et écrire ambiances.json
+    ├── lumieres.js    les lumières du jeu, à chaque instant (lanternes, feu, explosions…), pour les trois styles
     ├── apparence.js   le vocabulaire des apparences (gabarits, accessoires, couleurs)
     └── outils3d.js    morceaux partagés par les deux styles 3D
 serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir « Le classement en ligne »)
@@ -484,14 +530,14 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 | `socleSous(x, y)` | quel socle est sous la souris ? |
 | `versEcran(x, y, hauteur)` | où se trouve un point du jeu à l'écran ? (pour placer le menu, les « +6 » et la flèche du didacticiel) |
 | `portrait(apparence)` | le portrait d'un personnage, dans ce style (pour les fiches du didacticiel) |
-| `choisirAmbiance(nom)` | changer le moment de la journée |
+| `choisirAmbiance(nom, immediat)` | changer le moment de la journée (`immediat` : sans glisser doucement, pour l'atelier des lumières) |
 | `redimensionner()` / `detruire()` | suivre la taille de la fenêtre / tout libérer |
 
 ### Les trois styles, techniquement
 
 - **Voxel doré** (Three.js). Le monde est fait d'environ 50 000 cubes affichés avec des `InstancedMesh`, ce qui revient à un seul envoi à la carte graphique par type de bloc. Les textures 16 × 16 sont dessinées par le code. L'éclairage vient d'un soleil bas qui projette de vraies ombres. Par-dessus, un post-traitement ajoute le halo des lumières (*bloom*), les rayons de soleil, la chaleur des couleurs et la vignette. Il y a 4 ambiances et 2 caméras.
 - **Diorama cartoon** (Three.js). Il utilise un *toon shading*, c'est-à-dire 3 tons seulement au lieu d'un dégradé. Les contours sombres viennent d'une copie de l'objet légèrement gonflée et vue de l'intérieur. La caméra est orthographique, donc sans perspective, ce qui donne l'effet maquette. Le sol est peint dans un canvas puis collé sur le terrain. Ses 4 ambiances changent la couleur et la position du soleil et la lumière du ciel ; la nuit, de petites lampes (des `PointLight`) s'allument dans les lanternes et à la porte du château.
-- **Pixel art** (Canvas 2D, sans Three.js). Chaque sprite est dessiné case par case par le code, et le contour sombre est ajouté automatiquement. La scène est dessinée en petite résolution (une case = 16 pixels), puis agrandie d'un nombre entier de fois sans lissage, pour garder des pixels bien carrés. Ses 4 ambiances sont des voiles de couleur posés sur l'image ; la nuit, tout s'assombrit en bleu (« multiply ») et les lanternes ajoutent de la lumière autour d'elles (« lighter »), avec des lucioles.
+- **Pixel art** (Canvas 2D, sans Three.js). Chaque sprite est dessiné case par case par le code, et le contour sombre est ajouté automatiquement. La scène est dessinée en petite résolution (une case = 16 pixels), puis agrandie d'un nombre entier de fois sans lissage, pour garder des pixels bien carrés. L'ordre d'une image : le sol (le fond peint d'avance, l'eau, l'herbe, les socles), le calque des ombres, les ombres des nuages, tout ce qui a de la hauteur trié du haut vers le bas de l'écran, la vie (papillons, feuilles, oiseaux), puis la lumière. Ses 4 ambiances sont des voiles de couleur posés sur l'image ; la nuit, tout s'assombrit en bleu (« multiply ») et les lumières du jeu ajoutent des halos (« lighter »), avec des lucioles.
 
 ## Les fiches des personnages
 
@@ -696,6 +742,7 @@ Dans la console du navigateur (F12) :
 - `__capturer('nom')` : enregistre une capture du jeu dans `captures/nom.jpg` (seulement avec `npm run dev`) ;
 - `__planche('nom')` (dans la galerie des personnages) : assemble les personnages affichés en une seule image, une ligne par personnage et une colonne par style, dans `captures/nom.jpg` ;
 - `__editeur.etat.fiche` (dans la console de l'éditeur) : la fiche en cours de modification ;
+- dans l'atelier des lumières : `__atelier.choisir({ niveau: 'monde3-3', style: 'voxel', ambiance: 'nuit' })`, `__atelier.planche()`, `__atelier.tourComplet({ styles: 'tous' })` (tous les niveaux dans les trois styles), `__atelier.capturer('nom', { ambiance: 'nuit', zone: [0.1, 0.1, 0.5, 0.5], avancer: 2 })` (une capture en grand, ou un gros plan, après avoir fait avancer la partie de 2 secondes) ;
 - `__jeu.son.effet('recolte')` (dans le jeu) ou `__son.effet('recolte')` (dans la salle des sons) : joue un bruitage ; `__jeu.son.reglages` : les volumes ; `__jeu.son.enCours` : quel thème joue, avec quel mixage, à quelle mesure ;
 - l'adresse `/__son` du serveur de développement enregistre un son calculé hors ligne dans `captures/nom.wav` (c'est ainsi qu'on a vérifié la musique) ;
 - pour essayer le serveur du classement sans salir le vrai : l'arène `essai`, par exemple `curl 'https://petits-gardiens-classement.vercel.app/api/scores?arene=essai'`. Les erreurs de la fonction s'affichent sur vercel.com, projet `petits-gardiens-classement`, onglet « Logs ».

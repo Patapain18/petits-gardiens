@@ -13,6 +13,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
+import REGLAGES_AMBIANCES from './ambiances.json';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -88,45 +89,14 @@ function creerTextures() {
 
 // ═════════════════════════════════════════════════════════════
 // 2. LES AMBIANCES (couleurs du ciel, du soleil, de la brume…)
+//    Elles sont rangées dans ambiances.json (partie « voxel »), avec celles des
+//    deux autres styles : l'atelier des lumières (lumieres.html) les règle et les
+//    enregistre. Pour chacune : le soleil (couleur, force, hauteur et direction en
+//    degrés), la lumière du ciel et du sol, la brume, les couleurs du ciel, puis
+//    l'image (exposition, halo, chaleur, saturation, contraste, rayons) et les
+//    petites lumières (poussière dorée, lucioles, étoiles, lanternes, lueur des fleurs).
 // ═════════════════════════════════════════════════════════════
-const AMBIANCES = {
-  doree: {
-    soleil: '#ffb46a', intensite: 4.2, elevation: 31, azimut: 238,
-    ciel: '#b4a0ea', sol: '#7a5434', hemi: 0.9,
-    brume: '#f2b48c', densite: 0.0045,
-    haut: '#8f86dc', horizon: '#ffc896', bas: '#e8a27a', halo: '#fff0c4',
-    expo: 1.08, bloom: 0.38, seuil: 0.85,
-    chaleur: 0.45, saturation: 1.2, contraste: 1.08, rayons: 0.38, rayonsCouleur: '#ffcf8a',
-    poussiere: 1, lucioles: 0, etoiles: 0, nuit: 0, lueur: 0.32,
-  },
-  aube: {
-    soleil: '#ffd0d8', intensite: 2.2, elevation: 9, azimut: 125,
-    ciel: '#b9c6ee', sol: '#5c5a68', hemi: 1.25,
-    brume: '#ead6e2', densite: 0.011,
-    haut: '#9fb1e2', horizon: '#f6d8e4', bas: '#e8d0dc', halo: '#fff2f4',
-    expo: 1.05, bloom: 0.45, seuil: 0.85,
-    chaleur: 0.1, saturation: 0.9, contraste: 1.0, rayons: 0.35, rayonsCouleur: '#ffe8f0',
-    poussiere: 0.7, lucioles: 0, etoiles: 0, nuit: 0, lueur: 0.12,
-  },
-  midi: {
-    soleil: '#fff6e6', intensite: 3.2, elevation: 62, azimut: 200,
-    ciel: '#a9d2ff', sol: '#6c5a3a', hemi: 1.35,
-    brume: '#c4dcf2', densite: 0.0025,
-    haut: '#4a8fe0', horizon: '#d2e8ff', bas: '#a8c8e8', halo: '#ffffff',
-    expo: 0.95, bloom: 0.25, seuil: 0.95,
-    chaleur: 0.0, saturation: 1.1, contraste: 1.05, rayons: 0.0, rayonsCouleur: '#ffffff',
-    poussiere: 0, lucioles: 0, etoiles: 0, nuit: 0, lueur: 0,
-  },
-  nuit: {
-    soleil: '#8fb0ff', intensite: 1.0, elevation: 38, azimut: 160,
-    ciel: '#3a4c8a', sol: '#16121e', hemi: 0.75,
-    brume: '#1a2244', densite: 0.009,
-    haut: '#060920', horizon: '#1e2858', bas: '#141a38', halo: '#b8ccff',
-    expo: 1.15, bloom: 0.9, seuil: 0.55,
-    chaleur: -0.2, saturation: 1.0, contraste: 1.08, rayons: 0.12, rayonsCouleur: '#9fb8ff',
-    poussiere: 0, lucioles: 1, etoiles: 1, nuit: 1, lueur: 0.05,
-  },
-};
+const AMBIANCES = REGLAGES_AMBIANCES.voxel;
 
 // ═════════════════════════════════════════════════════════════
 // 3. LE POST-TRAITEMENT « ÉTALONNAGE » (comme un filtre photo)
@@ -1690,8 +1660,10 @@ export default class RenduVoxel {
     return copie;
   }
 
-  choisirAmbiance(nom) {
+  // immediat : sans glisser doucement de l'ancienne à la nouvelle (l'atelier des lumières s'en sert)
+  choisirAmbiance(nom, immediat = false) {
     this.ambianceCible = AMBIANCES[nom] || AMBIANCES.doree;
+    if (immediat) this.ambiance = this.copierAmbiance(this.ambianceCible);
   }
 
   // Glisse doucement de l'ambiance actuelle vers l'ambiance choisie

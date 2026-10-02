@@ -9,6 +9,8 @@ import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnee
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruit2D } from '../jeu/aleatoire.js';
 import { socleProche } from './outils3d.js';
+import REGLAGES_AMBIANCES from './ambiances.json';
+import { Lumieres } from './lumieres.js';
 
 const T = 16; // taille d'une case en pixels
 const CONTOUR = '#24161c';
@@ -28,7 +30,8 @@ const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), pa
 // ═════════════════════════════════════════════════════════════
 // decalageY : on dessine tout plus bas de quelques pixels (une marge en haut,
 // pour que les accessoires d'un personnage tiennent dans le sprite).
-function sprite(largeur, hauteur, dessin, { contour = true, decalageY = 0 } = {}) {
+// couleurContour : la couleur du contour (sombre d'habitude, plus claire pour un nuage).
+function sprite(largeur, hauteur, dessin, { contour = true, decalageY = 0, couleurContour = CONTOUR } = {}) {
   const grille = Array.from({ length: hauteur }, () => Array(largeur).fill(null));
   const p = {
     px(x, y, c) {
@@ -89,7 +92,7 @@ function sprite(largeur, hauteur, dessin, { contour = true, decalageY = 0 } = {}
       let couleur = grille[y][x];
       if (!couleur && contour) {
         const voisin = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => grille[y + dy]?.[x + dx]);
-        if (voisin) couleur = CONTOUR;
+        if (voisin) couleur = couleurContour;
       }
       if (couleur) { ctx.fillStyle = couleur; ctx.fillRect(x, y, 1, 1); }
     }
@@ -116,13 +119,13 @@ function miroir(source) {
 // Chaque gabarit dessine sa silhouette sur une grille (avec les couleurs de la
 // fiche) et renvoie ses « ancres » : le haut de la tête, le centre, les côtés,
 // la ceinture, le bas des pieds. Les accessoires se dessinent par rapport à ces ancres.
-// image : 0 et 1 = les deux images de l'animation ; 2 = attaque (gardiens).
+// image : 0 et 1 = les deux images de l'animation ; 2 = attaque, 3 = il cligne des yeux (gardiens).
 // (La taille de la fiche ne sert pas à agrandir : en pixel art, agrandir un sprite
 // de 10 % abîmerait ses pixels. Mais un gabarit peut avoir une version « grand »,
 // redessinée pixel par pixel, pour les personnages de taille 1,4 ou plus.)
 const GABARITS_PIXEL = {
   gardien: {
-    largeur: 26, hauteur: 21, marge: 4, images: 3, largeurBarre: 12, // marge : la place du moulinet, au-dessus de la couronne
+    largeur: 26, hauteur: 21, marge: 4, images: 4, largeurBarre: 12, // marge : la place du moulinet, au-dessus de la couronne
     dessiner(p, c, image) {
       const b = image === 2 ? 1 : 0; // image 2 = attaque : le corps s'écrase d'un pixel
       p.rect(6, 8 + b, 14, 8 - b, c.peau);     // corps
@@ -132,7 +135,10 @@ const GABARITS_PIXEL = {
       p.rect(3, 11, 3, 2, c.peau); p.rect(3, 13, 3, 1, c.fonce);    // bras gauche
       p.rect(20, 11, 3, 2, c.peau); p.rect(20, 13, 3, 1, c.fonce);  // bras droit
       for (const x of [7, 10, 14, 17]) p.rect(x, 16, 2, 3, c.fonce); // quatre pattes
-      for (const x of [9, 15]) { p.rect(x, 10 + b, 2, 3, c.yeux); p.px(x, 10 + b, '#f4ecff'); } // yeux + reflet
+      for (const x of [9, 15]) {
+        if (image === 3) p.rect(x, 12, 2, 1, c.yeux); // il cligne des yeux : un simple trait
+        else { p.rect(x, 10 + b, 2, 3, c.yeux); p.px(x, 10 + b, '#f4ecff'); } // yeux + reflet
+      }
       return { haut: 8 + b, centre: 13, gauche: 6, droite: 19, ceinture: 14, bas: 18, attaque: image === 2 };
     },
   },
@@ -572,13 +578,91 @@ const TOURBILLON = (() => {
 })();
 
 // ── Décor ──
+// Les couleurs de l'eau qui bouge (voir majEau) : le jour, et la nuit (plus sombre : sinon,
+// sous la lumière bleue de la nuit, les étangs brilleraient comme des lampes)
+const EAU = {
+  fond: hex('#3c8cc8'), bas: hex('#4a9ad4'), clair: hex('#7cc6ee'), sombre: hex('#3480bd'),
+  rive: hex('#2a62a0'), ecume: hex('#d4eefc'), reflet: hex('#f0faff'),
+};
+const EAU_NUIT = {
+  fond: hex('#24508a'), bas: hex('#2a5a94'), clair: hex('#4c7cba'), sombre: hex('#1f4880'),
+  rive: hex('#183a6c'), ecume: hex('#8aa8d4'), reflet: hex('#dce8ff'),
+};
+
+// La silhouette d'un sprite : sa forme, toute d'une couleur sombre (pour les ombres).
+// Gardée une fois calculée (un WeakMap l'oublie tout seul si le sprite disparaît).
+const COULEUR_OMBRE = '#1a0e24';
+const silhouettes = new WeakMap();
+function silhouette(img) {
+  let s = silhouettes.get(img);
+  if (!s) {
+    s = document.createElement('canvas');
+    s.width = img.width;
+    s.height = img.height;
+    const ctx = s.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    ctx.globalCompositeOperation = 'source-in'; // on ne peint que là où le sprite a des pixels
+    ctx.fillStyle = COULEUR_OMBRE;
+    ctx.fillRect(0, 0, s.width, s.height);
+    silhouettes.set(img, s);
+  }
+  return s;
+}
+
+// Un « bruit » doux qui se répète sans couture tous les « periode » pixels (pour les nuages) :
+// des valeurs au hasard aux coins d'une grille, mélangées en douceur entre les coins,
+// à trois tailles de grille (64, 32 et 16 pixels) additionnées.
+function bruitPeriodique(x, y, periode) {
+  let v = 0, amplitude = 0.5, total = 0;
+  for (const cellule of [64, 32, 16]) {
+    const n = periode / cellule;
+    const gx = x / cellule, gy = y / cellule;
+    const ix = Math.floor(gx), iy = Math.floor(gy);
+    const fx = gx - ix, fy = gy - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const coin = (a, b) => grain((((a % n) + n) % n) + cellule * 7, (((b % n) + n) % n) + cellule * 13);
+    const haut = coin(ix, iy) + (coin(ix + 1, iy) - coin(ix, iy)) * sx;
+    const bas = coin(ix, iy + 1) + (coin(ix + 1, iy + 1) - coin(ix, iy + 1)) * sx;
+    v += (haut + (bas - haut) * sy) * amplitude;
+    total += amplitude;
+    amplitude *= 0.5;
+  }
+  return v / total;
+}
+
 const FEUILLAGES = {
   chene: ['#7cc04a', '#4f9a36', '#2f6a2a'],
   bouleau: ['#b4dc6a', '#86bc48', '#5a8e34'],
   automne: ['#ffc85a', '#f08a2e', '#b4501e'],
 };
+// Le même sprite, le haut penché d'un pixel (dx = -1 ou 1) : le vent dans les feuilles.
+// rangees = combien de rangées du haut bougent (le tronc, lui, reste en place).
+function pencher(source, dx, rangees) {
+  const c = document.createElement('canvas');
+  c.width = source.width;
+  c.height = source.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(source, 0, rangees, source.width, source.height - rangees, 0, rangees, source.width, source.height - rangees);
+  ctx.drawImage(source, 0, 0, source.width, rangees, dx, 0, source.width, rangees);
+  c.hautVisible = source.hautVisible;
+  return c;
+}
+
+// Un arbre en trois images : penché à gauche, droit, penché à droite.
+// Deux arbres de la même sorte sont identiques : on ne les dessine qu'une fois (900 arbres
+// autour de la carte = seulement 6 dessins).
+const ARBRES = new Map();
 function spriteArbre(type, petit) {
-  const r = petit ? 6 : 10;
+  const cle = type + (petit ? ':petit' : '');
+  if (!ARBRES.has(cle)) {
+    const r = petit ? 6 : 10;
+    const droit = dessinArbre(type, petit, r);
+    const rangees = petit ? 6 : r + 2;
+    ARBRES.set(cle, [pencher(droit, -1, rangees), droit, pencher(droit, 1, rangees)]);
+  }
+  return ARBRES.get(cle);
+}
+function dessinArbre(type, petit, r) {
   const l = r * 2 + 6, h = r * 2 + (petit ? 6 : 12);
   return sprite(l, h, (p) => {
     const cx = l / 2;
@@ -619,6 +703,73 @@ function spriteSocle(surligne) {
 }
 const PLUS = sprite(7, 7, (p) => { p.rect(2, 0, 3, 7, '#ffd24a'); p.rect(0, 2, 7, 3, '#ffd24a'); p.rect(3, 1, 1, 5, '#fff4b0'); });
 
+// ── Les petites choses qui bougent ──
+// Le tramage (« dithering ») : une grille de seuils de 0 à 1 qui alterne d'un pixel à
+// l'autre. Un pixel est peint si sa valeur dépasse le seuil de sa case : on fait ainsi des
+// dégradés avec très peu de couleurs, comme les consoles 16 bits.
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+const tramage = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
+
+// Une lanterne : le poteau et la lanterne (le bas du poteau est au bas du sprite)
+const LANTERNE = sprite(5, 20, (p) => {
+  p.rect(2, 7, 1, 12, '#7a4a2a');
+  p.rect(1, 2, 3, 4, '#ffd36a');
+});
+
+// Les touffes d'herbe : trois formes de brins [x, hauteur], chacune en trois images
+// (penchée à gauche, droite, penchée à droite). Le bout des brins est plus clair.
+const TOUFFES = [[[0, 2], [1, 3], [2, 2]], [[0, 3], [2, 2]], [[0, 2], [1, 2], [2, 3], [3, 1]]].map((brins) =>
+  [-1, 0, 1].map((penche) => sprite(6, 4, (p) => {
+    for (const [x, h] of brins) {
+      for (let k = 0; k < h; k++) {
+        const bout = k === h - 1;
+        p.px(x + 1 + (bout && h > 1 ? penche : 0), 3 - k, bout ? '#86c454' : '#3f7e30');
+      }
+    }
+  }, { contour: false })));
+
+// Les fleurs : une tige et quatre pétales autour d'un cœur, en trois images (le vent)
+const FLEURS = ['#ffffff', '#ffe14a', '#ff8fb0', '#c09cff', '#ffb04a'].map((couleur) =>
+  [-1, 0, 1].map((penche) => sprite(5, 5, (p) => {
+    p.px(2, 4, '#3f7e30'); p.px(2, 3, '#4f9a36');
+    const x = 2 + penche;
+    p.px(x, 1, couleur); p.px(x - 1, 2, couleur); p.px(x + 1, 2, couleur);
+    p.px(x, 2, couleur === '#ffe14a' ? '#ff9a3a' : '#ffe680');
+  }, { contour: false })));
+
+// Le « pouf » d'un monstre battu : un petit nuage qui gonfle puis se dissout (4 images)
+const POUF = [2.5, 4, 5.5, 6.5].map((r, i) => sprite(17, 17, (p) => {
+  for (let y = 0; y < 17; y++) {
+    for (let x = 0; x < 17; x++) {
+      const dx = x + 0.5 - 8.5, dy = y + 0.5 - 8.5;
+      const bord = r + (grain(x * 5 + i, y * 3) - 0.5) * 1.6;
+      if (dx * dx + dy * dy > bord * bord) continue;
+      if (i === 3 && tramage(x, y) > 0.45) continue; // la dernière image se dissout (un pixel sur deux)
+      p.px(x, y, dx + dy > r * 0.5 ? '#d8d2e4' : '#ffffff');
+    }
+  }
+}, { couleurContour: '#a89ebc' }));
+
+// Un oiseau vu de loin, en deux images : les ailes en l'air, puis en bas
+const OISEAU = [
+  [[0, 0], [1, 1], [2, 1], [3, 2], [4, 1], [5, 1], [6, 0]],
+  [[0, 2], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 2]],
+].map((points) => sprite(7, 3, (p) => { for (const [x, y] of points) p.px(x, y, '#2a2030'); }, { contour: false }));
+
+// Un drapeau qui flotte, en trois images : chaque colonne monte ou descend un peu,
+// et le bout du drapeau bouge plus que le côté de la hampe
+function imagesDrapeau(largeur, hauteur) {
+  return [0, 1, 2].map((phase) => sprite(largeur + 2, hauteur + 3, (p) => {
+    for (let i = 0; i < largeur; i++) {
+      const dy = Math.round(Math.sin(phase * 2.1 - i * 1.1) * (i / (largeur - 1)));
+      const h = i >= largeur - 2 ? hauteur - 1 : hauteur; // le bout est un peu plus court
+      for (let j = 0; j < h; j++) p.px(1 + i, 1 + j + dy, j === h - 1 ? '#b82e22' : '#e8402e');
+    }
+  }));
+}
+const DRAPEAU = imagesDrapeau(6, 4);
+const PETIT_DRAPEAU = imagesDrapeau(4, 3);
+
 // ── Le château (vu de trois quarts : on voit le dessus et la face sud) ──
 function spriteChateau() {
   const L = 68, H = 112;
@@ -638,7 +789,7 @@ function spriteChateau() {
     // donjon au centre
     briques(22, 34, 24, 34);
     for (let j = 0; j < 16; j++) p.rect(34 - j - 2, 18 + j, (j + 2) * 2, 1, j % 3 === 0 ? '#2e4a8e' : '#4a72c8'); // toit bleu
-    p.rect(33, 6, 1, 13, '#5a3a22'); p.rect(34, 6, 6, 4, '#e8402e'); p.rect(34, 9, 4, 1, '#b82e22'); // drapeau
+    p.rect(33, 6, 1, 13, '#5a3a22'); // la hampe du drapeau (le drapeau, lui, flotte : voir DRAPEAUX)
     p.rect(30, 56, 8, 12, '#2a1c14'); // porte du donjon
     // murs ouest et est (on voit le dessus)
     p.rect(6, 30, 6, 76, '#d6cab0'); p.rect(56, 30, 6, 76, '#d6cab0');
@@ -656,20 +807,18 @@ function spriteChateau() {
     };
     tour(0, 26, 16, '#4a72c8'); tour(54, 26, 16, '#4a72c8');
     tour(0, 92, 18, '#4a72c8'); tour(54, 92, 18, '#4a72c8');
-    p.rect(6, 2 + 80, 1, 8, '#5a3a22'); p.rect(7, 82, 4, 3, '#e8402e'); // petit drapeau tour sud-ouest
+    p.rect(6, 2 + 80, 1, 8, '#5a3a22'); // la hampe du petit drapeau, sur la tour sud-ouest
   });
 }
 
 // ── Les ambiances (le moment de la journée) ──
-// voile : les couleurs posées en « lumière douce » sur toute l'image (du coin haut-gauche
-// au coin bas-droit) ; rayons : la force des rayons de soleil ; brume : un voile blanc ;
-// nuit : tout s'assombrit en bleu, et les lanternes s'allument.
-const AMBIANCES_PIXEL = {
-  doree: { voile: ['rgba(255,190,110,0.85)', 'rgba(255,170,120,0.35)', 'rgba(90,60,150,0.7)'], rayons: 1, brume: 0, vignette: 0.45 },
-  midi: { voile: ['rgba(255,250,230,0.45)', 'rgba(255,248,225,0.2)', 'rgba(150,170,200,0.3)'], rayons: 0, brume: 0, vignette: 0.22 },
-  aube: { voile: ['rgba(255,170,190,0.7)', 'rgba(200,190,255,0.45)', 'rgba(110,130,200,0.7)'], rayons: 0.6, brume: 0.3, vignette: 0.35 },
-  nuit: { voile: ['rgba(60,80,170,0.9)', 'rgba(40,50,130,0.9)', 'rgba(25,25,80,0.95)'], rayons: 0, brume: 0, vignette: 0.6, nuit: true },
-};
+// Elles sont rangées dans ambiances.json (partie « pixel ») et se règlent dans l'atelier
+// des lumières. voile : les couleurs posées en « lumière douce » sur toute l'image (du coin
+// haut-gauche au coin bas-droit), chacune avec sa force ; rayons : la force des rayons de
+// soleil ; brume : un voile blanc ; nuit : tout s'assombrit en bleu, et les lanternes s'allument.
+const AMBIANCES_PIXEL = REGLAGES_AMBIANCES.pixel;
+// « #ffbe6e » et une force de 0,85 → « rgba(255,190,110,0.85) », ce que comprend le Canvas
+const rgba = (couleur, force) => `rgba(${hex(couleur).join(',')},${force})`;
 
 // ═════════════════════════════════════════════════════════════
 // 2. LE RENDU
@@ -704,9 +853,14 @@ export default class RenduPixel {
     const aleaDecor = creerAleatoire(99);
     this.decor = [];
     const niv = this.niveau;
+    // un arbre garde ses trois images (le vent) ; img = l'image droite (pour son ombre)
+    const arbre = (x, y, type, petit) => {
+      const images = spriteArbre(type, petit);
+      this.decor.push({ x, y, images, img: images[1], type });
+    };
     for (const d of niv.decor) {
       if (d.type === 'rocher') this.decor.push({ x: d.x, y: d.y, img: spriteRocher(d.taille) });
-      else if (FEUILLAGES[d.type]) this.decor.push({ x: d.x, y: d.y, img: spriteArbre(d.type, d.dedans) });
+      else if (FEUILLAGES[d.type]) arbre(d.x, d.y, d.type, d.dedans);
     }
     // des arbres en plus autour de la carte (en pixel art on voit tout d'en haut, ils ne gênent pas)
     for (let i = 0; i < 900; i++) {
@@ -716,8 +870,31 @@ export default class RenduPixel {
       if (niv.distanceAuChemin(x, y) < 1.6 || Math.hypot(x - niv.chateau.x, y - niv.chateau.y) < 3.6) continue;
       if (this.decor.some((d) => Math.hypot(d.x - x, d.y - y) < 1.15)) continue;
       const type = ['chene', 'chene', 'bouleau', 'automne'][Math.floor(aleaDecor() * 4)];
-      this.decor.push({ x, y, img: spriteArbre(type, false) });
+      arbre(x, y, type, false);
     }
+    // des touffes d'herbe et des fleurs, qui bougent au vent (placées une fois pour toutes)
+    this.herbes = [];
+    const ch = niv.chateau, aleaHerbe = creerAleatoire(5);
+    const nombre = Math.round((niv.largeur + 8) * (niv.hauteur + 6) * 1.2);
+    for (let i = 0; i < nombre; i++) {
+      const x = -4 + aleaHerbe() * (niv.largeur + 8), y = -3 + aleaHerbe() * (niv.hauteur + 6);
+      const fleur = aleaHerbe() < 0.2, sorte = aleaHerbe();
+      if (niv.distanceAuChemin(x, y) < 0.75 || niv.distanceEtang(x, y) < 0.45) continue;
+      if (x > ch.x - 2 && x < ch.x + 1.9 && y > ch.y - 2.9 && y < ch.y + 3) continue;
+      if (niv.socles.some((e) => Math.hypot(e.x - x, e.y - y) < 0.85)) continue;
+      const liste = fleur ? FLEURS : TOUFFES;
+      this.herbes.push({ x, y, fleur, images: liste[Math.floor(sorte * liste.length)] });
+    }
+    this.arbresAutomne = this.decor.filter((d) => d.type === 'automne');
+
+    this.lumieres = new Lumieres(niv); // les lanternes, le feu, les explosions… (voir lumieres.js)
+    this.halos = new Map();            // les halos de lumière déjà dessinés, par taille et couleur
+    this.poufs = [];                   // les petits nuages des monstres battus
+    this.oiseaux = [];
+    this.feuillesQuiTombent = [];
+    this.papillons = null;
+    this.flash = 0;                    // l'éclair d'un orage d'Étincelle, la nuit
+    this.creerNuages();
     this.redimensionner();
   }
 
@@ -776,6 +953,8 @@ export default class RenduPixel {
       if (d.taille > 0.9) fctx.fillRect(x + 2, y + 1, 1, 1);
     }
     this.fond = fond;
+    this.preparerEau();
+    this.cuireOmbres();
   }
 
   // Le portrait d'un personnage (pour les fiches du didacticiel)
@@ -796,14 +975,6 @@ export default class RenduPixel {
     this.ectx.drawImage(img, Math.round(x - img.width * ancrageX), Math.round(y - img.height * ancrageY));
   }
 
-  ombre(x, y, largeur) {
-    const c = this.ectx;
-    c.fillStyle = 'rgba(30,16,30,0.32)';
-    const l = Math.max(4, Math.round(largeur)), h = Math.max(2, Math.round(largeur / 3));
-    c.fillRect(Math.round(x - l / 2) + 2, Math.round(y - h / 2), l, h);
-    c.fillRect(Math.round(x - l / 2) + 3, Math.round(y - h / 2) - 1, l - 2, h + 2);
-  }
-
   // ── Particules carrées ── (z0 : la hauteur de départ, en pixels)
   emettre(x, y, n, couleurs, force = 40, haut = 50, vie = 0.6, z0 = 4) {
     for (let i = 0; i < n; i++) {
@@ -816,8 +987,15 @@ export default class RenduPixel {
   }
 
   traiterEvenements(evenements) {
+    this.lumieres.evenements(evenements);
     for (const ev of evenements) {
       const p = this.versPixel(ev.x, ev.y);
+      if (ev.type === 'mort' || ev.type === 'naissance') {
+        // un petit nuage « pouf » là où le monstre a été battu (ou d'où sortent les petits)
+        const fiche = MONSTRES[ev.quoi];
+        this.poufs.push({ x: p.x, y: p.y, haut: ev.type === 'mort' && fiche.volant ? Math.round(HAUTEUR_VOL * T) : 0, t: 0, gros: ev.type === 'mort' && fiche.boss });
+      }
+      if (ev.type === 'eclair') this.flash = 0.1;
       if (ev.type === 'impact' && ev.quoi !== 'vent') this.emettre(p.x, p.y, 6, ev.quoi === 'feu' ? ['#ff8a1e', '#ffd23a', '#fff0a0'] : ['#e8fbff', '#9fe6ff'], 30, 40, 0.35);
       if (ev.type === 'explosion') { this.emettre(p.x, p.y, 22, ['#8f8496', '#6e6478', '#d8c8b0'], 60, 70, 0.7); this.secousse = 0.15; }
       if (ev.type === 'mort') {
@@ -888,90 +1066,101 @@ export default class RenduPixel {
   }
 
   dessiner(etat, dtJeu, dtReel, ui) {
-    if (etat !== this.partie) { this.partie = etat; this.vues.clear(); this.particules = []; this.eclairs = []; }
+    if (etat !== this.partie) {
+      this.partie = etat;
+      this.vues.clear(); this.particules = []; this.eclairs = []; this.poufs = [];
+      this.lumieres.vider();
+    }
     this.temps += dtReel;
     this.secousse = Math.max(0, this.secousse - dtReel);
+    this.flash = Math.max(0, this.flash - dtReel);
     this.traiterEvenements(etat.evenements);
     this.majParticules(dtJeu || 0);
+    this.lumieres.maj(dtReel);
+    this.majVie(dtReel);
+    this.poufs = this.poufs.filter((f) => (f.t += dtJeu || 0) < 0.36);
     const c = this.ectx;
     const image = Math.floor(this.temps * 6) % 2; // animation à 6 images par seconde
-
-    c.drawImage(this.fond, 0, 0);
-    // reflets qui scintillent sur les étangs (répartis selon la taille de chaque étang)
-    c.fillStyle = '#b8e4f8';
-    for (const e of this.niveau.etangs) {
-      const etang = this.versPixel(e.x, e.y), k = e.rayon / 2.4;
-      for (let i = 0; i < 5; i++) {
-        if (Math.floor(this.temps * 2 + i * 1.7) % 3 === 0) continue;
-        c.fillRect(etang.x - Math.round(20 * k) + Math.round(((i * 13) % 34) * k), etang.y - Math.round(14 * k) + Math.round(((i * 11) % 26) * k), 4, 1);
-      }
-    }
-
-    // Tout ce qui a de la hauteur est trié du haut vers le bas de l'écran
-    const objets = [];
-    for (const d of this.decor) {
-      const p = this.versPixel(d.x, d.y);
-      if (p.x < -40 || p.y < -40 || p.x > this.ecran.width + 40 || p.y > this.ecran.height + 60) continue;
-      objets.push({ y: p.y, dessin: () => { this.ombre(p.x, p.y, d.img.width * 0.6); this.dessinerImage(d.img, p.x, p.y + 2); } });
-    }
-    const pc = this.versPixel(this.niveau.chateau.x, this.niveau.chateau.y);
-    objets.push({ y: pc.y + 30, dessin: () => this.dessinerImage(this.sprites.chateau, pc.x - 2, pc.y + 42) });
-    for (const l of this.niveau.lanternes) {
-      const p = this.versPixel(l.x, l.y);
-      objets.push({ y: p.y, dessin: () => {
-        c.fillStyle = CONTOUR; c.fillRect(p.x - 1, p.y - 13, 3, 14);
-        c.fillStyle = '#7a4a2a'; c.fillRect(p.x, p.y - 12, 1, 12);
-        c.fillStyle = CONTOUR; c.fillRect(p.x - 2, p.y - 18, 5, 6);
-        c.fillStyle = '#ffd36a'; c.fillRect(p.x - 1, p.y - 17, 3, 4);
-      } });
-    }
-    // socles + gardiens
+    const a = this.reglagesAmbiance();
+    const l = this.ecran.width, h = this.ecran.height;
     const occupes = new Map(etat.tours.map((t) => [t.socle, t]));
+    const horsEcran = (p, marge) => p.x < -marge || p.y < -marge || p.x > l + marge || p.y > h + marge;
+
+    // 1. Le sol : le fond peint d'avance, l'eau qui bouge, l'herbe et les fleurs au vent, les socles
+    c.drawImage(this.fond, 0, 0);
+    this.majEau();
+    if (this.eau.indices.length) c.drawImage(this.eau.canvas, 0, 0);
+    for (const herbe of this.herbes) {
+      const p = this.versPixel(herbe.x, herbe.y);
+      if (horsEcran(p, 8)) continue;
+      const img = this.imageVent(herbe.images, p.x, p.y, 0.5);
+      c.drawImage(img, p.x - (img.width >> 1), p.y - img.height + 1);
+    }
     this.niveau.socles.forEach((e, i) => {
       const p = this.versPixel(e.x, e.y);
-      const actif = i === ui.survol || i === ui.selection;
-      const tour = occupes.get(i);
-      objets.push({ y: p.y + 4, dessin: () => {
-        this.dessinerImage(actif ? this.sprites.socleSurligne : this.sprites.socle, p.x, p.y + 7);
-        if (!tour) {
-          this.dessinerImage(PLUS, p.x, p.y - 9 + (Math.floor(this.temps * 3 + i) % 2), 0.5, 0.5);
-          return;
-        }
-        // une vue par gardien ET par niveau : après une amélioration, il refait son petit saut
-        const cle = tour.id + ':' + tour.niveau;
-        let vue = this.vues.get(cle);
-        if (!vue) { vue = { apparition: 0 }; this.vues.set(cle, vue); }
-        vue.apparition = Math.min(1, vue.apparition + dtReel * 5);
-        const sp = this.spritesDe(caracteristiques(tour.type, tour.niveau)); // les sprites de SON niveau
-        // regarde vers la gauche ou la droite selon sa cible ; image 2 = attaque
-        const img = (Math.cos(tour.angle) < -0.2 ? sp.miroirs : sp.images)[tour.attaque > 0 ? 2 : image];
-        const saut = vue.apparition < 1 ? Math.round(Math.sin(vue.apparition * Math.PI) * 6) : 0;
-        if (tour.assomme > 0) c.filter = 'brightness(0.65) saturate(0.5)'; // assommé par le feu du Dragon
-        this.dessinerImage(img, p.x, p.y + 3 - saut); // les pattes posées au milieu du socle
-        c.filter = 'none';
-        if (tour.assomme > 0) {
-          // trois petites étoiles qui tournent au-dessus de sa tête
-          c.fillStyle = '#ffe14a';
-          for (let k = 0; k < 3; k++) {
-            const angle = this.temps * 5 + (k * Math.PI * 2) / 3;
-            c.fillRect(Math.round(p.x + Math.cos(angle) * 6), Math.round(p.y - 19 + Math.sin(angle) * 2), 1, 1);
-          }
-        }
-      } });
+      this.dessinerImage(i === ui.survol || i === ui.selection ? this.sprites.socleSurligne : this.sprites.socle, p.x, p.y + 7);
     });
-    // monstres
+
+    // 2. Tout ce qui a de la hauteur : on fait la liste, chaque chose avec son dessin et son ombre
+    const objets = [];
     const volants = []; // dessinés à la fin, par-dessus tout le reste : ils sont en l'air
+    for (const d of this.decor) {
+      const p = this.versPixel(d.x, d.y);
+      if (horsEcran(p, 40)) continue;
+      const img = d.images ? this.imageVent(d.images, p.x, p.y) : d.img;
+      objets.push({ y: p.y, dessin: () => this.dessinerImage(img, p.x, p.y + 2) });
+    }
+    const pc = this.versPixel(this.niveau.chateau.x, this.niveau.chateau.y);
+    objets.push({ y: pc.y + 30, dessin: () => { this.dessinerImage(this.sprites.chateau, pc.x - 2, pc.y + 42); this.dessinerDrapeaux(pc); } });
+    for (const lanterne of this.niveau.lanternes) {
+      const p = this.versPixel(lanterne.x, lanterne.y);
+      objets.push({ y: p.y, dessin: () => this.dessinerImage(LANTERNE, p.x, p.y + 1) });
+    }
+    // les gardiens (et le « + » doré des socles libres)
+    this.niveau.socles.forEach((e, i) => {
+      const p = this.versPixel(e.x, e.y);
+      const tour = occupes.get(i);
+      if (!tour) {
+        objets.push({ y: p.y + 4, dessin: () => this.dessinerImage(PLUS, p.x, p.y - 9 + (Math.floor(this.temps * 3 + i) % 2), 0.5, 0.5) });
+        return;
+      }
+      // une vue par gardien ET par niveau : après une amélioration, il refait son petit saut
+      const cle = tour.id + ':' + tour.niveau;
+      let vue = this.vues.get(cle);
+      if (!vue) { vue = { apparition: 0 }; this.vues.set(cle, vue); }
+      vue.apparition = Math.min(1, vue.apparition + dtReel * 5);
+      const sp = this.spritesDe(caracteristiques(tour.type, tour.niveau)); // les sprites de SON niveau
+      // il regarde vers la gauche ou la droite selon sa cible ; image 2 = attaque, image 3 = il cligne
+      // des yeux (de temps en temps, chacun à son rythme ; et il les ferme quand il est assommé)
+      const versGauche = Math.cos(tour.angle) < -0.2;
+      const clin = tour.assomme > 0 || (this.temps + tour.id * 1.73) % 3.4 < 0.14;
+      const numero = tour.attaque > 0 ? 2 : clin && sp.images.length > 3 ? 3 : image;
+      const img = (versGauche ? sp.miroirs : sp.images)[numero];
+      const saut = vue.apparition < 1 ? Math.round(Math.sin(vue.apparition * Math.PI) * 6) : 0;
+      const recul = tour.attaque > 0.12 ? (versGauche ? 1 : -1) : 0; // il recule d'un pixel quand il tire
+      objets.push({
+        y: p.y + 4,
+        ombre: { img, x: p.x + recul, y: p.y + 3 },
+        dessin: () => {
+          if (tour.assomme > 0) c.filter = 'brightness(0.65) saturate(0.5)'; // assommé par le feu du Dragon
+          this.dessinerImage(img, p.x + recul, p.y + 3 - saut); // les pattes posées au milieu du socle
+          c.filter = 'none';
+          if (tour.assomme > 0) {
+            // trois petites étoiles qui tournent au-dessus de sa tête
+            c.fillStyle = '#ffe14a';
+            for (let k = 0; k < 3; k++) {
+              const angle = this.temps * 5 + (k * Math.PI * 2) / 3;
+              c.fillRect(Math.round(p.x + Math.cos(angle) * 6), Math.round(p.y - 19 + Math.sin(angle) * 2), 1, 1);
+            }
+          }
+        },
+      });
+    });
+    // les monstres
     for (const e of etat.ennemis) {
       const p = this.versPixel(e.x, e.y);
       const fiche = MONSTRES[e.type];
       const sp = this.spritesDe(fiche);
-      const vite = e.facteurRalenti < 1 ? Math.floor(this.temps * 3) % 2 : image; // gelé : il s'anime au ralenti
-      const img = (sp.profil && e.dx < -0.1 ? sp.miroirs : sp.images)[(vite + e.id) % sp.images.length];
-      // à quelle hauteur le dessiner : un volant vole (en montant et descendant un peu),
-      // un petit qui vient de naître fait un bond
-      const vol = fiche.volant ? Math.round(HAUTEUR_VOL * T + Math.sin(this.temps * 5 + e.id) * 1.5) : 0;
-      const bond = e.bond > 0 ? Math.round(Math.sin(e.bond * Math.PI) * 10) : 0;
-      const y = p.y + 2 - vol - bond;
       if (e.cache) {
         // sous terre (la Taupe) : on ne voit qu'un petit tas de terre qui avance
         objets.push({ y: p.y, dessin: () => {
@@ -980,6 +1169,16 @@ export default class RenduPixel {
         } });
         continue;
       }
+      const vite = e.facteurRalenti < 1 ? Math.floor(this.temps * 3) % 2 : image; // gelé : il s'anime au ralenti
+      const img = (sp.profil && e.dx < -0.1 ? sp.miroirs : sp.images)[(vite + e.id) % sp.images.length];
+      // à quelle hauteur le dessiner : un volant vole (en montant et descendant un peu),
+      // un petit qui vient de naître fait un bond
+      const vol = fiche.volant ? Math.round(HAUTEUR_VOL * T + Math.sin(this.temps * 5 + e.id) * 1.5) : 0;
+      const bond = e.bond > 0 ? Math.round(Math.sin(e.bond * Math.PI) * 10) : 0;
+      const y = p.y + 2 - vol - bond;
+      // son ombre reste par terre : plus il est haut, plus elle s'éloigne de lui
+      const enAir = vol + bond;
+      const ombre = { img, x: p.x + enAir * a.ombre.dx, y: p.y + 2 + enAir * a.ombre.dy };
       const dessin = () => {
         if (e.touche > 0) c.filter = 'brightness(2.2)';
         // gelé : un voile bleu glacé (on passe d'abord en sépia, pour que tous les monstres bleuissent pareil,
@@ -998,21 +1197,20 @@ export default class RenduPixel {
         }
         // barre de vie
         if (e.pv < e.pvMax) {
-          const l = sp.largeurBarre, yb = y - img.height + img.hautVisible - 3, r = e.pv / e.pvMax;
-          c.fillStyle = CONTOUR; c.fillRect(p.x - l / 2 - 1, yb - 1, l + 2, 4);
+          const lb = sp.largeurBarre, yb = y - img.height + img.hautVisible - 3, r = e.pv / e.pvMax;
+          c.fillStyle = CONTOUR; c.fillRect(p.x - lb / 2 - 1, yb - 1, lb + 2, 4);
           c.fillStyle = r > 0.5 ? '#7be04a' : r > 0.25 ? '#f2c230' : '#ec4a3a';
-          c.fillRect(p.x - l / 2, yb, Math.max(1, Math.round(l * r)), 2);
+          c.fillRect(p.x - lb / 2, yb, Math.max(1, Math.round(lb * r)), 2);
         }
       };
       if (fiche.volant) {
-        // son ombre reste par terre, triée avec le décor ; lui passe par-dessus
-        objets.push({ y: p.y, dessin: () => this.ombre(p.x, p.y, img.width * 0.45) });
+        objets.push({ y: p.y, ombre, dessin: () => {} });
         volants.push(dessin);
       } else {
-        objets.push({ y: p.y, dessin: () => { this.ombre(p.x, p.y, img.width * 0.7); dessin(); } });
+        objets.push({ y: p.y, ombre, dessin });
       }
     }
-    // tirs
+    // les tirs
     for (const t of etat.projectiles) {
       const p = this.versPixel(t.x, t.y);
       const hauteur = Math.round(t.z * T);
@@ -1037,9 +1235,35 @@ export default class RenduPixel {
         }
       } });
     }
-    objets.sort((a, b) => a.y - b.y);
-    for (const o of objets) o.dessin();
+    // les « pouf » des monstres battus (trois pour un chef)
+    for (const f of this.poufs) {
+      const n = Math.min(3, Math.floor(f.t / 0.09));
+      const places = f.gros ? [[0, -14], [-12, -2], [12, -4]] : [[0, 0]];
+      objets.push({ y: f.y + 1, dessin: () => { for (const [dx, dy] of places) this.dessinerImage(POUF[n], f.x + dx, f.y - f.haut + 4 + dy); } });
+    }
+
+    // 3. Les ombres : celles du décor (peintes d'avance), puis celles des personnages et des
+    //    oiseaux, dans un même calque posé d'un coup (là où deux ombres se croisent, ce n'est
+    //    pas plus sombre)
+    const o = this.calqueOmbres.getContext('2d');
+    o.clearRect(0, 0, l, h);
+    o.drawImage(this.calqueOmbresFixes, 0, 0);
+    for (const objet of objets) if (objet.ombre) this.ombrePortee(o, objet.ombre.img, objet.ombre.x, objet.ombre.y);
+    for (const oiseau of this.oiseaux) {
+      o.drawImage(silhouette(OISEAU[0]), Math.round(oiseau.x + oiseau.haut * a.ombre.dx) - 3, Math.round(oiseau.y + oiseau.haut * a.ombre.dy));
+    }
+    c.globalAlpha = a.ombre.force;
+    c.drawImage(this.calqueOmbres, 0, 0);
+    c.globalAlpha = 1;
+    // 4. Les ombres des nuages, qui glissent sur le sol
+    if (a.nuages > 0) this.dessinerNuages(a.nuages);
+
+    // 5. Tout ce qui a de la hauteur, trié du haut vers le bas de l'écran
+    objets.sort((u, v) => u.y - v.y);
+    for (const objet of objets) objet.dessin();
     for (const dessin of volants) dessin();
+    // 6. La vie autour : les papillons, les feuilles qui tombent, et les oiseaux, tout en haut
+    this.dessinerVie();
 
     // cercle de portée
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
@@ -1121,17 +1345,26 @@ export default class RenduPixel {
     }
   }
 
-  // La lumière de l'ambiance choisie : un voile de couleur en « lumière douce »,
-  // la nuit et ses lanternes, des rayons, de la brume, puis une vignette sur les bords
+  // La lumière de l'ambiance choisie : un voile de couleur en « lumière douce », la nuit,
+  // les lumières du jeu (lanternes, feu, explosions…), des rayons, de la brume, puis une
+  // vignette sur les bords
   lumiere() {
     const c = this.ectx, l = this.ecran.width, h = this.ecran.height;
-    const a = AMBIANCES_PIXEL[this.ambiance] || AMBIANCES_PIXEL.doree;
+    const a = this.reglagesAmbiance();
     c.globalCompositeOperation = 'soft-light';
     const g = c.createLinearGradient(0, 0, l, h);
-    a.voile.forEach((couleur, i) => g.addColorStop(i / (a.voile.length - 1), couleur));
+    a.voile.forEach(({ couleur, force }, i) => g.addColorStop(i / (a.voile.length - 1), rgba(couleur, force)));
     c.fillStyle = g;
     c.fillRect(0, 0, l, h);
-    if (a.nuit) this.lumieresDeLaNuit();
+    if (a.nuit > 0) {
+      // la nuit : tout s'assombrit en bleu (« multiply » multiplie chaque couleur par celle-ci)
+      c.globalCompositeOperation = 'multiply';
+      c.fillStyle = melanger('#ffffff', '#5a68b0', Math.min(1, a.nuit));
+      c.fillRect(0, 0, l, h);
+    }
+    c.globalCompositeOperation = 'source-over';
+    this.lumieresDynamiques(a);
+    if (a.nuit > 0) this.lucioles(a.nuit);
     if (a.rayons) {
       c.globalCompositeOperation = 'screen';
       // trois rayons de soleil en diagonale (en bandes nettes, pas floues)
@@ -1159,38 +1392,76 @@ export default class RenduPixel {
     v.addColorStop(1, `rgba(20,10,30,${a.vignette})`);
     c.fillStyle = v;
     c.fillRect(0, 0, l, h);
+    if (this.flash > 0 && a.nuit > 0) {
+      // l'éclair d'Étincelle illumine un instant toute la nuit
+      c.globalCompositeOperation = 'screen';
+      c.fillStyle = `rgba(190,210,255,${(this.flash / 0.1) * 0.2 * a.nuit})`;
+      c.fillRect(0, 0, l, h);
+      c.globalCompositeOperation = 'source-over';
+    }
   }
 
-  // La nuit : tout s'assombrit en bleu (« multiply »), puis les lanternes et la porte du
-  // château éclairent autour d'elles (« lighter » ajoute de la lumière), et des lucioles clignotent
-  lumieresDeLaNuit() {
-    const c = this.ectx, l = this.ecran.width, h = this.ecran.height;
-    c.globalCompositeOperation = 'multiply';
-    c.fillStyle = '#5a68b0';
-    c.fillRect(0, 0, l, h);
+  // Les lumières du jeu (voir lumieres.js) : chacune pose un halo de pixels, « ajouté » à
+  // l'image (« lighter » additionne les couleurs). La force dépend de l'ambiance : en
+  // plein midi on les voit à peine, la nuit elles éclairent tout autour d'elles.
+  lumieresDynamiques(a) {
+    const k = a.lumieres ?? 0.3;
+    if (k <= 0.01 || !this.partie) return;
+    const c = this.ectx;
     c.globalCompositeOperation = 'lighter';
-    const halo = (x, y, rayon, force) => {
-      const d = c.createRadialGradient(x, y, 0, x, y, rayon);
-      d.addColorStop(0, `rgba(255,180,80,${force})`);
-      d.addColorStop(1, 'rgba(255,180,80,0)');
-      c.fillStyle = d;
-      c.fillRect(x - rayon, y - rayon, rayon * 2, rayon * 2);
-    };
-    const vacille = (i) => 0.92 + Math.sin(this.temps * 7 + i * 1.7) * 0.08; // la flamme bouge un peu
-    this.niveau.lanternes.forEach((lanterne, i) => {
-      const p = this.versPixel(lanterne.x, lanterne.y);
-      halo(p.x, p.y - 14, 30, 0.5 * vacille(i));
-    });
-    const porte = this.versPixel(this.niveau.chateau.porte.x, this.niveau.chateau.porte.y);
-    halo(porte.x + 4, porte.y - 8, 26, 0.45 * vacille(9));
-    // des lucioles : toujours aux mêmes endroits, elles s'allument et s'éteignent doucement
+    for (const lum of this.lumieres.liste(this.partie, a.nuit)) {
+      const force = Math.min(1, lum.force * k);
+      if (force < 0.03) continue;
+      const p = this.versPixel(lum.x, lum.y);
+      const rayon = Math.max(4, Math.round(lum.rayon * T));
+      c.globalAlpha = force;
+      c.drawImage(this.halo(rayon, lum.couleur), p.x - rayon, p.y - Math.round(lum.hauteur * T * 0.5) - rayon);
+    }
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  // Un halo de lumière en pixels : quatre paliers de plus en plus pâles vers le bord, avec du
+  // tramage entre eux (comme dans les jeux 16 bits), un peu aplati (on le voit de biais).
+  // Gardé une fois dessiné, pour chaque taille et chaque couleur.
+  halo(rayon, couleur) {
+    const cle = rayon + ':' + couleur.join(',');
+    let img = this.halos.get(cle);
+    if (!img) {
+      const taille = rayon * 2 + 1;
+      img = document.createElement('canvas');
+      img.width = img.height = taille;
+      const ctx = img.getContext('2d');
+      const pixels = ctx.createImageData(taille, taille);
+      for (let y = 0; y < taille; y++) {
+        for (let x = 0; x < taille; x++) {
+          const d = Math.hypot(x - rayon, (y - rayon) * 1.3) / rayon;
+          if (d >= 1) continue;
+          const v = (1 - d) ** 1.5;                                    // forte au centre, douce au bord
+          const palier = Math.floor(v * 4 + tramage(x, y) * 0.9) / 4; // 4 paliers, tramés
+          if (palier <= 0) continue;
+          const i = (y * taille + x) * 4;
+          pixels.data[i] = couleur[0] * 255; pixels.data[i + 1] = couleur[1] * 255; pixels.data[i + 2] = couleur[2] * 255;
+          pixels.data[i + 3] = palier * 0.6 * 255;
+        }
+      }
+      ctx.putImageData(pixels, 0, 0);
+      this.halos.set(cle, img);
+    }
+    return img;
+  }
+
+  // La nuit : des lucioles (toujours aux mêmes endroits, elles s'allument et s'éteignent
+  // doucement), et le cœur des lanternes, qui reste bien lumineux
+  lucioles(nuit) {
+    const c = this.ectx, l = this.ecran.width, h = this.ecran.height;
+    c.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 26; i++) {
       const x = Math.round(grain(i, 3) * l), y = Math.round(grain(i, 7) * h);
       const eclat = Math.max(0, Math.sin(this.temps * (1 + grain(i, 11)) + i * 2.3));
-      c.fillStyle = `rgba(210,255,140,${eclat * 0.8})`;
+      c.fillStyle = `rgba(210,255,140,${eclat * 0.8 * nuit})`;
       c.fillRect(x + Math.round(Math.sin(this.temps * 0.7 + i) * 3), y + Math.round(Math.cos(this.temps * 0.5 + i) * 2), 1, 1);
     }
-    // le cœur des lanternes reste bien lumineux
     c.globalCompositeOperation = 'source-over';
     c.fillStyle = '#ffe9a0';
     for (const lanterne of this.niveau.lanternes) {
@@ -1199,9 +1470,279 @@ export default class RenduPixel {
     }
   }
 
-  // Changer le moment de la journée (les boutons « Ambiance »)
+  // Changer le moment de la journée (les boutons « Ambiance », ou l'atelier des lumières) :
+  // les ombres du décor changent de direction, on les repeint
   choisirAmbiance(nom) {
     this.ambiance = nom;
+    this.cuireOmbres();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CE QUI REND LE DÉCOR VIVANT
+  // ═══════════════════════════════════════════════════════════
+  // Les réglages de l'ambiance affichée (dans ambiances.json)
+  reglagesAmbiance() {
+    return AMBIANCES_PIXEL[this.ambiance] || AMBIANCES_PIXEL.doree;
+  }
+
+  // ── Le vent ──
+  // Des rafales qui traversent la carte de gauche à droite : quand une rafale passe sur un
+  // arbre, il penche à droite, puis revient un peu à gauche en se redressant. Un petit
+  // frisson en plus, pour que deux arbres voisins ne bougent pas tout à fait ensemble.
+  // x, y en pixels ; renvoie la force du vent à cet endroit (0 : rien).
+  vent(x, y) {
+    const force = this.reglagesAmbiance().vent ?? 0.6;
+    const onde = Math.sin(this.temps * 1.1 - x * 0.025 - y * 0.008);
+    const frisson = Math.sin(this.temps * 4.3 + x * 0.7 + y * 0.31) * 0.22;
+    return ((onde > 0 ? onde : onde * 0.45) + frisson) * force;
+  }
+  // L'image qui va avec le vent : [penchée à gauche, droite, penchée à droite]
+  imageVent(images, x, y, seuil = 0.55) {
+    const v = this.vent(x, y);
+    return images[v > seuil ? 2 : v < -seuil * 0.55 ? 0 : 1];
+  }
+
+  // ── L'eau qui bouge ──
+  // On repère une fois les pixels d'eau (à chaque redimensionnement), avec leur distance au
+  // bord et leur angle autour de l'étang. Ensuite on les repeint 8 fois par seconde : des
+  // vaguelettes qui avancent, un liseré d'écume qui tourne le long du bord, et de petits
+  // reflets qui s'allument au hasard.
+  preparerEau() {
+    const l = this.ecran.width, h = this.ecran.height;
+    const vus = new Set(), indices = [], bords = [], angles = [], xs = [], ys = [];
+    for (const e of this.niveau.etangs) {
+      const x0 = Math.max(0, Math.floor((e.x - e.rayon - 1) * T + this.ox)), x1 = Math.min(l - 1, Math.ceil((e.x + e.rayon + 1) * T + this.ox));
+      const y0 = Math.max(0, Math.floor((e.y - e.rayon - 1) * T + this.oy)), y1 = Math.min(h - 1, Math.ceil((e.y + e.rayon + 1) * T + this.oy));
+      for (let j = y0; j <= y1; j++) {
+        for (let i = x0; i <= x1; i++) {
+          const wx = i - this.ox, wy = j - this.oy;
+          const bord = this.niveau.distanceEtang(wx / T, wy / T); // négatif = dans l'eau
+          if (bord >= 0 || vus.has(j * l + i)) continue;
+          vus.add(j * l + i);
+          indices.push(j * l + i); bords.push(bord); xs.push(wx); ys.push(wy);
+          angles.push(Math.atan2(wy / T - e.y, wx / T - e.x));
+        }
+      }
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = l;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    this.eau = {
+      canvas, ctx, image: ctx.createImageData(l, h), etape: -1,
+      indices: Int32Array.from(indices), bords: Float32Array.from(bords), angles: Float32Array.from(angles),
+      xs: Int32Array.from(xs), ys: Int32Array.from(ys),
+    };
+  }
+
+  majEau() {
+    const eau = this.eau;
+    if (!eau.indices.length) return;
+    const etape = Math.floor(this.temps * 8);
+    const C = this.reglagesAmbiance().nuit >= 0.5 ? EAU_NUIT : EAU;
+    if (etape === eau.etape && C === eau.couleurs) return; // 8 fois par seconde suffisent (c'est du pixel art)
+    eau.etape = etape;
+    eau.couleurs = C;
+    const t = etape / 8, d = eau.image.data;
+    for (let k = 0; k < eau.indices.length; k++) {
+      const bord = eau.bords[k], wx = eau.xs[k], wy = eau.ys[k];
+      let c;
+      if (bord > -0.1) c = C.rive; // le bord, plus sombre
+      else if (bord > -0.2 && Math.sin(eau.angles[k] * 9 + t * 2.4) > 0.55) c = C.ecume; // l'écume qui tourne
+      else {
+        // des vaguelettes : des lignes ondulées qui descendent doucement
+        const onde = Math.sin(wy * 0.85 + Math.sin(wx * 0.16 + t * 1.2) * 2.4 - t * 2.2);
+        c = onde > 0.94 ? C.clair : onde < -0.96 ? C.sombre : bord > -0.32 ? C.bas : C.fond;
+        if (grain(wx * 3 + etape * 17, wy * 5) > 0.997) c = C.reflet; // un reflet qui s'allume
+      }
+      const i = eau.indices[k] * 4;
+      d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+    }
+    eau.ctx.putImageData(eau.image, 0, 0);
+  }
+
+  // ── Les ombres ──
+  // Une ombre portée : la silhouette du sprite, couchée sur le sol du côté opposé au soleil.
+  // Le « transform » du Canvas fait le travail : un pixel à la hauteur h au-dessus du pied du
+  // sprite se retrouve décalé de h × dx vers la droite et de h × dy vers le bas (dx, dy :
+  // l'ombre de l'ambiance). Le sprite est donc retourné, penché et écrasé sur le sol.
+  ombrePortee(o, img, x, y, ancrageX = 0.5) {
+    const { dx, dy } = this.reglagesAmbiance().ombre;
+    const bx = Math.round(x), by = Math.round(y);
+    o.setTransform(1, 0, -dx, -dy, bx, by);
+    o.drawImage(silhouette(img), Math.round(x - img.width * ancrageX) - bx, -img.height);
+    o.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  // L'ombre d'un bâtiment vu de trois quarts (le château) : sa silhouette « balayée »,
+  // pixel après pixel, dans la direction de l'ombre, sur toute sa hauteur.
+  // zone = [x, y, largeur, hauteur] : seulement une partie du sprite (le donjon, plus haut)
+  ombreBalayee(o, img, x, y, hauteur, zone = null) {
+    const { dx, dy } = this.reglagesAmbiance().ombre;
+    const sil = silhouette(img);
+    const [zx, zy, zl, zh] = zone || [0, 0, img.width, img.height];
+    const x0 = Math.round(x - img.width * 0.5), y0 = Math.round(y - img.height);
+    for (let k = 1; k <= hauteur; k++) o.drawImage(sil, zx, zy, zl, zh, x0 + zx + Math.round(k * dx), y0 + zy + Math.round(k * dy), zl, zh);
+  }
+
+  // Les ombres de ce qui ne bouge pas (arbres, rochers, château, lanternes) : peintes une fois
+  // pour toutes dans un calque. À refaire quand l'ambiance (donc le soleil) change.
+  cuireOmbres() {
+    const l = this.ecran.width, h = this.ecran.height;
+    this.calqueOmbresFixes ||= document.createElement('canvas');
+    this.calqueOmbres ||= document.createElement('canvas');
+    for (const calque of [this.calqueOmbresFixes, this.calqueOmbres]) {
+      calque.width = l;
+      calque.height = h;
+      calque.getContext('2d').imageSmoothingEnabled = false; // (changer la taille remet ce réglage à zéro)
+    }
+    const o = this.calqueOmbresFixes.getContext('2d');
+    for (const d of this.decor) {
+      const p = this.versPixel(d.x, d.y);
+      if (p.x < -60 || p.y < -60 || p.x > l + 60 || p.y > h + 60) continue;
+      this.ombrePortee(o, d.img, p.x, p.y + 2);
+    }
+    const pc = this.versPixel(this.niveau.chateau.x, this.niveau.chateau.y);
+    this.ombreBalayee(o, this.sprites.chateau, pc.x - 2, pc.y + 42, 14);                  // les murs
+    this.ombreBalayee(o, this.sprites.chateau, pc.x - 2, pc.y + 42, 34, [20, 0, 28, 70]); // le donjon, plus haut
+    for (const lanterne of this.niveau.lanternes) {
+      const p = this.versPixel(lanterne.x, lanterne.y);
+      this.ombrePortee(o, LANTERNE, p.x, p.y + 1);
+    }
+  }
+
+  // ── Les ombres des nuages ──
+  // Un motif de taches sombres, au bord tramé (16 bits oblige), qui se répète sans couture
+  // tous les 256 pixels : il suffit de le faire glisser avec le vent.
+  creerNuages() {
+    const P = 256;
+    const c = document.createElement('canvas');
+    c.width = c.height = P;
+    const ctx = c.getContext('2d');
+    const pixels = ctx.createImageData(P, P);
+    for (let y = 0; y < P; y++) {
+      for (let x = 0; x < P; x++) {
+        const n = (bruitPeriodique(x, y, P) - 0.56) / 0.06; // au-dessus de 1 : plein ; entre 0 et 1 : tramé
+        if (n <= 0 || (n < 1 && tramage(x, y) > n)) continue;
+        const i = (y * P + x) * 4;
+        pixels.data[i] = 26; pixels.data[i + 1] = 30; pixels.data[i + 2] = 64; pixels.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(pixels, 0, 0);
+    this.motifNuages = c;
+  }
+
+  dessinerNuages(force) {
+    const c = this.ectx;
+    this.patternNuages ||= c.createPattern(this.motifNuages, 'repeat');
+    const dx = Math.round(this.temps * 6) % 256, dy = Math.round(this.temps * 2) % 256;
+    c.save();
+    c.globalAlpha = force;
+    c.translate(dx, dy);
+    c.fillStyle = this.patternNuages;
+    c.fillRect(-dx, -dy, this.ecran.width, this.ecran.height);
+    c.restore();
+  }
+
+  // ── Les drapeaux du château, qui flottent ──
+  dessinerDrapeaux(pc) {
+    const x0 = Math.round(pc.x - 2 - this.sprites.chateau.width / 2), y0 = pc.y + 42 - this.sprites.chateau.height; // le coin du château
+    const i = Math.floor(this.temps * 5) % 3;
+    this.ectx.drawImage(DRAPEAU[i], x0 + 33, y0 + 5);
+    this.ectx.drawImage(PETIT_DRAPEAU[(i + 1) % 3], x0 + 6, y0 + 81);
+  }
+
+  // ── La vie autour : des oiseaux qui passent, des papillons, des feuilles qui tombent ──
+  majVie(dt) {
+    const a = this.reglagesAmbiance(), jour = 1 - Math.min(1, a.nuit);
+    const l = this.ecran.width, h = this.ecran.height;
+    // de temps en temps, une petite volée d'oiseaux traverse la carte (le jour seulement)
+    this.prochainsOiseaux = (this.prochainsOiseaux ?? 5) - dt;
+    if (this.prochainsOiseaux <= 0) {
+      this.prochainsOiseaux = 16 + Math.random() * 20;
+      if (jour > 0.5) {
+        const sens = Math.random() < 0.5 ? 1 : -1, y = h * (0.15 + Math.random() * 0.6), n = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < n; i++) {
+          const rang = Math.ceil(i / 2), cote = i % 2 ? 1 : -1; // en V : le premier devant, les autres de chaque côté
+          this.oiseaux.push({ x: (sens > 0 ? -12 : l + 12) - sens * rang * 8, y: y + cote * rang * 5, vx: sens * 24, haut: 38 + Math.random() * 6, phase: Math.random() * 6, sens });
+        }
+      }
+    }
+    for (const oiseau of this.oiseaux) oiseau.x += oiseau.vx * dt;
+    this.oiseaux = this.oiseaux.filter((oiseau) => oiseau.x > -60 && oiseau.x < l + 60);
+
+    // les papillons volettent d'une fleur à l'autre (le jour)
+    const fleurs = this.herbes.filter((herbe) => herbe.fleur);
+    if (!this.papillons && fleurs.length) {
+      this.papillons = ['#ffffff', '#ffe14a', '#ff9ab8', '#9ad0ff', '#ffffff', '#ffb04a'].map((couleur, i) => {
+        const fleur = fleurs[Math.floor(grain(i, 41) * fleurs.length)];
+        return { x: fleur.x * T, y: fleur.y * T, cible: null, couleur, phase: i * 1.3, pause: 0 };
+      });
+    }
+    for (const pap of this.papillons || []) {
+      if (pap.pause > 0) { pap.pause -= dt; continue; }  // posé sur une fleur
+      if (!pap.cible) {
+        const fleur = fleurs[Math.floor(Math.random() * fleurs.length)];
+        if (Math.hypot(fleur.x * T - pap.x, fleur.y * T - pap.y) < 90) pap.cible = { x: fleur.x * T, y: fleur.y * T - 3 };
+        continue;
+      }
+      const dx = pap.cible.x - pap.x, dy = pap.cible.y - pap.y, dist = Math.hypot(dx, dy);
+      if (dist < 2) { pap.cible = null; pap.pause = 1 + Math.random() * 2.5; continue; }
+      const v = 16 * dt;
+      pap.x += (dx / dist) * v + Math.sin(this.temps * 9 + pap.phase) * 0.5;
+      pap.y += (dy / dist) * v + Math.cos(this.temps * 7 + pap.phase) * 0.4;
+    }
+
+    // les feuilles des arbres d'automne tombent en se balançant, puis restent un peu par terre
+    this.prochaineFeuille = (this.prochaineFeuille ?? 0) - dt * (a.vent ?? 0.6);
+    if (this.prochaineFeuille <= 0 && this.arbresAutomne.length && jour > 0.3) {
+      this.prochaineFeuille = 0.3 + Math.random() * 0.5;
+      const arbre = this.arbresAutomne[Math.floor(Math.random() * this.arbresAutomne.length)];
+      const p = this.versPixel(arbre.x, arbre.y);
+      if (p.x > -20 && p.y > -20 && p.x < l + 20 && p.y < h + 30 && this.feuillesQuiTombent.length < 40) {
+        this.feuillesQuiTombent.push({
+          x: p.x + (Math.random() - 0.5) * 14, y: p.y + 2 + Math.random() * 4, z: 12 + Math.random() * 12,
+          couleur: FEUILLAGES.automne[Math.floor(Math.random() * 3)], vie: Math.random() * 6, posee: 0,
+        });
+      }
+    }
+    for (const f of this.feuillesQuiTombent) {
+      f.vie += dt;
+      if (f.z > 0) {
+        f.z = Math.max(0, f.z - dt * 8);
+        f.x += ((a.vent ?? 0.6) * 7 + Math.sin(f.vie * 3.5) * 9) * dt;
+      } else {
+        f.posee += dt;
+      }
+    }
+    this.feuillesQuiTombent = this.feuillesQuiTombent.filter((f) => f.posee < 2.5);
+  }
+
+  dessinerVie() {
+    const c = this.ectx;
+    const nuit = Math.min(1, this.reglagesAmbiance().nuit);
+    // les feuilles (une fois posées, elles clignotent avant de disparaître)
+    for (const f of this.feuillesQuiTombent) {
+      if (f.posee > 1.6 && Math.floor(f.posee * 10) % 2) continue;
+      c.fillStyle = f.couleur;
+      c.fillRect(Math.round(f.x), Math.round(f.y - f.z), 1, 1);
+    }
+    // les papillons : les ailes ouvertes (3 pixels), puis fermées (1 pixel)
+    if (nuit < 0.5) {
+      for (const pap of this.papillons || []) {
+        const ouvert = pap.pause > 0 ? Math.floor(this.temps * 2 + pap.phase) % 2 : Math.floor(this.temps * 12 + pap.phase) % 2;
+        const x = Math.round(pap.x), y = Math.round(pap.y - (pap.pause > 0 ? 1 : 4 + Math.sin(this.temps * 5 + pap.phase) * 2));
+        c.fillStyle = pap.couleur;
+        if (ouvert) { c.fillRect(x - 1, y, 1, 1); c.fillRect(x + 1, y, 1, 1); c.fillStyle = '#3a2a30'; c.fillRect(x, y, 1, 1); }
+        else c.fillRect(x, y, 1, 1);
+      }
+    }
+    // les oiseaux, tout en haut (ils planent de temps en temps)
+    for (const oiseau of this.oiseaux) {
+      const plane = Math.sin(this.temps * 0.9 + oiseau.phase) > 0.4;
+      const img = OISEAU[plane ? 0 : Math.floor(this.temps * 7 + oiseau.phase) % 2];
+      c.drawImage(img, Math.round(oiseau.x) - 3, Math.round(oiseau.y - oiseau.haut));
+    }
   }
 
   // ── API ──
