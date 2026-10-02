@@ -70,7 +70,15 @@
       "sol": "#7a5640",
       "hemi": 0.95,
       "fond": "#5e7a30",
-      "nuit": 0
+      "nuit": 0,
+      "lumieres": 0.45,
+      "rim": 0.22,
+      "rimCouleur": "#ffd2a0",
+      "nuages": 0.12,
+      "vent": 1,
+      "eau": "#2f8fc4",
+      "eauBord": "#5ec0e8",
+      "ecume": "#f4ead6"
     },
     "aube": {
       "soleil": "#ffa8c4",
@@ -80,7 +88,15 @@
       "sol": "#584e70",
       "hemi": 1,
       "fond": "#466c52",
-      "nuit": 0
+      "nuit": 0,
+      "lumieres": 0.55,
+      "rim": 0.2,
+      "rimCouleur": "#ffc8e0",
+      "nuages": 0.08,
+      "vent": 0.5,
+      "eau": "#3a8cc8",
+      "eauBord": "#7ac4ee",
+      "ecume": "#e6ecf8"
     },
     "midi": {
       "soleil": "#fff3dc",
@@ -90,17 +106,33 @@
       "sol": "#8a7448",
       "hemi": 1.1,
       "fond": "#4f8f34",
-      "nuit": 0
+      "nuit": 0,
+      "lumieres": 0.25,
+      "rim": 0.12,
+      "rimCouleur": "#ffffff",
+      "nuages": 0.14,
+      "vent": 0.8,
+      "eau": "#2fa0dc",
+      "eauBord": "#6cd0f4",
+      "ecume": "#dcecf6"
     },
     "nuit": {
-      "soleil": "#a4b8ff",
-      "intensite": 0.75,
+      "soleil": "#8ea6ff",
+      "intensite": 0.55,
       "depuis": [-8, 24, 12],
-      "ciel": "#5664b0",
-      "sol": "#221c36",
-      "hemi": 0.75,
-      "fond": "#1a2636",
-      "nuit": 1
+      "ciel": "#3a4a8a",
+      "sol": "#141424",
+      "hemi": 0.55,
+      "fond": "#0f1828",
+      "nuit": 1,
+      "lumieres": 0.9,
+      "rim": 0.4,
+      "rimCouleur": "#7f9cff",
+      "nuages": 0,
+      "vent": 0.4,
+      "eau": "#152f58",
+      "eauBord": "#22467a",
+      "ecume": "#7f98c8"
     }
   },
   "voxel": {

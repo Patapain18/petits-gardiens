@@ -10,6 +10,8 @@ import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnee
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
+import { CarteDesLumieres } from './carte-lumieres.js';
+import { Lumieres } from './lumieres.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -483,10 +485,22 @@ export default class RenduCartoon {
     this.degrade.minFilter = this.degrade.magFilter = THREE.NearestFilter;
     this.degrade.needsUpdate = true;
 
+    // Les lumières du jeu (lanternes, feu, explosions…), peintes dans la carte des lumières
+    this.lumieres = new Lumieres(niveau);
+    this.carte = new CarteDesLumieres(niveau);
+    // Des réglages partagés par plusieurs matériaux : changer la valeur les change tous
+    this.uTemps = { value: 0 };                                // le temps, pour le vent et l'eau
+    this.uVent = { value: 1 };                                 // la force du vent (selon l'ambiance)
+    this.uNuages = { value: 0 };                               // les ombres des nuages sur le sol
+    this.uRim = { value: 0.2 };                                // le liseré de lumière au bord des personnages
+    this.uRimCouleur = { value: new THREE.Color('#ffffff') };
+
     // Matériau des contours : on « gonfle » l'objet le long de ses normales
     // et on n'affiche que l'arrière → un trait sombre tout autour.
     this.matContour = this.creerMatContour(0.028);
     this.matContourFin = this.creerMatContour(0.016);
+    // (le contour des feuillages bouge avec eux, dans le vent)
+    this.matContourVent = this.venter(this.creerMatContour(0.028), 'position.y + 0.5');
     this.cache = new Map();
 
     this.creerLumieres();
@@ -496,6 +510,7 @@ export default class RenduCartoon {
     this.creerChateau();
     this.creerSocles();
     this.creerLanternes();
+    this.creerVie();
 
     this.particules = new Particules(this.scene, 700, new THREE.IcosahedronGeometry(0.5, 0));
     this.bouffees = []; // petits nuages blancs « pouf » (morts, constructions)
@@ -505,6 +520,7 @@ export default class RenduCartoon {
     // (clé « id:niveau » : un gardien amélioré est refabriqué avec sa nouvelle apparence)
     this.vuesTours = new Synchro(this.scene, (t) => this.creerVueTour(t), (v, t) => this.majVueTour(v, t), (v) => liberer(v.racine), (t) => t.id + ':' + t.niveau);
     this.vuesEnnemis = new Synchro(this.scene, (e) => this.creerVueEnnemi(e), (v, e) => this.majVueEnnemi(v, e), (v) => liberer(v.racine));
+    this.vuesEnnemis.sortie = (vue, t) => this.sortieEnnemi(vue, t); // un monstre battu s'écrase avant de disparaître
     this.vuesTirs = new Synchro(this.scene, (p) => this.creerVueTir(p), (v, p) => this.majVueTir(v, p));
 
     this.choisirAmbiance(reglages.ambiance || niveau.ambiance);
@@ -512,12 +528,66 @@ export default class RenduCartoon {
   }
 
   // ── Matériaux ──────────────────────────────────────────────
+  // rim : avec un liseré de lumière sur les bords (les personnages, les feuillages)
   toon(couleur, extra = {}) {
     const cle = couleur + JSON.stringify(extra);
     if (!extra.unique && this.cache.has(cle)) return this.cache.get(cle);
-    const { unique, ...reglages } = extra;
+    const { unique, rim, ...reglages } = extra;
     const m = new THREE.MeshToonMaterial({ color: couleur, gradientMap: this.degrade, ...reglages });
+    this.eclairer(m, { rim });
     if (!unique) this.cache.set(cle, m);
+    return m;
+  }
+
+  // Branche un matériau sur les lumières du jeu (la carte des lumières, en aplats comme
+  // le reste du dessin) et lui ajoute, s'il le faut, un liseré de lumière sur les bords (le
+  // « rim light » des dessins animés) : là où la surface tourne le dos à la caméra, c'est-à-dire
+  // sur le contour de la forme, on ajoute un trait de la couleur du ciel.
+  eclairer(m, { rim = false } = {}) {
+    this.carte.brancher(m, { paliers: 5 });
+    if (!rim) return m;
+    const avant = m.onBeforeCompile, cle = m.customProgramCacheKey();
+    m.onBeforeCompile = (shader, renderer) => {
+      avant.call(m, shader, renderer);
+      shader.uniforms.uRim = this.uRim;
+      shader.uniforms.uRimCouleur = this.uRimCouleur;
+      shader.fragmentShader = 'uniform float uRim;\nuniform vec3 uRimCouleur;\n' + shader.fragmentShader.replace('#include <opaque_fragment>', /* glsl */ `
+        {
+          float bordure = 1.0 - max(dot(normal, geometryViewDir), 0.0);
+          outgoingLight += mix(vec3(1.0), diffuseColor.rgb, 0.4) * uRimCouleur * uRim * step(0.62, bordure);
+        }
+        #include <opaque_fragment>`);
+    };
+    m.customProgramCacheKey = () => `${cle}|rim`;
+    return m;
+  }
+
+  // Le vent : le haut d'un feuillage (ou d'une touffe d'herbe) bouge, le bas reste en place.
+  // poids : la formule (en GLSL) qui dit, pour un sommet, à quel point il bouge (0 en bas, 1 en haut).
+  // Des rafales traversent la carte de gauche à droite, avec un petit frisson en plus.
+  venter(m, poids) {
+    const avant = m.onBeforeCompile, cle = m.customProgramCacheKey();
+    m.onBeforeCompile = (shader, renderer) => {
+      avant?.call(m, shader, renderer);
+      shader.uniforms.uTemps = this.uTemps;
+      shader.uniforms.uVent = this.uVent;
+      shader.vertexShader = 'uniform float uTemps;\nuniform float uVent;\n' + shader.vertexShader.replace('#include <project_vertex>', /* glsl */ `
+        vec4 mvPosition = vec4(transformed, 1.0);
+        vec3 pied = vec3(0.0);
+        #ifdef USE_INSTANCING
+          mvPosition = instanceMatrix * mvPosition;
+          pied = instanceMatrix[3].xyz;
+        #endif
+        float poids = clamp(${poids}, 0.0, 1.0);
+        float rafale = max(0.0, sin(uTemps * 1.1 - pied.x * 0.35 - pied.z * 0.12));
+        float frisson = sin(uTemps * 3.3 + pied.x * 1.7 + pied.z * 1.3);
+        mvPosition.x += (rafale * 0.75 + frisson * 0.18) * 0.13 * uVent * poids;
+        mvPosition.z += frisson * 0.035 * uVent * poids;
+        mvPosition = modelViewMatrix * mvPosition;
+        gl_Position = projectionMatrix * mvPosition;`);
+    };
+    m.customProgramCacheKey = () => `${cle}|vent:${poids}`;
+    m.needsUpdate = true;
     return m;
   }
   brillant(couleur, eclat = 1.4) {
@@ -531,6 +601,10 @@ export default class RenduCartoon {
         `#include <begin_vertex>\n transformed += normalize(normal) * ${epaisseur.toFixed(3)};`,
       );
     };
+    // La « clé » du programme dit l'épaisseur. Sans elle, Three.js croirait que les deux
+    // contours (normal et fin) sont le même programme (le texte de la fonction est le même)
+    // et donnerait la même épaisseur à tous.
+    m.customProgramCacheKey = () => `contour${epaisseur}`;
     return m;
   }
   // Ajoute un objet avec son contour
@@ -581,9 +655,39 @@ export default class RenduCartoon {
     geo.computeVertexNormals();
     const texture = this.peindreSol(x0, x1, z0, z1);
     texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-    const sol = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ map: texture, gradientMap: this.degrade }));
+    this.texSol = texture;
+    const matSol = this.eclairer(new THREE.MeshToonMaterial({ map: texture, gradientMap: this.degrade }));
+    this.ombresDeNuages(matSol);
+    const sol = new THREE.Mesh(geo, matSol);
     sol.receiveShadow = true;
     this.scene.add(sol);
+  }
+
+  // Les ombres des nuages qui glissent sur le sol : un « bruit » (des valeurs au hasard,
+  // mélangées en douceur) calculé dans le programme du sol, à partir de sa place dans le monde.
+  // Là où le bruit dépasse un seuil, le sol s'assombrit, avec un bord assez net (cartoon).
+  ombresDeNuages(m) {
+    const avant = m.onBeforeCompile, cle = m.customProgramCacheKey();
+    m.onBeforeCompile = (shader, renderer) => {
+      avant.call(m, shader, renderer); // (après la carte des lumières : vPgMonde existe déjà)
+      shader.uniforms.uTemps = this.uTemps;
+      shader.uniforms.uNuages = this.uNuages;
+      shader.fragmentShader = /* glsl */ `uniform float uTemps;
+        uniform float uNuages;
+        float pgHasard(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float pgBruit(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(pgHasard(i), pgHasard(i + vec2(1.0, 0.0)), f.x), mix(pgHasard(i + vec2(0.0, 1.0)), pgHasard(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        ` + shader.fragmentShader.replace('#include <map_fragment>', /* glsl */ `#include <map_fragment>
+        {
+          vec2 p = vPgMonde.xz * 0.11 + vec2(uTemps * 0.045, uTemps * 0.016);
+          float n = pgBruit(p) * 0.6 + pgBruit(p * 2.1 + 3.7) * 0.3 + pgBruit(p * 4.3 + 9.1) * 0.1;
+          diffuseColor.rgb *= 1.0 - smoothstep(0.56, 0.6, n) * uNuages;
+        }`);
+    };
+    m.customProgramCacheKey = () => `${cle}|nuages`;
   }
 
   // On peint le sol comme une illustration : herbe tachetée, chemin avec bordure et cailloux…
@@ -655,6 +759,7 @@ export default class RenduCartoon {
     }
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
+    this.toileSol = { ctx, X, Z, ppc }; // pour y peindre plus tard l'ombre douce au pied des arbres
     return t;
   }
 
@@ -664,24 +769,91 @@ export default class RenduCartoon {
     return Math.min(h, 1.6 + Math.max(0, h - 1.6) * 0.15);
   }
 
+  // ── L'eau des étangs ───────────────────────────────────────
+  // Un programme à elle (un « ShaderMaterial »), dessinée comme dans un dessin animé : deux
+  // aplats de bleu (plus sombre au milieu), des traits de vaguelettes qui ondulent et glissent,
+  // une bande d'écume au bord dont la largeur ondule, des reflets qui scintillent, et la
+  // lumière des lanternes la nuit (la carte des lumières). Plus quelques nénuphars.
   creerEau() {
-    this.reflets = [];
+    this.uniformesEau = {
+      uTemps: this.uTemps,
+      uEau: { value: new THREE.Color('#2fa0dc') },
+      uEauBord: { value: new THREE.Color('#6cd0f4') },
+      uEcume: { value: new THREE.Color('#ffffff') },
+      ...this.carte.uniforms,
+    };
+    const programme = {
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        varying vec3 vMonde;
+        void main() {
+          vUv = uv;
+          vec4 monde = modelMatrix * vec4(position, 1.0);
+          vMonde = monde.xyz;
+          gl_Position = projectionMatrix * viewMatrix * monde;
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform float uTemps, uRayon;
+        uniform vec3 uEau, uEauBord, uEcume;
+        uniform sampler2D uCarteLumieres;
+        uniform vec4 uCarteZone;
+        uniform float uCarteForce;
+        varying vec2 vUv;
+        varying vec3 vMonde;
+        float hasard(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float bruit(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hasard(i), hasard(i + vec2(1.0, 0.0)), f.x), mix(hasard(i + vec2(0.0, 1.0)), hasard(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        void main() {
+          vec2 c = vUv - 0.5;
+          float angle = atan(c.y, c.x);
+          // la distance au centre, en cases ; le bord visible est un peu avant le bord du disque :
+          // la berge (le sol) recouvre l'eau sur le dernier petit bout (voir hauteurTerrain)
+          float d = length(c) * 2.0 * (uRayon + 0.12);
+          float bord = uRayon * 0.93;
+          // deux aplats : le bord clair, le milieu plus sombre (plus profond)
+          vec3 couleur = mix(uEau, uEauBord, step(bord - 0.55, d));
+          // des traits de vaguelettes : des lignes qui ondulent et glissent, coupées par endroits
+          float onde = sin(vMonde.z * 3.2 + sin(vMonde.x * 1.3 + uTemps * 1.3) * 1.5 - uTemps * 1.6);
+          float trait = step(0.93, onde) * step(bruit(vMonde.xz * 1.7 + uTemps * 0.2), 0.55) * step(d, bord - 0.3);
+          couleur = mix(couleur, uEcume, trait * 0.7);
+          // l'écume au bord : une bande blanche dont la largeur ondule tout autour
+          float largeur = 0.11 + 0.05 * sin(angle * 7.0 + uTemps * 1.8) + 0.03 * sin(angle * 13.0 - uTemps * 2.3);
+          couleur = mix(couleur, uEcume, step(bord - largeur, d));
+          // des reflets ronds qui s'allument et s'éteignent
+          vec2 cellule = floor(vMonde.xz * 6.0);
+          float reflet = step(0.97, hasard(cellule + floor(uTemps * 2.0))) * step(length(fract(vMonde.xz * 6.0) - 0.5), 0.18);
+          couleur += uEcume * reflet * 0.5 * step(d, bord - 0.25);
+          // la lumière des lanternes, la nuit
+          vec2 uvCarte = (vMonde.xz - uCarteZone.xy) * uCarteZone.zw;
+          couleur += couleur * texture2D(uCarteLumieres, clamp(uvCarte, 0.0, 1.0)).rgb * uCarteForce;
+          gl_FragColor = vec4(couleur, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    };
+    this.nenuphars = [];
+    const feuille = this.toon('#5cae3a'), fleur = this.toon('#ff9ac0');
     for (const etang of this.niveau.etangs) {
-      const eau = new THREE.Mesh(
-        new THREE.CircleGeometry(etang.rayon + 0.12, 48).rotateX(-Math.PI / 2),
-        this.toon('#3fa8dc'),
-      );
+      // un matériau par étang (avec son rayon), qui partage tous les autres réglages
+      const mat = new THREE.ShaderMaterial({ ...programme, uniforms: { ...this.uniformesEau, uRayon: { value: etang.rayon } } });
+      const eau = new THREE.Mesh(new THREE.CircleGeometry(etang.rayon + 0.12, 64).rotateX(-Math.PI / 2), mat);
       eau.position.set(etang.x, -0.1, etang.y);
-      eau.receiveShadow = true;
       this.scene.add(eau);
-      // reflets : quelques traits clairs qui ondulent
-      const etendue = etang.rayon * (2.6 / 2.4);
-      for (let i = 0; i < 6; i++) {
-        const r = new THREE.Mesh(new THREE.PlaneGeometry(0.5 + alea() * 0.5, 0.06).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#d8f4ff', transparent: true, opacity: 0.8 }));
-        r.position.set(etang.x + (alea() - 0.5) * etendue, -0.08, etang.y + (alea() - 0.5) * etendue);
-        r.userData.phase = alea() * 6;
-        this.scene.add(r);
-        this.reflets.push(r);
+      // des nénuphars : un disque vert avec une encoche, et parfois une fleur rose
+      const nombre = 2 + Math.floor(etang.rayon);
+      for (let i = 0; i < nombre; i++) {
+        const angle = alea() * Math.PI * 2, distance = (0.25 + alea() * 0.45) * etang.rayon;
+        const n = new THREE.Group();
+        n.position.set(etang.x + Math.cos(angle) * distance, -0.075, etang.y + Math.sin(angle) * distance);
+        n.rotation.y = alea() * Math.PI * 2;
+        this.piece(n, new THREE.CircleGeometry(0.17 + alea() * 0.07, 18, 0.35, Math.PI * 2 - 0.7).rotateX(-Math.PI / 2), feuille, 0, 0, 0, { fin: true, ombre: false });
+        if (alea() < 0.4) this.piece(n, new THREE.SphereGeometry(0.05, 10, 8), fleur, 0.04, 0.03, 0.02, { fin: true, ombre: false });
+        n.userData.phase = alea() * 6;
+        this.scene.add(n);
+        this.nenuphars.push(n);
       }
     }
   }
@@ -697,8 +869,12 @@ export default class RenduCartoon {
       automne: ['#f29a2e', '#e8762a', '#f6bd3a'],
     };
     // Un arbre = un tronc + une grosse boule de feuillage + deux plus petites
+    const pieds = []; // le pied de chaque arbre, pour y peindre une ombre douce
+    this.arbresAutomne = [];
     const planter = (x, z, t, type, buisson) => {
       const y = this.sol(x, z);
+      pieds.push({ x, z, r: (buisson ? 0.5 : 0.75) * t });
+      if (type === 'automne' && !buisson) this.arbresAutomne.push({ x, y: y + 0.55 * t + 0.35 * t, z, t });
       const couleur = new THREE.Color(choisir(couleursArbres[type]));
       const hTronc = buisson ? 0.12 : 0.55 * t;
       if (!buisson) listeTroncs.push({ x, y: y + hTronc / 2, z, h: hTronc, r: 0.09 * t, c: type === 'bouleau' ? '#efe8dc' : '#7a4f2c' });
@@ -712,12 +888,15 @@ export default class RenduCartoon {
       const y = this.sol(d.x, d.y);
       if (d.type === 'rocher') {
         listeRochers.push({ x: d.x, y: y + 0.1, z: d.y, s: d.taille * 0.7, r: d.variante * 6 });
+        pieds.push({ x: d.x, z: d.y, r: d.taille * 0.5 });
         continue;
       }
       if (!couleursArbres[d.type]) continue;
       planter(d.x, d.y, d.dedans ? d.taille * 0.75 : d.taille, d.type, d.dedans);
       places.push(d);
     }
+    // Des moulins à vent dans les coins libres (le monde 2, c'est le pays des moulins)
+    this.creerMoulins(places);
     // Dans ce style vu presque de dessus, les arbres cachent peu le jeu : on en ajoute
     // tout autour de la carte, et quelques buissons à l'intérieur.
     const libre = (x, z, marge) =>
@@ -736,7 +915,9 @@ export default class RenduCartoon {
       places.push({ x, y: z });
     }
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3();
-    const instancier = (geo, liste, materiau, regler, contour = true) => {
+    // contour : le matériau du contour (ou null : pas de contour) ; ombre : projette une ombre ;
+    // profondeur : le matériau qui dessine son ombre (pour un feuillage qui bouge au vent)
+    const instancier = (geo, liste, materiau, regler, { contour = this.matContour, ombre = true, profondeur = null } = {}) => {
       const mesh = new THREE.InstancedMesh(geo, materiau, liste.length);
       liste.forEach((e, i) => {
         regler(e, v, q, s);
@@ -744,17 +925,23 @@ export default class RenduCartoon {
         mesh.setMatrixAt(i, m);
         if (e.c) mesh.setColorAt(i, new THREE.Color(e.c));
       });
-      mesh.castShadow = true;
+      mesh.castShadow = ombre;
       mesh.receiveShadow = true;
+      if (profondeur) mesh.customDepthMaterial = profondeur;
       this.scene.add(mesh);
       if (contour) {
-        const bord = new THREE.InstancedMesh(geo, this.matContour, liste.length);
+        const bord = new THREE.InstancedMesh(geo, contour, liste.length);
         bord.instanceMatrix = mesh.instanceMatrix;
         this.scene.add(bord);
       }
       return mesh;
     };
-    instancier(sphere, listeFeuillage, this.toon('#ffffff'), (e, v, q, s) => { v.set(e.x, e.y, e.z); q.identity(); s.set(e.s, e.s * 0.9, e.s); });
+    // les feuillages bougent au vent (avec leur contour, et leur ombre)
+    const poidsFeuillage = 'position.y + 0.5'; // le bas de la boule ne bouge pas, le haut bouge le plus
+    instancier(sphere, listeFeuillage, this.venter(this.toon('#ffffff', { rim: true, unique: true }), poidsFeuillage), (e, v, q, s) => { v.set(e.x, e.y, e.z); q.identity(); s.set(e.s, e.s * 0.9, e.s); }, {
+      contour: this.matContourVent,
+      profondeur: this.venter(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), poidsFeuillage),
+    });
     instancier(new THREE.CylinderGeometry(1, 1.2, 1, 8), listeTroncs, this.toon('#ffffff'), (e, v, q, s) => { v.set(e.x, e.y, e.z); q.identity(); s.set(e.r, e.h, e.r); });
     instancier(new THREE.DodecahedronGeometry(0.5, 0), listeRochers, this.toon('#a7a39a'), (e, v, q, s) => {
       v.set(e.x, e.y, e.z); q.setFromEuler(new THREE.Euler(0, e.r, 0)); s.set(e.s, e.s * 0.6, e.s * 0.85);
@@ -779,12 +966,80 @@ export default class RenduCartoon {
       if (niv.socles.some((e) => Math.hypot(e.x - x, e.y - z) < 0.75)) continue;
       touffes.push({ x, y: this.sol(x, z), z, s: 0.7 + alea() * 0.6, c: choisir(['#5aa236', '#4e9430', '#68b03e']) });
     }
-    instancier(new THREE.IcosahedronGeometry(0.055, 0), fleurs, this.toon('#ffffff'), (e, v, q, s) => { v.set(e.x, e.y, e.z); q.identity(); s.setScalar(1); }, false);
+    instancier(new THREE.IcosahedronGeometry(0.055, 0), fleurs, this.toon('#ffffff'), (e, v, q, s) => { v.set(e.x, e.y, e.z); q.identity(); s.setScalar(1); }, { contour: null, ombre: false });
     const cone = new THREE.ConeGeometry(0.05, 0.22, 4);
     cone.translate(0, 0.11, 0);
-    instancier(cone, touffes, this.toon('#ffffff'), (e, v, q, s) => {
+    // les touffes d'herbe bougent au vent (le bout plus que le pied)
+    instancier(cone, touffes, this.venter(this.toon('#ffffff', { unique: true }), 'position.y / 0.22'), (e, v, q, s) => {
       v.set(e.x, e.y, e.z); q.setFromEuler(new THREE.Euler((alea() - 0.5) * 0.5, alea() * 3, (alea() - 0.5) * 0.5)); s.setScalar(e.s);
-    }, false);
+    }, { contour: null, ombre: false });
+    this.fleursPourPapillons = fleurs.filter((f, i) => i % 3 === 0);
+
+    // une ombre douce au pied de chaque arbre et de chaque rocher, peinte dans la texture du sol :
+    // sous un feuillage, la lumière du ciel arrive moins (les dessinateurs appellent ça
+    // l'« occlusion ambiante »). Ça pose les arbres sur le sol.
+    const { ctx, X, Z, ppc } = this.toileSol;
+    for (const pied of pieds) {
+      const r = pied.r * ppc;
+      const g = ctx.createRadialGradient(X(pied.x), Z(pied.z), 0, X(pied.x), Z(pied.z), r);
+      g.addColorStop(0, 'rgba(20,44,12,0.4)');
+      g.addColorStop(0.6, 'rgba(20,44,12,0.18)');
+      g.addColorStop(1, 'rgba(20,44,12,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(X(pied.x) - r, Z(pied.z) - r, r * 2, r * 2);
+    }
+    this.texSol.needsUpdate = true;
+  }
+
+  // ── Les moulins à vent ─────────────────────────────────────
+  // Au plus deux, dans des coins libres de la carte : loin du chemin, des socles, du château
+  // et des étangs, près du bord haut ou bas (là où ils ne gênent pas). Leurs ailes tournent
+  // plus vite quand le vent souffle fort.
+  creerMoulins(places) {
+    this.moulins = [];
+    const niv = this.niveau;
+    const libre = (x, z) => niv.distanceAuChemin(x, z) > 2.2 && !niv.socles.some((e) => Math.hypot(e.x - x, e.y - z) < 2)
+      && Math.hypot(x - niv.chateau.x, z - niv.chateau.y) > 4.5 && niv.distanceEtang(x, z) > 1.6
+      && !places.some((d) => Math.hypot(d.x - x, d.y - z) < 1.3);
+    const candidats = [];
+    for (let x = 1; x < niv.largeur - 1; x += 0.5) {
+      for (const z of [0.9, 1.5, niv.hauteur - 1.5, niv.hauteur - 0.9]) if (libre(x, z)) candidats.push({ x, z });
+    }
+    if (!candidats.length) return;
+    // le premier candidat, puis celui qui est le plus loin de lui
+    const premier = candidats[Math.floor(candidats.length * 0.3)];
+    const choisis = [premier];
+    const second = candidats.reduce((loin, c) => (Math.hypot(c.x - premier.x, c.z - premier.z) > Math.hypot(loin.x - premier.x, loin.z - premier.z) ? c : loin));
+    if (Math.hypot(second.x - premier.x, second.z - premier.z) > 5) choisis.push(second);
+    for (const { x, z } of choisis) {
+      this.moulins.push(this.fabriquerMoulin(x, z));
+      places.push({ x, y: z }); // les arbres ajoutés ensuite ne pousseront pas dessus
+    }
+  }
+
+  fabriquerMoulin(x, z) {
+    const g = new THREE.Group();
+    g.position.set(x, this.sol(x, z), z);
+    const pierre = this.toon('#efe6d2', { rim: true }), toit = this.toon('#b8452f', { rim: true }), bois = this.toon('#7a5230'), sombre = this.toon('#4a2e1c');
+    const toile = this.toon('#f4e8d4', { side: THREE.DoubleSide });
+    this.piece(g, new THREE.CylinderGeometry(0.28, 0.42, 1.3, 16), pierre, 0, 0.65, 0);           // la tour
+    this.piece(g, new THREE.ConeGeometry(0.38, 0.5, 16), toit, 0, 1.55, 0);                       // le toit
+    this.piece(g, new RoundedBoxGeometry(0.16, 0.26, 0.06, 2, 0.03), sombre, 0, 0.14, 0.4, { fin: true }); // la porte
+    this.piece(g, new THREE.CircleGeometry(0.06, 12), sombre, 0, 0.85, 0.345, { contour: false }); // une fenêtre ronde
+    // les ailes : quatre bras de bois, chacun avec sa toile, autour d'un moyeu (elles regardent la caméra)
+    const ailes = new THREE.Group();
+    ailes.position.set(0, 1.32, 0.42);
+    this.piece(ailes, new THREE.SphereGeometry(0.06, 10, 8), bois, 0, 0, 0, { fin: true });
+    for (let i = 0; i < 4; i++) {
+      const aile = new THREE.Group();
+      aile.rotation.z = (i * Math.PI) / 2;
+      this.piece(aile, new THREE.BoxGeometry(0.04, 0.8, 0.03), bois, 0, 0.42, 0, { fin: true });
+      this.piece(aile, new THREE.BoxGeometry(0.2, 0.55, 0.015), toile, 0.11, 0.5, 0.012, { fin: true });
+      ailes.add(aile);
+    }
+    g.add(ailes);
+    this.scene.add(g);
+    return { ailes, vitesse: 0.7 + alea() * 0.5 };
   }
 
   // ── Le château : tours rondes, toits pointus, drapeaux ─────
@@ -862,24 +1117,14 @@ export default class RenduCartoon {
     });
   }
 
-  // Les lanternes, et leurs lumières pour la nuit (éteintes le jour : intensité 0).
-  // La porte du château a aussi la sienne.
+  // Les lanternes. Leur lumière, la nuit, vient de la carte des lumières (voir lumieres.js),
+  // comme celle de la porte du château.
   creerLanternes() {
-    this.lumieresNuit = [];
-    const allumer = (x, y, z, portee) => {
-      const lumiere = new THREE.PointLight('#ffb35a', 0, portee, 1.4);
-      lumiere.position.set(x, y, z);
-      this.scene.add(lumiere);
-      this.lumieresNuit.push(lumiere);
-    };
     for (const l of this.niveau.lanternes) {
       const y = this.sol(l.x, l.y);
       this.piece(this.scene, new THREE.CylinderGeometry(0.04, 0.05, 0.8, 6), this.toon('#6a4428'), l.x, y + 0.4, l.y, { fin: true });
       this.piece(this.scene, new RoundedBoxGeometry(0.2, 0.22, 0.2, 2, 0.04), this.brillant('#ffd36a', 1.2), l.x, y + 0.9, l.y, { fin: true });
-      allumer(l.x, y + 1.1, l.y, 4.5);
     }
-    const porte = this.niveau.chateau.porte;
-    allumer(porte.x + 0.4, 1.2, porte.y, 4);
   }
 
   // ── Les ambiances ──────────────────────────────────────────
@@ -894,6 +1139,16 @@ export default class RenduCartoon {
     const [dx, dy, dz] = a.depuis;
     this.soleil.position.copy(this.soleil.target.position).add(new THREE.Vector3(dx, dy, dz));
     this.scene.background.set(a.fond);
+    this.carte.uniforms.uCarteForce.value = a.lumieres; // à quel point on voit les lumières du jeu
+    this.uRim.value = a.rim;
+    this.uRimCouleur.value.set(a.rimCouleur);
+    this.uNuages.value = a.nuages;
+    this.uVent.value = a.vent;
+    if (this.uniformesEau) {
+      this.uniformesEau.uEau.value.set(a.eau);
+      this.uniformesEau.uEauBord.value.set(a.eauBord);
+      this.uniformesEau.uEcume.value.set(a.ecume);
+    }
   }
 
   creerAnneauPortee() {
@@ -955,8 +1210,8 @@ export default class RenduCartoon {
     racine.add(corps);
     const materiaux = [];
     const m = (couleur, extra = {}) => {
-      if (!unique) return this.toon(couleur, extra);
-      const mat = this.toon(couleur, { unique: true, emissive: '#000000', ...extra });
+      if (!unique) return this.toon(couleur, { rim: true, ...extra });
+      const mat = this.toon(couleur, { unique: true, rim: true, emissive: '#000000', ...extra });
       materiaux.push(mat);
       return mat;
     };
@@ -1004,6 +1259,11 @@ export default class RenduCartoon {
     const coup = tour.attaque > 0 ? Math.sin((tour.attaque / 0.25) * Math.PI) * 0.22 : 0;
     const base = vue.taille;
     vue.corps.scale.set(base * (1 + coup * 0.5), base * (1 + respire - coup), base * (1 + coup * 0.5));
+    // il recule un peu quand il tire (à l'opposé de là où il regarde : son avant, c'est +Z)
+    vue.racine.position.x -= Math.sin(vue.racine.rotation.y) * coup * 0.25;
+    vue.racine.position.z -= Math.cos(vue.racine.rotation.y) * coup * 0.25;
+    // une vague vient d'être repoussée : tout le monde saute de joie (chacun à son rythme)
+    if (this.joie > 0) vue.racine.position.y += Math.abs(Math.sin((1 - this.joie) * Math.PI * 3 + tour.id)) * 0.28 * this.joie;
     vue.attaque = tour.attaque; // les accessoires réagissent quand il attaque (antennes, moulinet)
     vue.chauffe = tour.rayon ? tour.chauffe : 0; // et quand son rayon chauffe (le cristal du Prisme)
     for (const animer of vue.animations) animer(this.temps, vue);
@@ -1043,6 +1303,10 @@ export default class RenduCartoon {
     const y = this.sol(e.x, e.y) - 0.04;
     vue.racine.position.set(e.x, y, e.y);
     vue.racine.rotation.y = Math.atan2(e.dx, e.dy);
+    // il arrive avec un petit « pop » élastique (il grandit, dépasse un peu, puis se pose)
+    vue.apparition = Math.min(1, vue.apparition + this.dtReel * 3.5);
+    const a = vue.apparition;
+    vue.racine.scale.setScalar(TAILLE_MONSTRE * (a < 1 ? 1 - Math.cos(a * Math.PI * 2.5) * Math.pow(1 - a, 2) : 1));
     // sous terre (la Taupe) : on cache le monstre, on montre un tas de terre qui avance
     vue.corps.visible = vue.ombre.visible = !e.cache;
     if (e.cache && !vue.butte) {
@@ -1078,6 +1342,17 @@ export default class RenduCartoon {
       else mat.emissiveIntensity = 0;
     }
     majBarreDeVie(vue.barre, e.pv / e.pvMax, this.camera);
+  }
+
+  // Un monstre battu (ou entré dans le château) : il s'écrase en 0,2 seconde, puis disparaît
+  sortieEnnemi(vue, t) {
+    const duree = 0.2;
+    if (t >= duree) return false;
+    const k = t / duree;
+    vue.corps.scale.set(vue.taille * (1 + k * 0.6), vue.taille * Math.max(0.05, 1 - k), vue.taille * (1 + k * 0.6));
+    vue.barre.visible = false;
+    vue.ombre.scale.setScalar(Math.max(0.01, 1 - k));
+    return true;
   }
 
   creerVueTir(p) {
@@ -1198,6 +1473,158 @@ export default class RenduCartoon {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // LA VIE AUTOUR : oiseaux, papillons, feuilles qui tombent, lucioles
+  // ═══════════════════════════════════════════════════════════
+  creerVie() {
+    const niv = this.niveau;
+    this.outilsVie = { m: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3(), s: new THREE.Vector3() };
+    // les oiseaux : une petite volée traverse la carte de temps en temps (le jour)
+    this.oiseaux = [];
+    this.prochainsOiseaux = 6;
+    this.matOiseau = this.toon('#3a2a30');
+    // les papillons volettent d'une fleur à l'autre (le jour)
+    this.papillons = [];
+    const aile = new THREE.PlaneGeometry(0.1, 0.08).translate(0.05, 0, 0).rotateX(-Math.PI / 2); // l'aile tourne autour du corps
+    ['#ffffff', '#ffe14a', '#ff9ab8', '#9ad0ff', '#ffb04a'].forEach((couleur, i) => {
+      const fleur = this.fleursPourPapillons[Math.floor(alea() * this.fleursPourPapillons.length)];
+      if (!fleur) return;
+      const objet = new THREE.Group();
+      const mat = this.toon(couleur, { side: THREE.DoubleSide });
+      const ailes = [1, -1].map((sens) => {
+        const m = new THREE.Mesh(aile, mat);
+        m.scale.x = sens; // l'aile gauche est le reflet de la droite
+        objet.add(m);
+        return m;
+      });
+      objet.position.set(fleur.x, fleur.y + 0.3, fleur.z);
+      this.scene.add(objet);
+      this.papillons.push({ objet, ailes, cible: null, pause: 0, phase: i * 1.7 });
+    });
+    // les feuilles d'automne : quelques petites feuilles qui servent et resservent
+    this.arbresAutomne = this.arbresAutomne.filter((a) => a.x > -2 && a.x < niv.largeur + 2 && a.z > -2 && a.z < niv.hauteur + 2);
+    this.feuilles = [];
+    const geoFeuille = new THREE.PlaneGeometry(0.08, 0.06);
+    for (let i = 0; i < 18; i++) {
+      const objet = new THREE.Mesh(geoFeuille, this.toon(['#f29a2e', '#e8762a', '#f6bd3a'][i % 3], { side: THREE.DoubleSide }));
+      objet.visible = false;
+      this.scene.add(objet);
+      this.feuilles.push({ objet, actif: false, vie: 0, posee: 0, sol: 0 });
+    }
+    this.prochaineFeuille = 0;
+    // les lucioles (la nuit) : de petites boules qui clignotent, toutes dans un seul InstancedMesh
+    this.lucioles = new THREE.InstancedMesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color('#d8ff7a').multiplyScalar(1.5), toneMapped: false }), 30);
+    this.lucioles.frustumCulled = false;
+    this.lucioles.visible = false;
+    this.positionsLucioles = Array.from({ length: 30 }, () => ({ x: alea() * niv.largeur, z: alea() * niv.hauteur, y: 0.3 + alea() * 0.8, phase: alea() * 10 }));
+    this.scene.add(this.lucioles);
+  }
+
+  // Une volée de 3 à 5 oiseaux, en V, qui traverse la carte (haut dans le ciel : leur ombre passe sur le sol)
+  envoyerOiseaux() {
+    const niv = this.niveau, sens = Math.random() < 0.5 ? 1 : -1, z = niv.hauteur * (0.15 + Math.random() * 0.7);
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const objet = new THREE.Group();
+      this.piece(objet, new THREE.SphereGeometry(0.07, 10, 8), this.matOiseau, 0, 0, 0, { fin: true }).scale.set(1, 0.8, 1.6);
+      const ailes = [1, -1].map((cote) => {
+        const e = new THREE.Group();
+        this.piece(e, new THREE.BoxGeometry(0.22, 0.02, 0.09), this.matOiseau, cote * 0.11, 0, 0, { fin: true });
+        objet.add(e);
+        return e;
+      });
+      const rang = Math.ceil(i / 2), cote = i % 2 ? 1 : -1; // le premier devant, les autres de chaque côté
+      objet.position.set(sens > 0 ? -8 - rang * 0.7 : niv.largeur + 8 + rang * 0.7, 5 + Math.random() * 0.4, z + cote * rang * 0.5);
+      objet.rotation.y = sens * Math.PI / 2; // ils regardent là où ils vont
+      this.scene.add(objet);
+      this.oiseaux.push({ objet, ailes, vx: sens * 2.6, phase: Math.random() * 6 });
+    }
+  }
+
+  majVie(dt) {
+    const niv = this.niveau, jour = this.ambiance.nuit < 0.5;
+    const { m, q, v, s } = this.outilsVie;
+    // les oiseaux (ils planent de temps en temps)
+    this.prochainsOiseaux -= dt;
+    if (this.prochainsOiseaux <= 0) {
+      this.prochainsOiseaux = 18 + Math.random() * 20;
+      if (jour) this.envoyerOiseaux();
+    }
+    this.oiseaux = this.oiseaux.filter((o) => {
+      o.objet.position.x += o.vx * dt;
+      const battement = Math.sin(this.temps * 0.8 + o.phase) > 0.5 ? 0.15 : Math.sin(this.temps * 12 + o.phase) * 0.7;
+      o.ailes[0].rotation.z = battement;
+      o.ailes[1].rotation.z = -battement;
+      const parti = o.vx > 0 ? o.objet.position.x > niv.largeur + 10 : o.objet.position.x < -10;
+      if (parti) {
+        this.scene.remove(o.objet);
+        o.objet.traverse((x) => x.geometry?.dispose()); // (le matériau, lui, sert aux autres oiseaux)
+      }
+      return !parti;
+    });
+    // les papillons : ils volent jusqu'à une fleur proche, s'y posent un moment, puis repartent
+    for (const pap of this.papillons) {
+      pap.objet.visible = jour;
+      if (!jour) continue;
+      const battement = pap.pause > 0 ? 0.3 + Math.abs(Math.sin(this.temps * 2 + pap.phase)) * 0.6 : 0.2 + Math.abs(Math.sin(this.temps * 18 + pap.phase)) * 1.1;
+      pap.ailes[0].rotation.z = battement;
+      pap.ailes[1].rotation.z = -battement;
+      if (pap.pause > 0) { pap.pause -= dt; continue; }
+      if (!pap.cible) {
+        const f = this.fleursPourPapillons[Math.floor(Math.random() * this.fleursPourPapillons.length)];
+        if (Math.hypot(f.x - pap.objet.position.x, f.z - pap.objet.position.z) < 4) pap.cible = f;
+        continue;
+      }
+      const p = pap.objet.position, dx = pap.cible.x - p.x, dz = pap.cible.z - p.z, dist = Math.hypot(dx, dz);
+      if (dist < 0.05) { pap.cible = null; pap.pause = 1 + Math.random() * 2.5; p.y = pap.objet.userData.sol ?? p.y; continue; }
+      const pas = Math.min(dist, 0.9 * dt);
+      p.x += (dx / dist) * pas + Math.sin(this.temps * 9 + pap.phase) * 0.004;
+      p.z += (dz / dist) * pas + Math.cos(this.temps * 7 + pap.phase) * 0.004;
+      p.y = pap.cible.y + 0.04 + Math.min(1, dist) * (0.35 + Math.sin(this.temps * 5 + pap.phase) * 0.08); // il descend en arrivant
+      pap.objet.rotation.y = Math.atan2(dx, dz);
+    }
+    // les feuilles d'automne : elles tombent en tournoyant, se posent, puis rapetissent et disparaissent
+    this.prochaineFeuille -= dt * this.uVent.value;
+    if (this.prochaineFeuille <= 0 && this.arbresAutomne.length && jour) {
+      this.prochaineFeuille = 0.5 + Math.random() * 0.8;
+      const f = this.feuilles.find((x) => !x.actif);
+      if (f) {
+        const a = this.arbresAutomne[Math.floor(Math.random() * this.arbresAutomne.length)];
+        f.actif = true; f.vie = 0; f.posee = 0;
+        f.objet.visible = true;
+        f.objet.scale.setScalar(1);
+        f.objet.position.set(a.x + (Math.random() - 0.5) * 0.6 * a.t, a.y + 0.1, a.z + 0.2 + (Math.random() - 0.5) * 0.5 * a.t);
+        f.sol = this.sol(f.objet.position.x, f.objet.position.z) + 0.02;
+      }
+    }
+    for (const f of this.feuilles) {
+      if (!f.actif) continue;
+      f.vie += dt;
+      const o = f.objet;
+      if (o.position.y > f.sol) {
+        o.position.y = Math.max(f.sol, o.position.y - dt * 0.65);
+        o.position.x += (this.uVent.value * 0.45 + Math.sin(f.vie * 3) * 0.5) * dt;
+        o.rotation.set(f.vie * 3.1, f.vie * 2.3, f.vie * 1.3);
+      } else {
+        f.posee += dt;
+        o.rotation.set(-Math.PI / 2, 0, f.vie);
+        if (f.posee > 1.5) o.scale.setScalar(Math.max(0.01, 1 - (f.posee - 1.5)));
+        if (f.posee > 2.5) { f.actif = false; o.visible = false; }
+      }
+    }
+    // les lucioles (la nuit) : elles se promènent doucement et clignotent
+    this.lucioles.visible = !jour;
+    if (!jour) {
+      this.positionsLucioles.forEach((l, i) => {
+        const eclat = Math.max(0, Math.sin(this.temps * (0.9 + (i % 5) * 0.15) + l.phase));
+        v.set(l.x + Math.sin(this.temps * 0.5 + l.phase) * 0.6, this.sol(l.x, l.z) + l.y + Math.sin(this.temps * 0.8 + l.phase) * 0.15, l.z + Math.cos(this.temps * 0.4 + l.phase) * 0.6);
+        m.compose(v, q.identity(), s.setScalar(eclat ** 3 + 0.001));
+        this.lucioles.setMatrixAt(i, m);
+      });
+      this.lucioles.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // EFFETS
   // ═══════════════════════════════════════════════════════════
   gerbe(x, y, z, nombre, couleurs, { force = 2, haut = 2.5, taille = 0.1, vie = 0.6, eclat = 1, gravite = -8 } = {}) {
@@ -1236,6 +1663,7 @@ export default class RenduCartoon {
   }
 
   traiterEvenements(evenements) {
+    this.lumieres.evenements(evenements);
     for (const ev of evenements) {
       const y = this.sol(ev.x, ev.y);
       switch (ev.type) {
@@ -1340,18 +1768,25 @@ export default class RenduCartoon {
       this.majEclairs(Infinity); // les éclairs de la partie d'avant disparaissent
     }
     this.temps += dtReel;
+    this.dtReel = dtReel;
+    this.uTemps.value = this.temps;
     this.secousse = Math.max(0, this.secousse - dtReel);
+    // une vague vient d'être repoussée : les gardiens vont sauter de joie
+    if (this.statutAvant === 'vague' && etat.statut === 'preparation') this.joie = 1;
+    this.statutAvant = etat.statut;
+    this.joie = Math.max(0, (this.joie || 0) - dtReel * 1.1);
     this.traiterEvenements(etat.evenements);
     this.vuesTours.appliquer(etat.tours);
     this.vuesEnnemis.appliquer(etat.ennemis);
+    this.vuesEnnemis.majSortants(dtReel);
     this.vuesTirs.appliquer(etat.projectiles);
     this.particules.maj(dtJeu || 0);
     this.majBouffees(dtJeu || 0);
     this.majEclairs(dtReel);
     this.majRayons(etat);
-    // la nuit, les lumières des lanternes s'allument et vacillent un peu (le jour, nuit = 0)
-    const nuit = this.ambiance.nuit;
-    this.lumieresNuit.forEach((l, i) => (l.intensity = nuit * (3.5 + Math.sin(this.temps * 9 + i * 1.7) * 0.3)));
+    // les lumières du jeu : la liste du moment, peinte dans la carte des lumières
+    this.lumieres.maj(dtReel);
+    this.carte.dessiner(this.lumieres.liste(etat, this.ambiance.nuit), 1);
 
     const occupes = new Set(etat.tours.map((t) => t.socle));
     this.socles.forEach((s, i) => {
@@ -1380,7 +1815,12 @@ export default class RenduCartoon {
       }
       pos.needsUpdate = true;
     }
-    this.reflets.forEach((r) => (r.material.opacity = 0.3 + 0.5 * Math.abs(Math.sin(this.temps * 1.5 + r.userData.phase))));
+    for (const moulin of this.moulins) moulin.ailes.rotation.z -= dtReel * moulin.vitesse * (0.4 + this.uVent.value);
+    for (const n of this.nenuphars) {
+      n.position.y = -0.075 + Math.sin(this.temps * 1.6 + n.userData.phase) * 0.008;
+      n.rotation.y += dtReel * 0.05;
+    }
+    this.majVie(dtReel);
 
     // petite secousse de caméra
     this.camera.position.copy(this.cible).addScaledVector(this.dirCamera, 80);
@@ -1418,6 +1858,7 @@ export default class RenduCartoon {
 
   detruire() {
     this.appareilPhoto?.dispose();
+    this.carte.dispose();
     liberer(this.scene);
     this.renderer.dispose();
     this.renderer.domElement.remove();

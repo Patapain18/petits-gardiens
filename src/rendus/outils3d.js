@@ -10,6 +10,9 @@ import * as THREE from 'three';
 // La clé est l'id de l'élément, sauf si on en donne une autre : pour les gardiens,
 // c'est « id + niveau ». Quand un gardien est amélioré, sa clé change : l'ancien
 // objet est retiré et un nouveau est fabriqué avec l'apparence du nouveau niveau.
+// sortie (facultatif) : une petite animation de départ (un monstre battu qui s'écrase).
+// sortie(vue, t) est appelée à chaque image avec le temps écoulé depuis le départ ;
+// tant qu'elle renvoie true, l'objet reste dans la scène.
 export class Synchro {
   constructor(scene, creer, maj, retirer, cle = (element) => element.id) {
     this.scene = scene;
@@ -18,6 +21,8 @@ export class Synchro {
     this.retirer = retirer;
     this.cle = cle;
     this.objets = new Map();
+    this.sortie = null;
+    this.sortants = []; // les objets en train de partir : { vue, t }
   }
   appliquer(liste, ...extra) {
     const vus = new Set();
@@ -33,8 +38,20 @@ export class Synchro {
       vus.add(cle);
     }
     for (const [cle, vue] of this.objets) {
-      if (!vus.has(cle)) this.enlever(cle, vue);
+      if (vus.has(cle)) continue;
+      if (this.sortie) { this.objets.delete(cle); this.sortants.push({ vue, t: 0 }); } // il part en douceur
+      else this.enlever(cle, vue);
     }
+  }
+  // Fait avancer les animations de départ (dt : le temps écoulé depuis l'image précédente)
+  majSortants(dt) {
+    this.sortants = this.sortants.filter((s) => {
+      s.t += dt;
+      if (this.sortie(s.vue, s.t)) return true;
+      this.scene.remove(s.vue.racine);
+      this.retirer?.(s.vue);
+      return false;
+    });
   }
   enlever(cle, vue) {
     this.scene.remove(vue.racine);
@@ -43,6 +60,8 @@ export class Synchro {
   }
   vider() {
     for (const [cle, vue] of this.objets) this.enlever(cle, vue);
+    for (const s of this.sortants) { this.scene.remove(s.vue.racine); this.retirer?.(s.vue); }
+    this.sortants = [];
   }
 }
 

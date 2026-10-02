@@ -55,6 +55,7 @@ const NOMS_REGLAGES = {
   couleur: 'Couleur', force: 'Force', vignette: 'Vignette (bords assombris)',
   ombre: 'Ombres portées (direction et force)', dx: 'Vers la droite (par pixel de hauteur)', dy: 'Vers le bas (par pixel de hauteur)',
   lumieres: 'Lumières du jeu (lanternes, feu…)', nuages: 'Ombres des nuages', vent: 'Vent (arbres, herbes, feuilles)',
+  rim: 'Liseré de lumière (bord des personnages)', rimCouleur: 'Couleur du liseré', eau: 'Eau (au milieu)', eauBord: 'Eau (près du bord)', ecume: 'Écume',
 };
 // Les bornes des curseurs : [minimum, maximum, pas]
 const BORNES = {
@@ -63,7 +64,7 @@ const BORNES = {
   contraste: [0.5, 1.5, 0.01], rayons: [0, 1.5, 0.01], poussiere: [0, 1.5, 0.01], lucioles: [0, 1.5, 0.01],
   etoiles: [0, 1, 0.01], nuit: [0, 1, 0.01], lueur: [0, 1, 0.01], force: [0, 1, 0.01], brume: [0, 1, 0.01],
   vignette: [0, 1, 0.01], depuis: [-40, 40, 0.5],
-  dx: [-2, 2, 0.05], dy: [-1, 1, 0.02], lumieres: [0, 1.5, 0.01], nuages: [0, 0.5, 0.01], vent: [0, 2, 0.05],
+  dx: [-2, 2, 0.05], dy: [-1, 1, 0.02], lumieres: [0, 2, 0.01], nuages: [0, 0.5, 0.01], vent: [0, 2, 0.05], rim: [0, 1, 0.01],
 };
 
 const $ = (s) => document.querySelector(s);

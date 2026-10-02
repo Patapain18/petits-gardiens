@@ -107,10 +107,10 @@ export class Lumieres {
     const l = [];
     if (nuit > 0) {
       this.niveau.lanternes.forEach((lanterne, i) => {
-        l.push({ x: lanterne.x, y: lanterne.y, hauteur: 0.9, rayon: 2.7, couleur: COULEURS_LUMIERE.lanterne, force: nuit * this.vacille(i) });
+        l.push({ x: lanterne.x, y: lanterne.y, hauteur: 0.9, rayon: 2.3, couleur: COULEURS_LUMIERE.lanterne, force: nuit * this.vacille(i) });
       });
       const porte = this.niveau.chateau.porte;
-      l.push({ x: porte.x + 0.5, y: porte.y, hauteur: 1, rayon: 2.6, couleur: COULEURS_LUMIERE.lanterne, force: nuit * 0.9 * this.vacille(99) });
+      l.push({ x: porte.x + 0.5, y: porte.y, hauteur: 1, rayon: 2.3, couleur: COULEURS_LUMIERE.lanterne, force: nuit * 0.9 * this.vacille(99) });
     }
     // les gardiens qui portent une lumière (la flamme de Braise, le cristal du Prisme…)
     for (const tour of etat.tours) {

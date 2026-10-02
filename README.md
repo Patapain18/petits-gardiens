@@ -436,6 +436,24 @@ Le premier tour complet a trouvé ce que l'œil devinait : aucune grande zone br
 
 Le *tramage* (« dithering ») sert partout : une grille de seuils qui alterne d'un pixel à l'autre. Un pixel est peint si sa valeur dépasse le seuil de sa case. On fait ainsi des dégradés avec très peu de couleurs.
 
+### La carte des lumières (les deux styles 3D)
+
+Three.js sait éclairer avec des lampes (`PointLight`), mais chacune coûte cher : chaque pixel de l'écran refait le calcul pour chaque lampe. Avec dix lanternes, des boules de feu et des explosions, le jeu ralentirait. L'astuce, puisqu'on regarde la carte d'en haut (`src/rendus/carte-lumieres.js`) : à chaque image, on peint toutes les lumières comme des taches de couleur dans une petite image qui couvre la carte, vue de dessus (8 pixels par case). Chaque matériau « branché » ajoute à sa couleur la lumière de cette image, à l'endroit où il se trouve. Une seule lecture d'image par pixel, quel que soit le nombre de lumières. Et comme une image ne dépasse jamais le blanc, même vingt lumières au même endroit ne peuvent pas éblouir.
+
+Pour « brancher » un matériau, on modifie son programme (son *shader*) juste avant qu'il soit fabriqué (`onBeforeCompile`) : le sommet note sa place dans le monde, et le pixel va lire la carte à cette place. Deux pièges rencontrés :
+- un canvas devient une texture retournée de haut en bas (`flipY`), comme une photo : les flaques de lumière apparaissaient en miroir, loin des lanternes ;
+- Three.js range les programmes fabriqués sous une « clé » : deux matériaux modifiés différemment mais avec la même clé se partageaient le même programme. Chaque modification ajoute donc sa part à la clé (c'est aussi ce qui donnait la même épaisseur aux deux contours du cartoon).
+
+### Le monde 2 (cartoon)
+
+- **Une vraie nuit**, bleue et sombre, où les lanternes, la porte du château, les boules de feu et les explosions posent des **flaques de lumière en aplats** (cinq paliers, comme le reste du dessin). La lumière est découpée selon sa force, pas couleur par couleur : sinon la teinte changeait d'un palier à l'autre, en anneaux rouges et verts. La flamme de Braise et le cristal du Prisme éclairent leur gardien.
+- **Le vent** : les feuillages (avec leur contour et leur ombre) et les touffes d'herbe bougent par rafales qui traversent la carte. C'est le programme de chaque feuillage qui décale le haut de la boule, selon sa place sur la carte et le temps.
+- **L'eau de dessin animé** : un programme à elle, avec deux aplats de bleu, des traits de vaguelettes qui ondulent, une bande d'écume au bord dont la largeur ondule, des reflets qui scintillent, et des nénuphars. L'écume est posée au bord *visible* : le sol de la berge recouvre le bord du disque d'eau.
+- **Des moulins à vent** dans les coins libres de la carte (au plus deux, loin du chemin, des socles, du château et des étangs), dont les ailes tournent plus vite quand le vent souffle fort.
+- **Les ombres des nuages** qui glissent sur le sol, calculées par le programme du sol ; une **ombre douce au pied de chaque arbre** et de chaque rocher, peinte dans la texture du sol (sous un feuillage, la lumière du ciel arrive moins) ; un **liseré de lumière** sur le bord des personnages et des feuillages, de la couleur du ciel (le *rim light* des dessins animés).
+- **La vie autour** : des volées d'oiseaux (leur ombre passe sur le sol), des papillons qui se posent de fleur en fleur, des feuilles d'automne qui tombent en tournoyant, des lucioles la nuit.
+- **Les personnages** : les monstres arrivent avec un petit « pop » élastique et s'écrasent en disparaissant quand ils sont battus (`Synchro` sait maintenant faire partir un objet en douceur) ; les gardiens reculent quand ils tirent et sautent de joie quand une vague est repoussée.
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -494,6 +512,7 @@ src/
     ├── ambiances.json les réglages des quatre ambiances de chaque style (l'atelier des lumières les modifie)
     ├── format-ambiances.js  vérifier et écrire ambiances.json
     ├── lumieres.js    les lumières du jeu, à chaque instant (lanternes, feu, explosions…), pour les trois styles
+    ├── carte-lumieres.js  la carte des lumières des styles 3D (toutes les lumières dans une petite image vue de dessus)
     ├── apparence.js   le vocabulaire des apparences (gabarits, accessoires, couleurs)
     └── outils3d.js    morceaux partagés par les deux styles 3D
 serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir « Le classement en ligne »)
@@ -536,7 +555,7 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 ### Les trois styles, techniquement
 
 - **Voxel doré** (Three.js). Le monde est fait d'environ 50 000 cubes affichés avec des `InstancedMesh`, ce qui revient à un seul envoi à la carte graphique par type de bloc. Les textures 16 × 16 sont dessinées par le code. L'éclairage vient d'un soleil bas qui projette de vraies ombres. Par-dessus, un post-traitement ajoute le halo des lumières (*bloom*), les rayons de soleil, la chaleur des couleurs et la vignette. Il y a 4 ambiances et 2 caméras.
-- **Diorama cartoon** (Three.js). Il utilise un *toon shading*, c'est-à-dire 3 tons seulement au lieu d'un dégradé. Les contours sombres viennent d'une copie de l'objet légèrement gonflée et vue de l'intérieur. La caméra est orthographique, donc sans perspective, ce qui donne l'effet maquette. Le sol est peint dans un canvas puis collé sur le terrain. Ses 4 ambiances changent la couleur et la position du soleil et la lumière du ciel ; la nuit, de petites lampes (des `PointLight`) s'allument dans les lanternes et à la porte du château.
+- **Diorama cartoon** (Three.js). Il utilise un *toon shading*, c'est-à-dire 3 tons seulement au lieu d'un dégradé. Les contours sombres viennent d'une copie de l'objet légèrement gonflée et vue de l'intérieur. La caméra est orthographique, donc sans perspective, ce qui donne l'effet maquette. Le sol est peint dans un canvas puis collé sur le terrain. Ses 4 ambiances changent la couleur et la position du soleil, la lumière du ciel, la couleur de l'eau, le vent et les ombres des nuages ; les lumières du jeu passent par la carte des lumières.
 - **Pixel art** (Canvas 2D, sans Three.js). Chaque sprite est dessiné case par case par le code, et le contour sombre est ajouté automatiquement. La scène est dessinée en petite résolution (une case = 16 pixels), puis agrandie d'un nombre entier de fois sans lissage, pour garder des pixels bien carrés. L'ordre d'une image : le sol (le fond peint d'avance, l'eau, l'herbe, les socles), le calque des ombres, les ombres des nuages, tout ce qui a de la hauteur trié du haut vers le bas de l'écran, la vie (papillons, feuilles, oiseaux), puis la lumière. Ses 4 ambiances sont des voiles de couleur posés sur l'image ; la nuit, tout s'assombrit en bleu (« multiply ») et les lumières du jeu ajoutent des halos (« lighter »), avec des lucioles.
 
 ## Les fiches des personnages
