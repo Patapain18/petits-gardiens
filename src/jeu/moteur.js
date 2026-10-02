@@ -4,7 +4,7 @@
 // et le fait avancer d'un petit pas de temps à chaque appel.
 // Les styles graphiques ne font que LIRE cet état pour le dessiner.
 // ─────────────────────────────────────────────────────────────
-import { GARDIENS, MONSTRES, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
 import { creerAleatoire } from './aleatoire.js';
 
 // Le vent de Bourrasque : le monstre poussé glisse en arrière à VITESSE_RECUL cases
@@ -35,6 +35,9 @@ export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
     evenements: [],           // ce qui vient de se passer (pour les effets visuels)
     battus: 0,                // monstres battus depuis le début (départage le classement de la survie)
     prochainId: 1,
+    // les pouvoirs du château (si la fiche du niveau en donne) : le temps qu'il reste avant
+    // que chacun soit prêt (0 = prêt). Voir POUVOIRS dans donnees.js.
+    pouvoirs: niveau.pouvoirs ? { meteore: 0, froid: 0 } : null,
   };
 }
 
@@ -125,11 +128,42 @@ export function lancerVague(etat) {
   return true;
 }
 
+// ── Les pouvoirs du château ──────────────────────────────────
+// Un pouvoir se déclenche seulement pendant une vague, et s'il est rechargé.
+export const pouvoirPret = (etat, nom) => Boolean(etat.pouvoirs) && etat.statut === 'vague' && etat.pouvoirs[nom] <= 0;
+
+// Le Météore : il tombe en (x, y) au bout de « chute » secondes (c'est un tir comme les
+// autres, rangé avec eux : les styles le dessinent pendant sa chute)
+export function lancerMeteore(etat, x, y) {
+  if (!pouvoirPret(etat, 'meteore')) return false;
+  const { recharge, chute, hauteur } = POUVOIRS.meteore;
+  etat.pouvoirs.meteore = recharge;
+  etat.projectiles.push({ id: etat.prochainId++, type: 'meteore', x, y, z: hauteur, reste: chute, chute });
+  etat.evenements.push({ type: 'meteore', x, y });
+  return true;
+}
+
+// Le Grand froid : tous les monstres sur le chemin gèlent sur place (pas ceux qui sont sous terre)
+export function lancerGrandFroid(etat) {
+  if (!pouvoirPret(etat, 'froid')) return false;
+  const { recharge, duree } = POUVOIRS.froid;
+  etat.pouvoirs.froid = recharge;
+  for (const e of etat.ennemis) {
+    if (e.pv > 0 && !e.cache) e.gele = duree * (MONSTRES[e.type].gel ?? 1);
+  }
+  etat.evenements.push({ type: 'grandFroid' });
+  return true;
+}
+
 // ── La mise à jour (appelée ~60 fois par seconde) ────────────
 
 export function majPartie(etat, dt) {
   if (etat.statut === 'perdu' || etat.statut === 'gagne') return;
   etat.temps += dt;
+  // les pouvoirs se rechargent pendant les vagues seulement
+  if (etat.pouvoirs && etat.statut === 'vague') {
+    for (const nom in etat.pouvoirs) etat.pouvoirs[nom] = Math.max(0, etat.pouvoirs[nom] - dt);
+  }
   faireApparaitre(etat);
   deplacerEnnemis(etat, dt);
   if (etat.statut === 'perdu') return;
@@ -157,6 +191,7 @@ function faireApparaitre(etat) {
       x: 0, y: 0, dx: 1, dy: 0,
       ralenti: 0,                            // temps restant de ralentissement
       facteurRalenti: 1,
+      gele: 0,                               // temps restant où il est gelé sur place (le Grand froid)
       touche: 0,                             // flash quand il prend un coup
       recul: 0,                              // ce qu'il doit encore reculer, poussé par le vent
       reculTotal: 0,                         // tout ce que le vent l'a fait reculer (les rochers en vol s'en servent)
@@ -178,6 +213,11 @@ function deplacerEnnemis(etat, dt) {
     e.touche = Math.max(0, e.touche - dt);
     e.accroche = Math.max(0, e.accroche - dt);
     e.bond = Math.max(0, e.bond - dt / DUREE_BOND);
+    if (e.gele > 0) {
+      // gelé par le Grand froid : il ne bouge plus du tout, jusqu'au dégel
+      e.gele = Math.max(0, e.gele - dt);
+      continue;
+    }
     if (fiche.creuse) {
       // la Taupe plonge sous terre, puis ressort, et ainsi de suite
       e.creuse -= dt;
@@ -277,7 +317,7 @@ function tirerRayon(etat, tour, fiche, cible, dt) {
 function cracherLeFeu(etat, dt) {
   for (const e of etat.ennemis) {
     const feu = MONSTRES[e.type].feu;
-    if (!feu || e.pv <= 0) continue;
+    if (!feu || e.pv <= 0 || e.gele > 0) continue; // gelé, il ne crache plus
     e.feu -= dt;
     if (e.feu > 0) continue;
     let cible = null, plusPres = feu.portee;
@@ -331,7 +371,8 @@ function creerProjectile(etat, tour, fiche, cible) {
   if (fiche.projectile.cloche) {
     // Tir en cloche : on vise l'endroit où sera le monstre (approximativement)
     const temps = Math.hypot(cible.x - tour.x, cible.y - tour.y) / p.vitesse;
-    p.dVisee = cible.d + MONSTRES[cible.type].vitesse * cible.facteurRalenti * temps; // là où il sera, sur le chemin
+    const enMarche = Math.max(0, temps - cible.gele); // gelé, il ne repart qu'au dégel
+    p.dVisee = cible.d + MONSTRES[cible.type].vitesse * cible.facteurRalenti * enMarche; // là où il sera, sur le chemin
     p.reculVu = cible.reculTotal; // si le vent le repousse pendant le vol, le point de chute reculera d'autant
     const futur = etat.niveau.pointSurChemin(p.dVisee);
     p.departX = tour.x; p.departY = tour.y;
@@ -346,6 +387,15 @@ function deplacerProjectiles(etat, dt) {
   const restants = [];
   for (const p of etat.projectiles) {
     const { fiche } = p;
+
+    if (p.type === 'meteore') {
+      // le Météore tombe tout droit, de plus en plus bas, puis s'écrase
+      p.reste -= dt;
+      p.z = POUVOIRS.meteore.hauteur * Math.max(0, p.reste / p.chute) ** 2; // il accélère en tombant
+      if (p.reste <= 0) meteoreTombe(etat, p);
+      else restants.push(p);
+      continue;
+    }
 
     if (p.duree) {
       // Si une Bourrasque a repoussé la cible pendant le vol, le point de chute recule avec elle
@@ -428,6 +478,21 @@ function exploser(etat, p, fiche) {
   etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: p.type, rayon: fiche.zone });
 }
 
+// Le Météore s'écrase : tous les monstres autour (même ceux qui volent, il vient du ciel ;
+// pas ceux qui sont sous terre) perdent une part de la vie QUI LEUR RESTE. Une part plutôt
+// qu'un nombre de dégâts : en survie, les monstres deviennent de plus en plus solides, et le
+// Météore reste utile jusqu'au bout. Mais une part de ce qui reste, jamais tout : seul, il
+// ne bat aucun monstre, il faut des gardiens pour finir le travail. (Essayé avec une part de
+// la vie maximale : deux Météores battaient n'importe quel monstre, et une défense de
+// Givrine seules tenait les 150 vagues de l'arène !)
+function meteoreTombe(etat, p) {
+  const { rayon, part } = POUVOIRS.meteore;
+  for (const e of etat.ennemis) {
+    if (e.pv > 0 && !e.cache && Math.hypot(e.x - p.x, e.y - p.y) <= rayon) blesser(etat, e, e.pv * part, { perce: true });
+  }
+  etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon });
+}
+
 // perce : le coup traverse les carapaces ; flash : le monstre clignote (pas pour un rayon
 // continu, il clignoterait sans arrêt). Le rayon du Prisme fait les deux.
 function blesser(etat, ennemi, degats, { perce = false, flash = true } = {}) {
@@ -438,6 +503,7 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true } = {}) {
     degats = Math.max(1, degats - armure);
     etat.evenements.push({ type: 'carapace', x: ennemi.x, y: ennemi.y, quoi: ennemi.type });
   }
+  if (ennemi.gele > 0) degats *= POUVOIRS.froid.fragile; // gelé par le Grand froid, il est fragile
   ennemi.pv -= degats;
   if (flash) ennemi.touche = 0.12;
   if (ennemi.pv <= 0) {

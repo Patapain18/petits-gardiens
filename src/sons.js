@@ -24,6 +24,9 @@ const BRUITAGES = [
     ['mort', 'Chef battu', { quoi: 'dragon' }], ['plonge', 'La Taupe plonge'], ['surgit', 'La Taupe ressort'],
     ['naissance', 'Des petits sortent'], ['flamme', 'Feu du Dragon'],
   ]],
+  ['Les pouvoirs du château', [
+    ['meteore', 'Météore lancé'], ['explosion', 'Météore qui s’écrase', { quoi: 'meteore' }], ['grandFroid', 'Grand froid'],
+  ]],
   ['L’or et les gardiens', [
     ['recolte', 'Récolte de la Pépite'], ['construction', 'Gardien posé'], ['amelioration', 'Amélioration'], ['vente', 'Gardien revendu'],
   ]],

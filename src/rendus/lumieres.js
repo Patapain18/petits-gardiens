@@ -66,7 +66,10 @@ export class Lumieres {
   evenements(liste) {
     for (const ev of liste) {
       switch (ev.type) {
-        case 'explosion': this.eclat(ev.x, ev.y, 0.3, 2.4, COULEURS_LUMIERE.explosion, 1.3, 0.35); break;
+        case 'explosion':
+          if (ev.quoi === 'meteore') this.eclat(ev.x, ev.y, 0.4, 3.6, COULEURS_LUMIERE.feu, 1.6, 0.6); // le Météore s'écrase
+          else this.eclat(ev.x, ev.y, 0.3, 2.4, COULEURS_LUMIERE.explosion, 1.3, 0.35);
+          break;
         case 'impact':
           if (ev.quoi === 'feu') this.eclat(ev.x, ev.y, 0.4, 1.3, COULEURS_LUMIERE.feu, 0.8, 0.2);
           else if (ev.quoi === 'glace') this.eclat(ev.x, ev.y, 0.4, 1, COULEURS_LUMIERE.glace, 0.5, 0.2);
@@ -122,9 +125,10 @@ export class Lumieres {
         if (cible) l.push({ x: cible.x, y: cible.y, hauteur: 0.5, rayon: 1.4, couleur: COULEURS_LUMIERE.rose, force: 0.5 + (tour.chauffe || 0) * 0.6 });
       }
     }
-    // les boules de feu de Braise
+    // les boules de feu de Braise, et le Météore qui tombe (sa lumière grandit à mesure qu'il approche)
     for (const t of etat.projectiles) {
       if (t.type === 'feu') l.push({ x: t.x, y: t.y, hauteur: t.z, rayon: 1.2, couleur: COULEURS_LUMIERE.feu, force: 0.75 });
+      if (t.type === 'meteore') l.push({ x: t.x, y: t.y, hauteur: t.z, rayon: 2.6, couleur: COULEURS_LUMIERE.feu, force: 0.4 + 0.6 * (1 - t.reste / t.chute) });
     }
     // les monstres de lave (le Colosse) rougeoient
     for (const e of etat.ennemis) {

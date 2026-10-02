@@ -3,6 +3,7 @@
   "nom": "L’arène pixel",
   "description": "Les vagues ne s’arrêtent jamais, et chacune est plus dure que la précédente. Jusqu’où tiendras-tu ?",
   "survie": true,
+  "pouvoirs": true,
   "style": "pixel",
   "ambiance": "doree",
   "largeur": 24,

@@ -210,6 +210,8 @@ export function chargerNiveau(fiche) {
     // en mode survie, les vagues écrites sont suivies de vagues fabriquées, sans fin
     survie: Boolean(fiche.survie),
     vagues: fiche.survie ? vaguesDeSurvie(fiche.vagues) : fiche.vagues,
+    // les pouvoirs du château (le Météore et le Grand froid), que le joueur déclenche lui-même
+    pouvoirs: Boolean(fiche.pouvoirs),
     // pour chaque gardien proposé, la vague à partir de laquelle on peut le poser
     // (si la fiche ne dit rien : tous les gardiens, dès la vague 1)
     gardiens: fiche.gardiens || Object.fromEntries(Object.keys(GARDIENS).map((type) => [type, 1])),
@@ -291,6 +293,9 @@ export function problemesFiche(fiche) {
   }
   if (fiche.survie !== undefined && typeof fiche.survie !== 'boolean') {
     erreurs.push('"survie" doit valoir true (mode survie : des vagues sans fin) ou false');
+  }
+  if (fiche.pouvoirs !== undefined && typeof fiche.pouvoirs !== 'boolean') {
+    erreurs.push('"pouvoirs" doit valoir true (les pouvoirs du château : Météore et Grand froid) ou false');
   }
   if (fiche.difficulte !== undefined && !DIFFICULTES[fiche.difficulte]) {
     erreurs.push(`"difficulte" doit valoir ${liste(DIFFICULTES)}`);

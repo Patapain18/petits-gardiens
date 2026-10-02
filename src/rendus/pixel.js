@@ -5,7 +5,7 @@
 // juste le Canvas 2D du navigateur. Une lumière de fin de journée est
 // posée par-dessus (dégradé chaud, vignette, rayons).
 // ─────────────────────────────────────────────────────────────
-import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruit2D } from '../jeu/aleatoire.js';
 import { socleProche } from './outils3d.js';
@@ -894,6 +894,7 @@ export default class RenduPixel {
     this.feuillesQuiTombent = [];
     this.papillons = null;
     this.flash = 0;                    // l'éclair d'un orage d'Étincelle, la nuit
+    this.ondes = [];                   // les ondes de choc du Météore (des cercles qui s'agrandissent)
     this.creerNuages();
     this.redimensionner();
   }
@@ -997,7 +998,13 @@ export default class RenduPixel {
       }
       if (ev.type === 'eclair') this.flash = 0.1;
       if (ev.type === 'impact' && ev.quoi !== 'vent') this.emettre(p.x, p.y, 6, ev.quoi === 'feu' ? ['#ff8a1e', '#ffd23a', '#fff0a0'] : ['#e8fbff', '#9fe6ff'], 30, 40, 0.35);
-      if (ev.type === 'explosion') { this.emettre(p.x, p.y, 22, ['#8f8496', '#6e6478', '#d8c8b0'], 60, 70, 0.7); this.secousse = 0.15; }
+      if (ev.type === 'explosion' && ev.quoi === 'meteore') {
+        // le Météore s'écrase : une gerbe de feu, des cailloux, et tout l'écran tremble
+        this.emettre(p.x, p.y, 46, ['#ff5a1e', '#ff9a2a', '#ffd23a', '#fff0a0'], 95, 90, 0.8);
+        this.emettre(p.x, p.y, 18, ['#5a4a52', '#8f8496', '#3a2e34'], 70, 60, 0.9);
+        this.secousse = 0.35;
+        this.ondes.push({ x: p.x, y: p.y, rayon: (ev.rayon || 1.6) * T, t: 0 });
+      } else if (ev.type === 'explosion') { this.emettre(p.x, p.y, 22, ['#8f8496', '#6e6478', '#d8c8b0'], 60, 70, 0.7); this.secousse = 0.15; }
       if (ev.type === 'mort') {
         // les éclats ont les couleurs du monstre ; plus il est gros, plus il y en a
         const fiche = MONSTRES[ev.quoi];
@@ -1053,13 +1060,13 @@ export default class RenduPixel {
     });
   }
 
-  // Cercle de portée en pointillés (pixel par pixel, pour rester net)
-  cercle(cx, cy, r, couleur) {
+  // Cercle de portée en pointillés (pixel par pixel, pour rester net) ; plein = sans trous
+  cercle(cx, cy, r, couleur, plein = false) {
     const c = this.ectx;
     c.fillStyle = couleur;
     const n = Math.round(r * 2 * Math.PI);
     for (let i = 0; i < n; i++) {
-      if (Math.floor(i / 3 + this.temps * 4) % 2) continue;
+      if (!plein && Math.floor(i / 3 + this.temps * 4) % 2) continue;
       const a = (i / n) * Math.PI * 2;
       c.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.85), 1, 1);
     }
@@ -1068,13 +1075,21 @@ export default class RenduPixel {
   dessiner(etat, dtJeu, dtReel, ui) {
     if (etat !== this.partie) {
       this.partie = etat;
-      this.vues.clear(); this.particules = []; this.eclairs = []; this.poufs = [];
+      this.vues.clear(); this.particules = []; this.eclairs = []; this.poufs = []; this.ondes = [];
       this.lumieres.vider();
     }
     this.temps += dtReel;
     this.secousse = Math.max(0, this.secousse - dtReel);
     this.flash = Math.max(0, this.flash - dtReel);
     this.traiterEvenements(etat.evenements);
+    if (etat.evenements.some((ev) => ev.type === 'grandFroid')) {
+      // le Grand froid : une bouffée de flocons sur chaque monstre gelé
+      for (const e of etat.ennemis) {
+        if (!(e.gele > 0)) continue;
+        const p = this.versPixel(e.x, e.y);
+        this.emettre(p.x, p.y, 7, ['#ffffff', '#dff6ff', '#9fe0ff'], 30, 55, 0.7, 8);
+      }
+    }
     this.majParticules(dtJeu || 0);
     this.lumieres.maj(dtReel);
     this.majVie(dtReel);
@@ -1169,7 +1184,8 @@ export default class RenduPixel {
         } });
         continue;
       }
-      const vite = e.facteurRalenti < 1 ? Math.floor(this.temps * 3) % 2 : image; // gelé : il s'anime au ralenti
+      // ralenti par une Givrine : il s'anime au ralenti ; gelé par le Grand froid : il ne bouge plus du tout
+      const vite = e.gele > 0 ? 0 : e.facteurRalenti < 1 ? Math.floor(this.temps * 3) % 2 : image;
       const img = (sp.profil && e.dx < -0.1 ? sp.miroirs : sp.images)[(vite + e.id) % sp.images.length];
       // à quelle hauteur le dessiner : un volant vole (en montant et descendant un peu),
       // un petit qui vient de naître fait un bond
@@ -1181,11 +1197,27 @@ export default class RenduPixel {
       const ombre = { img, x: p.x + enAir * a.ombre.dx, y: p.y + 2 + enAir * a.ombre.dy };
       const dessin = () => {
         if (e.touche > 0) c.filter = 'brightness(2.2)';
+        // pris dans la glace du Grand froid : bleu très clair (et un glaçon autour, plus bas)
+        else if (e.gele > 0) c.filter = 'sepia(1) hue-rotate(165deg) saturate(1.5) brightness(1.25)';
         // gelé : un voile bleu glacé (on passe d'abord en sépia, pour que tous les monstres bleuissent pareil,
         // même un rouge : tourner ses couleurs l'aurait rendu vert)
         else if (e.facteurRalenti < 1) c.filter = 'sepia(1) hue-rotate(165deg) saturate(1.7) brightness(1.1)';
         this.dessinerImage(img, p.x, y);
         c.filter = 'none';
+        if (e.gele > 0) {
+          // un glaçon autour de lui : un bloc transparent, éclairé en haut à gauche, plus sombre en bas à droite
+          const haut = Math.round(y - img.height + (img.hautVisible || 0) - 2), l = img.width - 2;
+          const gauche = Math.round(p.x - l / 2), bas = Math.round(y + 1);
+          c.fillStyle = 'rgba(200,240,255,0.32)'; c.fillRect(gauche, haut, l, bas - haut);
+          c.fillStyle = 'rgba(255,255,255,0.8)'; c.fillRect(gauche, haut, l - 1, 1); c.fillRect(gauche, haut, 1, bas - haut - 1);
+          c.fillStyle = 'rgba(110,180,225,0.7)'; c.fillRect(gauche + l - 1, haut + 1, 1, bas - haut - 1); c.fillRect(gauche + 1, bas - 1, l - 1, 1);
+          // deux petits éclats de glace qui scintillent autour de lui
+          c.fillStyle = '#ffffff';
+          for (let k = 0; k < 2; k++) {
+            if ((Math.floor(this.temps * 4) + e.id + k) % 3 === 0) continue;
+            c.fillRect(p.x + (k ? 5 : -6), y - 4 - ((e.id + k * 5) % 7), 1, 1);
+          }
+        }
         if (e.recul > 0) {
           // des traits de vent devant lui : il est soufflé en arrière
           c.fillStyle = '#ffffff';
@@ -1215,7 +1247,29 @@ export default class RenduPixel {
       const p = this.versPixel(t.x, t.y);
       const hauteur = Math.round(t.z * T);
       objets.push({ y: p.y, dessin: () => {
-        if (t.type === 'rocher') {
+        if (t.type === 'meteore') {
+          // son ombre grandit à mesure qu'il approche ; la boule de feu laisse une traînée
+          const proche = 1 - t.z / POUVOIRS.meteore.hauteur;
+          const lo = Math.round(4 + proche * 10);
+          c.fillStyle = `rgba(30,16,30,${(0.15 + proche * 0.3).toFixed(2)})`;
+          c.fillRect(p.x - lo, p.y - 1, lo * 2 + 1, 3);
+          const y = p.y - hauteur;
+          // une boule ronde, faite de trois carrés croisés par couleur (du contour au cœur)
+          const rond = (couleur, r, coin) => {
+            c.fillStyle = couleur;
+            c.fillRect(p.x - r, y - r + coin, r * 2 + 1, r * 2 + 1 - coin * 2);
+            c.fillRect(p.x - r + coin, y - r, r * 2 + 1 - coin * 2, r * 2 + 1);
+            c.fillRect(p.x - r + 1, y - r + 1, r * 2 - 1, r * 2 - 1);
+          };
+          rond(CONTOUR, 6, 2);
+          rond('#e8501e', 5, 2);
+          rond('#ff9a2a', 3, 1);
+          c.fillStyle = '#ffe14a'; c.fillRect(p.x - 2, y - 3, 3, 2);
+          c.fillStyle = '#fff4b0'; c.fillRect(p.x - 2, y - 3, 1, 1);
+          for (let k = 0; k < 3; k++) {
+            this.particules.push({ x: p.x + (Math.random() - 0.5) * 8, y: p.y, z: hauteur + 4 + Math.random() * 8, vx: (Math.random() - 0.5) * 8, vy: 0, vz: 30 + Math.random() * 30, c: ['#ff5a1e', '#ffb43a', '#ffe14a', '#6e6478'][k + (Math.random() < 0.3 ? 1 : 0)], vie: 0.25 + Math.random() * 0.2, taille: Math.random() < 0.4 ? 2 : 1 });
+          }
+        } else if (t.type === 'rocher') {
           c.fillStyle = 'rgba(30,16,30,0.3)'; c.fillRect(p.x - 2, p.y - 1, 5, 2);
           c.fillStyle = CONTOUR; c.fillRect(p.x - 2, p.y - hauteur - 2, 5, 5);
           c.fillStyle = '#8f8496'; c.fillRect(p.x - 1, p.y - hauteur - 1, 3, 3);
@@ -1273,6 +1327,30 @@ export default class RenduPixel {
       const p = this.versPixel(tour.x, tour.y);
       // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
       this.cercle(p.x, p.y, portee * T, '#fff4d0');
+    }
+    // le Météore : là où il va tomber, pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
+    const meteore = etat.projectiles.find((t) => t.type === 'meteore');
+    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: POUVOIRS.meteore.rayon });
+    if (visee && (!meteore || Math.floor(this.temps * 10) % 2)) {
+      const p = this.versPixel(visee.x, visee.y);
+      const couleur = meteore ? '#ff5a3a' : '#ffb46a';
+      // un voile coloré sur toute la zone touchée, et un bord en pointillés épais
+      c.fillStyle = meteore ? 'rgba(255,90,58,0.22)' : 'rgba(255,170,90,0.18)';
+      c.beginPath();
+      c.ellipse(p.x, p.y, visee.rayon * T, visee.rayon * T * 0.85, 0, 0, Math.PI * 2);
+      c.fill();
+      this.cercle(p.x, p.y, visee.rayon * T, couleur);
+      this.cercle(p.x, p.y, visee.rayon * T - 1, couleur);
+      c.fillStyle = couleur;
+      c.fillRect(p.x - 2, p.y, 5, 1);
+      c.fillRect(p.x, p.y - 2, 1, 5);
+    }
+    // les ondes de choc du Météore : un cercle qui s'agrandit en 0,3 seconde, du blanc à l'orange
+    this.ondes = this.ondes.filter((o) => (o.t += dtReel) < 0.3);
+    for (const o of this.ondes) {
+      const k = o.t / 0.3;
+      this.cercle(o.x, o.y, o.rayon * (0.3 + k * 0.9), k < 0.5 ? '#fff4d0' : '#ff9a4a', true);
+      this.cercle(o.x, o.y, o.rayon * (0.3 + k * 0.9) - 1, k < 0.5 ? '#fff4d0' : '#ff9a4a', true);
     }
     // particules par-dessus
     for (const p of this.particules) {
@@ -1752,6 +1830,13 @@ export default class RenduPixel {
     return socleProche(this.niveau.socles, (ix - this.ox) / T, (iy - this.oy - 2) / T, 0.75);
   }
 
+  // Le point du sol (en cases) sous un point de l'écran (pour viser le Météore)
+  versSol(px, py) {
+    const r = this.canvas.getBoundingClientRect();
+    const ix = ((px - r.left) * this.dpr) / this.echelle, iy = ((py - r.top) * this.dpr) / this.echelle;
+    return { x: (ix - this.ox) / T, y: (iy - this.oy) / T };
+  }
+
   versEcran(x, y, hauteur = 0) {
     const r = this.canvas.getBoundingClientRect();
     const p = this.versPixel(x, y - hauteur);
@@ -1767,8 +1852,9 @@ export default class RenduPixel {
     // le plus grand agrandissement entier qui fait tenir la carte (avec de la place pour les barres)
     const { largeur, hauteur } = this.niveau;
     this.echelle = Math.max(1, Math.floor(Math.min(l / (largeur * T + 8), h / (hauteur * T / 0.82))));
-    this.ecran.width = Math.ceil(l / this.echelle);
-    this.ecran.height = Math.ceil(h / this.echelle);
+    // (au moins 1 pixel : une page encore cachée peut avoir une taille nulle, et une image de 0 pixel plante)
+    this.ecran.width = Math.max(1, Math.ceil(l / this.echelle));
+    this.ecran.height = Math.max(1, Math.ceil(h / this.echelle));
     this.ox = Math.round((this.ecran.width - largeur * T) / 2);
     this.oy = Math.round((this.ecran.height - hauteur * T) / 2);
     this.ectx.imageSmoothingEnabled = false;

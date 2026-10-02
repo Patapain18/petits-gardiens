@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { GARDIENS, MONSTRES, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
@@ -516,6 +516,7 @@ export default class RenduCartoon {
     this.bouffees = []; // petits nuages blancs « pouf » (morts, constructions)
     this.eclairs = [];  // les éclairs d'Étincelle encore visibles
     this.anneau = this.creerAnneauPortee();
+    this.anneauMeteore = this.creerAnneauMeteore();
 
     // (clé « id:niveau » : un gardien amélioré est refabriqué avec sa nouvelle apparence)
     this.vuesTours = new Synchro(this.scene, (t) => this.creerVueTour(t), (v, t) => this.majVueTour(v, t), (v) => liberer(v.racine), (t) => t.id + ':' + t.niveau);
@@ -1161,6 +1162,18 @@ export default class RenduCartoon {
     return g;
   }
 
+  // Le cercle du Météore : là où il va tomber (sa couleur change dans dessiner())
+  creerAnneauMeteore() {
+    const g = new THREE.Group();
+    const trait = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 80).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffb46a', transparent: true, opacity: 0.95, depthWrite: false }));
+    const fond = new THREE.Mesh(new THREE.CircleGeometry(0.92, 80).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ff8a3a', transparent: true, opacity: 0.18, depthWrite: false }));
+    g.add(trait, fond);
+    g.visible = false;
+    g.userData = { trait };
+    this.scene.add(g);
+    return g;
+  }
+
   ombreRonde(parent, rayon) {
     if (!this.texOmbre) {
       const c = document.createElement('canvas');
@@ -1322,14 +1335,27 @@ export default class RenduCartoon {
       }
     }
     const lent = e.facteurRalenti < 1 ? 0.5 : 1;
+    // gelé par le Grand froid : son animation s'arrête net (on garde l'instant où il a gelé)
+    if (e.gele > 0) vue.gel ??= { t, lent }; else vue.gel = null;
     vue.corps.position.y = 0;
-    GABARITS_CARTOON[vue.gabarit].animer(vue, t, lent);
+    GABARITS_CARTOON[vue.gabarit].animer(vue, vue.gel?.t ?? t, vue.gel?.lent ?? lent);
     // en l'air : la hauteur de vol, et le bond d'un petit qui vient de naître
     vue.corps.position.y += vue.vol + Math.sin(e.bond * Math.PI) * 0.3;
     // soufflé par le vent : il bascule en arrière, et des filets de vent passent autour de lui
     vue.corps.rotation.x = e.recul > 0 ? -0.45 : 0;
     if (e.recul > 0 && Math.random() < 0.6) {
       this.particules.emettre({ x: e.x + (Math.random() - 0.5) * 0.4, y: y + 0.3 + vue.vol * TAILLE_MONSTRE, z: e.y + (Math.random() - 0.5) * 0.4, vx: -e.dx * 3, vz: -e.dy * 3, couleur: '#ffffff', taille: 0.06, vie: 0.3, gravite: 0 });
+    }
+    // pris dans la glace du Grand froid : un glaçon transparent autour de lui (à lui seul :
+    // il disparaît avec lui)
+    if (e.gele > 0 && !vue.glacon) {
+      const l = (vue.largeurBarre ?? 0.5) * 1.3, h = vue.hauteurBarre;
+      vue.glacon = new THREE.Mesh(new THREE.BoxGeometry(l, h, l), this.toon('#dff6ff', { unique: true, transparent: true, opacity: 0.42, depthWrite: false }));
+      vue.racine.add(vue.glacon);
+    }
+    if (vue.glacon) {
+      vue.glacon.visible = e.gele > 0;
+      vue.glacon.position.y = vue.hauteurBarre / 2 + vue.vol;
     }
     vue.attaque = 0;
     for (const animer of vue.animations) animer(this.temps, vue);
@@ -1338,6 +1364,7 @@ export default class RenduCartoon {
     const k = MONSTRES[e.type].boss ? 0.35 : 1;
     for (const mat of vue.materiaux) {
       if (e.touche > 0) { mat.emissive.set('#ffffff'); mat.emissiveIntensity = 0.5 * k; }
+      else if (e.gele > 0) { mat.emissive.set('#d8f4ff'); mat.emissiveIntensity = 0.45 * k; } // pris dans la glace
       else if (lent < 1) { mat.emissive.set('#3aa0ff'); mat.emissiveIntensity = 0.35 * k; }
       else mat.emissiveIntensity = 0;
     }
@@ -1363,6 +1390,13 @@ export default class RenduCartoon {
     } else if (p.type === 'glace') {
       mesh = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.26, 6).rotateX(Math.PI / 2), this.toon('#dff8ff', { emissive: '#8ae0ff', emissiveIntensity: 0.6 }));
       mesh.add(new THREE.Mesh(mesh.geometry, this.matContourFin));
+    } else if (p.type === 'meteore') {
+      // le Météore : une grosse boule de feu, avec un cœur jaune
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), this.brillant('#ff6a2a', 1.6));
+      mesh.add(new THREE.Mesh(mesh.geometry, this.matContourFin));
+      const coeur = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), this.brillant('#ffe14a', 1.8));
+      coeur.position.set(0.07, 0.09, 0.12);
+      mesh.add(coeur);
     } else if (p.type === 'vent') {
       // un petit tourbillon : deux anneaux ouverts, blancs, qui tournent
       mesh = new THREE.Group();
@@ -1383,6 +1417,13 @@ export default class RenduCartoon {
     vue.racine.position.set(p.x, y, p.y);
     if (p.type === 'glace') vue.racine.lookAt(avant.lerp(vue.racine.position, 2));
     if (p.type === 'rocher') { vue.racine.rotation.x += 0.15; vue.racine.rotation.z += 0.1; }
+    if (p.type === 'meteore') {
+      // il tourne sur lui-même et laisse une traînée de feu
+      vue.racine.rotation.x += 0.2; vue.racine.rotation.y += 0.13;
+      for (let k = 0; k < 3; k++) {
+        this.particules.emettre({ x: p.x + (Math.random() - 0.5) * 0.3, y: y + 0.2 + Math.random() * 0.4, z: p.y + (Math.random() - 0.5) * 0.3, vx: (Math.random() - 0.5) * 0.8, vy: 1.5 + Math.random(), vz: (Math.random() - 0.5) * 0.8, couleur: ['#ff5a1e', '#ffa83a', '#ffe14a'][k], taille: 0.14, vie: 0.35, gravite: 0, eclat: 1.4 });
+      }
+    }
     if (p.type === 'feu' && Math.random() < 0.7) {
       this.particules.emettre({ x: p.x, y, z: p.y, vy: 0.5, couleur: Math.random() < 0.5 ? '#ff8a1e' : '#ffd23a', taille: 0.08, vie: 0.3, gravite: 0, eclat: 1.2 });
     }
@@ -1703,6 +1744,14 @@ export default class RenduCartoon {
           break;
         }
         case 'explosion':
+          if (ev.quoi === 'meteore') {
+            // le Météore s'écrase : une gerbe de feu, des cailloux, un gros nuage, et la caméra tremble
+            this.gerbe(ev.x, y + 0.2, ev.y, 44, ['#ff5a1e', '#ff9a2a', '#ffd23a', '#fff0a0'], { force: 4.2, haut: 4.5, taille: 0.15, vie: 0.9, eclat: 1.5 });
+            this.gerbe(ev.x, y + 0.1, ev.y, 16, ['#5a4a52', '#8f8496', '#3a2e34'], { force: 3.2, haut: 3.6, taille: 0.14, vie: 1 });
+            this.pouf(ev.x, y, ev.y, 2.4);
+            this.secousse = Math.max(this.secousse, 0.4);
+            break;
+          }
           this.gerbe(ev.x, y + 0.1, ev.y, 20, ['#8f8496', '#6e6478', '#b8acc0'], { force: 3, haut: 3.4, taille: 0.13, vie: 0.8 });
           this.pouf(ev.x, y, ev.y, 1.3);
           this.secousse = Math.max(this.secousse, 0.1);
@@ -1776,6 +1825,12 @@ export default class RenduCartoon {
     this.statutAvant = etat.statut;
     this.joie = Math.max(0, (this.joie || 0) - dtReel * 1.1);
     this.traiterEvenements(etat.evenements);
+    if (etat.evenements.some((ev) => ev.type === 'grandFroid')) {
+      // le Grand froid : une bouffée de flocons sur chaque monstre gelé
+      for (const e of etat.ennemis) {
+        if (e.gele > 0) this.gerbe(e.x, this.sol(e.x, e.y) + 0.5, e.y, 8, ['#ffffff', '#dff6ff', '#9fe0ff'], { force: 1.2, haut: 2.2, taille: 0.08, vie: 0.8 });
+      }
+    }
     this.vuesTours.appliquer(etat.tours);
     this.vuesEnnemis.appliquer(etat.ennemis);
     this.vuesEnnemis.majSortants(dtReel);
@@ -1806,6 +1861,16 @@ export default class RenduCartoon {
       this.anneau.scale.set(r, 1, r);
       this.anneau.position.set(tour.x, this.sol(tour.x, tour.y) + 0.06, tour.y);
     }
+    // le cercle du Météore : pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
+    const meteore = etat.projectiles.find((t) => t.type === 'meteore');
+    const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: POUVOIRS.meteore.rayon });
+    this.anneauMeteore.visible = Boolean(visee) && (!meteore || Math.floor(this.temps * 10) % 2 === 1);
+    if (visee) {
+      this.anneauMeteore.scale.set(visee.rayon, 1, visee.rayon);
+      this.anneauMeteore.position.set(visee.x, this.sol(visee.x, visee.y) + 0.07, visee.y);
+      this.anneauMeteore.userData.trait.material.color.set(meteore ? '#ff5a3a' : '#ffb46a');
+    }
+
     // drapeaux qui ondulent (on déforme les sommets du plan)
     for (const d of this.drapeaux) {
       const pos = d.geometry.attributes.position;
@@ -1841,6 +1906,16 @@ export default class RenduCartoon {
     const p = new THREE.Vector3();
     if (!this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.25), p)) return -1;
     return socleProche(this.niveau.socles, p.x, p.z, 0.7);
+  }
+
+  // Le point du sol (en cases) sous un point de l'écran (pour viser le Météore)
+  versSol(px, py) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((px - r.left) / r.width) * 2 - 1, -((py - r.top) / r.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const p = new THREE.Vector3();
+    if (!this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), p)) return null;
+    return { x: p.x, y: p.z };
   }
 
   versEcran(x, y, hauteur = 0) {

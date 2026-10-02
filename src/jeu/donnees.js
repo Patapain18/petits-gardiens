@@ -414,4 +414,32 @@ export const MONSTRES = {
   },
 };
 
+// Les POUVOIRS DU CHÂTEAU : c'est le joueur qui les déclenche, pendant une vague, dans les
+// niveaux dont la fiche dit « pouvoirs: true » (pour l'instant, l'arène). Ensuite, chacun se
+// recharge pendant « recharge » secondes de vague (le temps entre deux vagues ne compte pas :
+// on ne peut pas attendre tranquillement qu'ils reviennent). C'est là que le joueur fait la
+// différence : viser au bon endroit, et garder le froid pour le moment où ça craque.
+export const POUVOIRS = {
+  meteore: {
+    nom: 'Météore',
+    touche: '1', // la touche du clavier qui le déclenche
+    description: 'Vise un endroit du chemin : un météore y tombe une seconde plus tard, et les monstres touchés perdent la moitié de la vie qui leur reste.',
+    recharge: 30,
+    chute: 0.9,  // le temps qu'il met à tomber : il faut viser là où les monstres SERONT
+    hauteur: 7,  // d'où il tombe, en cases (il traverse l'écran avant d'arriver)
+    rayon: 1.6,  // la taille de l'explosion, en cases
+    part: 0.5,   // la part de la vie qui leur reste qu'il enlève (la même part à la vague 1 qu'à la vague 30)
+  },
+  froid: {
+    nom: 'Grand froid',
+    touche: '2',
+    description: 'Tous les monstres gèlent sur place pendant 4 secondes, et deviennent fragiles : ils prennent deux fois plus de dégâts.',
+    recharge: 60,
+    duree: 4,    // en secondes (un monstre « gel: 0,5 », comme un chef, gèle moitié moins longtemps)
+    // gelés, les monstres prennent deux fois plus de dégâts. Sans ça, le Grand froid ne servait presque
+    // à rien avec des Givrine : des monstres déjà ralentis, qu'on arrête tout à fait, n'avancent guère moins
+    fragile: 2,
+  },
+};
+
 export const PART_REVENTE = 0.6; // on récupère 60 % de ce qu'on a dépensé (achat + améliorations)

@@ -51,7 +51,14 @@ export const RECETTES = {
 
   // ── Ce que font les tirs ──
   souffle: (o) => o.bruit({ duree: 0.45, volume: 0.3, type: 'bandpass', de: 400, a: 1400, q: 1 }),
-  explosion: (o) => {
+  explosion: (o, ev) => {
+    if (ev.quoi === 'meteore') {
+      // le Météore s'écrase : un très gros « boum », qui gronde longtemps
+      o.coup({ volume: 0.9 });
+      o.bruit({ duree: 1.1, volume: 0.5, type: 'lowpass', de: 1600, a: 70 });
+      o.grave(58, { duree: 0.7, volume: 0.6, de: 1.6 });
+      return;
+    }
     o.coup({ volume: 0.4 });
     o.bruit({ duree: 0.5, volume: 0.3, type: 'lowpass', de: 1200, a: 120 });
   },
@@ -88,6 +95,19 @@ export const RECETTES = {
   flamme: (o) => {
     o.bruit({ duree: 0.75, volume: 0.45, type: 'bandpass', de: 900, a: 250, q: 0.7 });
     o.grave(82, { duree: 0.6, volume: 0.6, de: 1.3 });
+  },
+
+  // ── Les pouvoirs du château ──
+  // le Météore part : un sifflement qui descend pendant toute sa chute
+  meteore: (o) => {
+    o.bip(420, { duree: 0.85, volume: 0.13, de: 4.5 });
+    o.bruit({ duree: 0.85, volume: 0.16, type: 'bandpass', de: 3200, a: 500, q: 1.4 });
+  },
+  // le Grand froid : des notes de cristal qui montent, et un souffle glacé
+  grandFroid: (o) => {
+    o.arpege([88, 91, 95, 100, 103], { ecart: 0.05, duree: 0.3, volume: 0.24 });
+    o.bruit({ duree: 1, volume: 0.18, type: 'highpass', de: 3500, a: 7000 });
+    o.bruit({ duree: 0.8, volume: 0.14, type: 'bandpass', de: 1600, a: 400, q: 0.8 });
   },
 
   // ── L'or et les gardiens ──
@@ -133,4 +153,6 @@ export const LIMITES = {
   souffle: { max: 2, ecart: 0.12 },
   flamme: { max: 1, ecart: 0.3 },
   recolte: { max: 4, ecart: 0.09 },
+  meteore: { max: 1, ecart: 0.5 },
+  grandFroid: { max: 1, ecart: 0.5 },
 };

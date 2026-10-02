@@ -52,6 +52,11 @@
   <footer class="barre bas">
     <div class="panneau">
       <button id="lancer" class="principal">Lancer la vague 1</button>
+      <!-- Les pouvoirs du château (seulement dans les niveaux qui en donnent, comme l'arène) -->
+      <span id="pouvoirs" class="pouvoirs" hidden>
+        <button class="pouvoir" data-pouvoir="meteore"><span class="nom-pouvoir">Météore</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
+        <button class="pouvoir" data-pouvoir="froid"><span class="nom-pouvoir">Grand froid</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
+      </span>
     </div>
     <div class="panneau">
       <button id="vitesse" title="Vitesse du jeu">Vitesse ×1</button>
@@ -67,6 +72,8 @@
 
   <!-- Petits textes « +6 » qui s'envolent quand un monstre meurt -->
   <div id="bulles" aria-hidden="true"></div>
+  <!-- Le Grand froid : un voile de givre sur les bords de l'écran -->
+  <div id="givre" aria-hidden="true"></div>
 
   <!-- Messages : début, victoire, défaite (remplis par main.js) -->
   <div id="message" class="voile">

@@ -10,9 +10,9 @@
 // ─────────────────────────────────────────────────────────────
 import {
   creerPartie, majPartie, construire, vendre, lancerVague, tourSur, ameliorer, prixAmelioration, prixRevente, estDisponible,
-  vaguesTerminees,
+  vaguesTerminees, pouvoirPret, lancerMeteore, lancerGrandFroid,
 } from './jeu/moteur.js';
-import { NIVEAU_MAX, caracteristiques } from './jeu/donnees.js';
+import { NIVEAU_MAX, POUVOIRS, caracteristiques } from './jeu/donnees.js';
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
 import { noterVictoire } from './progression.js';
@@ -106,8 +106,9 @@ let styleActif = null;
 const optionsDeDepart = lireOptions(); // les options du joueur (voir src/options.js)
 let vitesse = optionsDeDepart.vitesse;
 let enPause = true;            // en pause tant qu'on n'a pas cliqué sur « Jouer »
-// socle survolé / sélectionné ; apercuPortee = la portée à montrer pendant qu'on survole « Améliorer »
-const ui = { survol: -1, selection: -1, apercuPortee: null };
+// socle survolé / sélectionné ; apercuPortee = la portée à montrer pendant qu'on survole « Améliorer » ;
+// visee = 'meteore' pendant qu'on vise le Météore, viseeMeteore = l'endroit visé ({ x, y, rayon })
+const ui = { survol: -1, selection: -1, apercuPortee: null, visee: null, viseeMeteore: null };
 
 // Réglages d'affichage, gardés si on change de style puis qu'on revient : l'ambiance de départ vient
 // de la fiche du niveau, la caméra (voxel) et la qualité viennent des options du joueur.
@@ -184,6 +185,7 @@ function traiterEvenements() {
     if (ev.type === 'mort') bulle('+' + ev.prime, ev.x, ev.y, 0.8);
     if (ev.type === 'amelioration') bulle(`Niveau ${ev.niveau}`, ev.x, ev.y, 1.4, 'bulle-niveau');
     if (ev.type === 'recolte') bulle('+' + ev.or, ev.x, ev.y, 1.4); // la Pépite rapporte sa récolte
+    if (ev.type === 'grandFroid') montrerGivre();
   }
   etat.evenements.length = 0;
   if (etat.statut === 'perdu' && !$('#message').dataset.fin) afficherFin(false);
@@ -208,6 +210,7 @@ function majInterface() {
     bouton.disabled = true;
     bouton.textContent = etat.statut === 'vague' ? 'Vague en cours…' : 'Partie terminée';
   }
+  if (etat.pouvoirs) majPouvoirs();
   // Le menu ouvert se met à jour si l'or change, ou si un gardien arrive (boutons grisés ou non)
   if (!menu.hidden) {
     menu.querySelectorAll('[data-prix]').forEach((b) => {
@@ -360,6 +363,55 @@ function fermerMenu() {
   ui.apercuPortee = null;
 }
 
+// ── Les pouvoirs du château ──────────────────────────────────
+// Deux boutons à côté de « Lancer la vague » (et les touches 1 et 2). Le Grand froid part tout
+// de suite ; le Météore se vise : on clique sur le bouton, puis sur le chemin (clic droit, Échap
+// ou un nouveau clic sur le bouton pour annuler).
+const boutonsPouvoirs = [...document.querySelectorAll('[data-pouvoir]')];
+for (const b of boutonsPouvoirs) {
+  const { description, touche } = POUVOIRS[b.dataset.pouvoir];
+  b.title = `${description} (touche ${touche})`;
+  b.querySelector('.touche').textContent = touche;
+  b.addEventListener('click', () => utiliserPouvoir(b.dataset.pouvoir));
+}
+
+function utiliserPouvoir(nom) {
+  if (!pouvoirPret(etat, nom)) return;
+  if (nom === 'froid') { lancerGrandFroid(etat); return; }
+  if (ui.visee) { arreterVisee(); return; }
+  ui.visee = 'meteore';
+  fermerMenu();
+  conteneur.classList.add('visee');
+}
+
+function arreterVisee() {
+  ui.visee = null;
+  ui.viseeMeteore = null;
+  conteneur.classList.remove('visee');
+}
+
+// À chaque image : la recharge de chaque bouton (il se remplit), et « prêt » ou non
+function majPouvoirs() {
+  for (const b of boutonsPouvoirs) {
+    const nom = b.dataset.pouvoir, reste = etat.pouvoirs[nom], pret = pouvoirPret(etat, nom);
+    b.disabled = !pret;
+    b.classList.toggle('pret', pret);
+    b.style.setProperty('--charge', String(1 - reste / POUVOIRS[nom].recharge));
+    b.querySelector('.etat-pouvoir').textContent = reste > 0 ? `${Math.ceil(reste)} s` : '';
+    if (nom === 'meteore') b.setAttribute('aria-pressed', String(ui.visee === 'meteore'));
+  }
+  if (ui.visee && !pouvoirPret(etat, 'meteore')) arreterVisee(); // la vague est finie : on ne vise plus
+}
+
+// Le voile de givre du Grand froid (une animation CSS, relancée à chaque fois)
+function montrerGivre() {
+  const givre = $('#givre');
+  givre.style.setProperty('--duree-givre', `${POUVOIRS.froid.duree}s`);
+  givre.classList.remove('actif');
+  void givre.offsetWidth; // le navigateur « oublie » l'animation, pour pouvoir la rejouer
+  givre.classList.add('actif');
+}
+
 // ── Les cartes de début et de fin ────────────────────────────
 // Où l'on est : « Monde 1 · Niveau 2 », « Test depuis l'éditeur »…
 function surtitre() {
@@ -379,6 +431,10 @@ function afficherIntro() {
     : 'Des monstres suivent le chemin vers le château : ');
   regle.append(element('strong', '', niveau.survie ? 'Un seul monstre dans le château, et la partie s’arrête.' : 'si un seul entre, c’est perdu.'));
   carte.append(regle);
+  if (niveau.pouvoirs) {
+    const { meteore, froid } = POUVOIRS;
+    carte.append(element('p', 'mention-pouvoirs', `Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`));
+  }
   // le record à battre (lu dans le classement, qui répond « plus tard »)
   const record = element('p', 'record-arene', '');
   if (niveau.survie) {
@@ -522,6 +578,7 @@ function afficherFin(victoire) {
 
 function recommencer() {
   etat = nouvellePartie();
+  arreterVisee();
   lireRecord(); // un score vient peut-être d'être enregistré
   fermerMenu();
   const m = $('#message');
@@ -564,17 +621,41 @@ document.querySelectorAll('[data-camera]').forEach((b) =>
 
 conteneur.addEventListener('pointermove', (e) => {
   if (!rendu) return;
+  if (ui.visee) {
+    // on vise le Météore : le cercle suit la souris
+    const p = rendu.versSol(e.clientX, e.clientY);
+    ui.viseeMeteore = p && { ...p, rayon: POUVOIRS.meteore.rayon };
+    ui.survol = -1;
+    return;
+  }
   ui.survol = rendu.socleSous(e.clientX, e.clientY);
   conteneur.style.cursor = ui.survol >= 0 ? 'pointer' : '';
 });
 conteneur.addEventListener('click', (e) => {
   if (!rendu) return;
+  if (ui.visee) {
+    const p = rendu.versSol(e.clientX, e.clientY);
+    if (p && lancerMeteore(etat, p.x, p.y)) arreterVisee();
+    return;
+  }
   const i = rendu.socleSous(e.clientX, e.clientY);
   if (i >= 0) { ouvrirMenu(i); son.effet('menu'); } else fermerMenu();
 });
+// clic droit pendant qu'on vise : on annule (sans ouvrir le menu du navigateur)
+conteneur.addEventListener('contextmenu', (e) => {
+  if (!ui.visee) return;
+  e.preventDefault();
+  arreterVisee();
+});
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); }
+  if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); }
   if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('#lancer').click(); }
+  // les pouvoirs du château : touches 1 et 2 (pas pendant qu'on écrit son pseudo)
+  const dansUnChamp = e.target instanceof Element && e.target.closest('input, textarea');
+  if (etat.pouvoirs && !dansUnChamp) {
+    const nom = Object.keys(POUVOIRS).find((n) => POUVOIRS[n].touche === e.key);
+    if (nom) utiliserPouvoir(nom);
+  }
 });
 addEventListener('resize', () => rendu?.redimensionner());
 
@@ -635,6 +716,7 @@ addEventListener('keydown', (e) => {
 choisirStyle(niveau.style);
 document.title = `${niveau.nom} — Petits Gardiens`;
 $('#ligne-record').hidden = !niveau.survie;
+$('#pouvoirs').hidden = !niveau.pouvoirs;
 lireRecord();
 if (depuisEditeur) {
   // On vient de l'éditeur : pas besoin de la carte de début, on joue directement
@@ -648,8 +730,18 @@ document.querySelectorAll('[data-ambiance]').forEach((b) =>
   b.setAttribute('aria-pressed', String(b.dataset.ambiance === reglages.ambiance)));
 requestAnimationFrame(boucle);
 
-// Accès de débogage depuis la console du navigateur (ex. : __jeu.etat.or = 999)
-window.__jeu = { get etat() { return etat; }, get rendu() { return rendu; }, son };
+// Accès de débogage depuis la console du navigateur (ex. : __jeu.etat.or = 999).
+// __jeu.avancer(3) fait avancer la partie de 3 secondes, puis redessine : pratique pour
+// tester même quand l'onglet est caché (le navigateur met alors la boucle en pause).
+window.__jeu = {
+  get etat() { return etat; }, get rendu() { return rendu; }, get ui() { return ui; }, son,
+  avancer(secondes = 1) {
+    for (let t = 0; t < secondes; t += 1 / 60) majPartie(etat, 1 / 60);
+    rendu?.dessiner(etat, 1 / 60, 1 / 60, ui);
+    traiterEvenements();
+    majInterface();
+  },
+};
 
 // Capture d'écran (développement) : __capturer('nom') enregistre captures/nom.jpg
 window.__capturer = async (nom = 'capture') => {

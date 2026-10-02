@@ -121,6 +121,45 @@ button.principal {
   padding: 8px 18px;
 }
 
+/* ── Les pouvoirs du château ── */
+.pouvoirs { display: inline-flex; gap: var(--espace); }
+.pouvoirs[hidden] { display: none; }
+.pouvoir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* la recharge : le bouton se remplit de gauche à droite (--charge va de 0 à 1) */
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.16) calc(var(--charge, 1) * 100%), rgba(0, 0, 0, 0.3) 0);
+}
+.pouvoir:disabled { opacity: 0.75; }
+.pouvoir.pret { border-color: var(--accent); }
+.pouvoir .etat-pouvoir:not(:empty) { color: var(--texte-doux); font-size: 0.85em; }
+.pouvoir .touche {
+  font: inherit;
+  font-size: 0.75em;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+#scene.visee { cursor: crosshair; } /* on vise le Météore */
+
+/* Le Grand froid : un voile de givre sur les bords de l'écran, le temps du gel */
+#givre {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(205, 240, 255, 0) 50%, rgba(214, 245, 255, 0.5) 100%);
+}
+#givre.actif { animation: givre var(--duree-givre, 4s) ease-out; }
+@keyframes givre {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  70% { opacity: 0.75; }
+  100% { opacity: 0; }
+}
+
 /* ── Barres du haut et du bas ── */
 .barre {
   position: fixed;
@@ -266,6 +305,7 @@ body[data-style='pixel'] .carte p { line-height: 1.8; }
 .carte .surtitre { margin: 0 0 4px; color: var(--accent); font-size: 0.8em; font-weight: 700; }
 .carte .description-niveau { color: var(--texte); }
 .carte .mention-didacticiel { color: var(--accent); }
+.carte .mention-pouvoirs { color: var(--accent); }
 
 /* ── Mode survie : le record, le pseudo et le classement ── */
 #ligne-record.battu b { color: var(--accent); }

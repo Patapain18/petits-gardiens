@@ -8,8 +8,11 @@
 // - dans le terminal : npm run equilibrage (scripts/equilibrage.js)
 // - dans l'éditeur de niveaux : le bouton « Tester l'équilibrage »
 // ─────────────────────────────────────────────────────────────
-import { creerPartie, majPartie, lancerVague, construire, ameliorer, tourSur, prixAmelioration, estDisponible } from './moteur.js';
-import { caracteristiques, NIVEAU_MAX } from './donnees.js';
+import {
+  creerPartie, majPartie, lancerVague, construire, ameliorer, tourSur, prixAmelioration, estDisponible,
+  pouvoirPret, lancerMeteore, lancerGrandFroid,
+} from './moteur.js';
+import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS } from './donnees.js';
 import { DIFFICULTES } from './niveau.js';
 
 // Le mélange du bon joueur. Les gardiens des mondes 2 (Étincelle, Bourrasque) et 3 (Prisme,
@@ -157,6 +160,57 @@ export function planDe(strategie, classement) {
   return [...poses, ...ameliorations];
 }
 
+// ── Les pouvoirs du château ──────────────────────────────────
+// Le bon joueur vise : il lance le Météore sur le plus gros paquet (au moins 3 monstres), en
+// visant l'endroit où ils SERONT quand il tombera. Il lance le Grand froid quand le gros des
+// monstres est sous le feu de ses gardiens (ou quand un monstre arrive au château). Le
+// maladroit lance chaque pouvoir dès qu'il est prêt : le Météore sur le premier monstre, là
+// où il est (il tombera derrière lui), et le froid même si les monstres sont encore loin.
+const URGENCE = 3; // « un monstre arrive au château » : à moins de 3 cases
+function utiliserPouvoirs(etat, malin) {
+  const { niveau } = etat;
+  const visibles = etat.ennemis.filter((e) => e.pv > 0 && !e.cache);
+  if (!visibles.length) return;
+  const premier = visibles.reduce((a, b) => (b.d > a.d ? b : a));
+  if (!malin) {
+    lancerGrandFroid(etat);
+    lancerMeteore(etat, premier.x, premier.y);
+    return;
+  }
+  if (pouvoirPret(etat, 'froid') && (niveau.longueurChemin - premier.d < URGENCE || sousLeFeu(etat, visibles))) lancerGrandFroid(etat);
+  if (!pouvoirPret(etat, 'meteore')) return;
+  const { chute, rayon, part } = POUVOIRS.meteore;
+  // où sera chaque monstre quand le Météore tombera, et la vie qu'il lui enlèverait
+  const futurs = visibles.map((e) => {
+    const vitesse = e.gele > chute ? 0 : MONSTRES[e.type].vitesse * e.facteurRalenti;
+    const p = niveau.pointSurChemin(Math.min(niveau.longueurChemin, e.d + vitesse * chute));
+    return { x: p.x, y: p.y, vie: e.pv * part };
+  });
+  let meilleur = null, valeur = 0, combien = 0;
+  for (const centre of futurs) {
+    let v = 0, n = 0;
+    for (const f of futurs) if (Math.hypot(f.x - centre.x, f.y - centre.y) <= rayon * 0.9) { v += f.vie; n++; }
+    if (v > valeur) { valeur = v; meilleur = centre; combien = n; }
+  }
+  if (meilleur && combien >= 3) lancerMeteore(etat, meilleur.x, meilleur.y);
+}
+// Le gros des monstres est-il sous le feu ? (au moins 5 monstres, et 70 % de leur vie
+// à portée d'au moins 2 gardiens)
+function sousLeFeu(etat, visibles) {
+  if (visibles.length < 5) return false;
+  let total = 0, couverte = 0;
+  for (const e of visibles) {
+    total += e.pv;
+    let n = 0;
+    for (const t of etat.tours) {
+      const { portee } = caracteristiques(t.type, t.niveau);
+      if (portee && Math.hypot(e.x - t.x, e.y - t.y) <= portee) n++;
+    }
+    if (n >= 2) couverte += e.pv;
+  }
+  return couverte >= total * 0.7;
+}
+
 // Essaie une action du plan ; renvoie true si elle a pu être faite
 function essayer(etat, action) {
   if (action.action === 'poser') return construire(etat, action.socle, action.type);
@@ -167,8 +221,9 @@ function essayer(etat, action) {
 // ── Jouer une partie entière sans écran ──────────────────────
 // Avant chaque vague, le joueur imaginaire fait tout ce qu'il peut payer, dans
 // l'ordre de son plan (ce qui est trop cher attend la vague suivante), puis
-// lance la vague et regarde.
-export function simuler(niveau, plan, graine = 1, malin = false) {
+// lance la vague et regarde (et, si le niveau en a, se sert des pouvoirs du château).
+// pouvoirs : 'malin' (il vise), 'naif' (dès qu'ils sont prêts) ou 'aucun'.
+export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'malin') {
   const etat = creerPartie(niveau, graine);
   const aFaire = plan.slice();
   const vues = new Map();
@@ -191,7 +246,10 @@ export function simuler(niveau, plan, graine = 1, malin = false) {
     }
     lancerVague(etat);
     let duree = 0, tues = 0;
+    let pas = 0;
     while (etat.statut === 'vague' && duree < DUREE_MAX_VAGUE) {
+      // il regarde s'il faut un pouvoir 5 fois par seconde (comme un joueur, pas à chaque image)
+      if (etat.pouvoirs && pouvoirs !== 'aucun' && pas++ % 12 === 0) utiliserPouvoirs(etat, pouvoirs === 'malin');
       majPartie(etat, PAS);
       duree += PAS;
       for (const e of etat.ennemis) marge = Math.min(marge, niveau.longueurChemin - e.d);
@@ -229,7 +287,7 @@ export async function analyser(niveau, { graines = [1, 2, 3], pause = async () =
     const plan = planDe(strategie, classement);
     const parties = [];
     for (const graine of graines) {
-      parties.push(simuler(niveau, plan, graine, Boolean(strategie.malin)));
+      parties.push(simuler(niveau, plan, graine, Boolean(strategie.malin), strategie.naif ? 'naif' : 'malin'));
       faites++;
       progression(faites / total);
       await pause();

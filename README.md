@@ -35,6 +35,7 @@ Ce qui change en ligne :
 - Chaque monstre tué rapporte de l'or, et chaque vague terminée donne un bonus.
 - Clique sur un gardien déjà posé : tu vois ses chiffres et sa portée, tu peux l'**améliorer** (niveau 2, puis 3) ou le revendre (tu récupères 60 % de tout ce que tu as dépensé pour lui).
 - Le bouton **Options**, en bas à droite, règle le son, la vitesse et l'affichage (voir « L'écran d'options ») ; la touche **M** coupe tout le son.
+- Dans l'arène, deux **pouvoirs du château** aident pendant les vagues : le **Météore** (touche **1**), que l'on vise sur le chemin, et le **Grand froid** (touche **2**). Voir « Les pouvoirs du château ».
 
 | Gardien | Prix | Pouvoir |
 |---|---|---|
@@ -145,7 +146,7 @@ Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagu
 
 **Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **20 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
 
-**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel : le bon joueur tient 20 vagues, des Braise seules 12, et sans jamais améliorer 11 ou 12. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
+**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château : le bon joueur tient 25 vagues, un joueur maladroit environ 21, des Braise seules 16, et sans jamais améliorer 13 ou 14. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
 
 **Le réglage d'octobre 2026.** L'arène était trop facile, surtout avec Givrine + Grondin. Les mesures (des parties simulées, et une recherche automatique de la meilleure composition, socle par socle) l'ont confirmé : ce mélange tenait 34 à 36 vagues, plus d'une demi-heure, contre 26 pour le bon joueur. La raison : les monstres gelés se tassent les uns contre les autres, et dans les dernières vagues un seul rocher en touchait 20 à 40 (jusqu'à 75 !). Autre problème : toute la défense était achetée dès la vague 13. Pendant plus de 20 vagues, il ne restait rien à décider, et l'or s'entassait (22 000 pièces à la fin). Trois changements :
 
@@ -165,7 +166,24 @@ Givrine + Grondin reste le meilleur mélange de l'arène (c'est le rôle du Gron
 
 **Le classement** (`src/classement.js`) est **en ligne** : tous les joueurs se comparent (voir la partie suivante). Ses fonctions répondaient déjà « plus tard » (`async`) quand les scores étaient gardés sur l'ordinateur : pour passer en ligne, ce fichier a changé, et le reste du jeu presque pas. Les pseudos sont toujours affichés tels quels (`textContent`), jamais interprétés comme du HTML.
 
-**Créer une arène** : dans l'éditeur, coche « Mode survie ». Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
+**Créer une arène** : dans l'éditeur, coche « Mode survie » (et « Pouvoirs du château » pour donner le Météore et le Grand froid). Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
+
+**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château (faits, ci-dessous), puis des bénédictions entre les vagues et un héros à déplacer.
+
+### Les pouvoirs du château
+
+Deux boutons à côté de « Lancer la vague », dans les niveaux dont la fiche dit `"pouvoirs": true` (pour l'instant, l'arène) :
+
+- **Météore** (touche 1) : on clique sur le bouton, puis sur le chemin ; un cercle orange montre où il tombera. Il met 0,9 seconde à tomber (il faut viser là où les monstres **seront**), puis les monstres touchés perdent **la moitié de la vie qui leur reste** (même ceux qui volent). Il se recharge en 30 secondes. Clic droit, Échap ou un nouveau clic sur le bouton : on annule.
+- **Grand froid** (touche 2) : tous les monstres gèlent sur place pendant 4 secondes (pris dans un glaçon), et sont **fragiles** : ils prennent deux fois plus de dégâts. Il se recharge en 60 secondes.
+
+Ils ne se rechargent que **pendant les vagues** : on ne peut pas attendre tranquillement qu'ils reviennent entre deux vagues. Chaque bouton se remplit pendant sa recharge. Les chiffres sont dans `POUVOIRS` (`src/jeu/donnees.js`), les règles dans le moteur (`lancerMeteore`, `lancerGrandFroid`) ; les trois styles dessinent le cercle de visée, la boule de feu qui tombe, son explosion et les glaçons.
+
+**Ce que les joueurs imaginaires ont trouvé** (ils se servent maintenant des pouvoirs : le bon joueur vise le plus gros paquet, là où il sera, et garde le froid pour le moment où le gros des monstres est sous le feu de ses gardiens ; le maladroit lance tout dès que c'est prêt) :
+
+- Au premier essai, le Météore enlevait la moitié de la vie **maximale** : deux Météores battaient n'importe quel monstre, même dans les vagues les plus solides, et une défense de **Givrine seules tenait les 150 vagues** ! Une part de la vie **qui reste**, c'est toujours utile (en survie, les monstres deviennent de plus en plus solides), mais seul, le Météore ne bat plus personne.
+- Le Grand froid ne servait presque à rien avec des Givrine : des monstres déjà ralentis, qu'on arrête tout à fait, n'avancent guère moins. D'où les monstres **fragiles** pendant le gel. Et un combo : un Météore sur des monstres gelés (deux fois la moitié) les bat tous. Ce n'est pas une astuce sans fin : garder le Météore pour ce combo fait tenir **moins** longtemps que de le lancer librement.
+- Avec Givrine + Grondin : 24,6 vagues sans pouvoirs, 25,9 avec un Météore lancé au hasard, 29,4 avec un Météore bien visé. **Bien viser compte**, et le meilleur score n'est plus fixé par la composition seule.
 
 ## Le classement en ligne
 
@@ -727,6 +745,7 @@ Un niveau est un fichier JSON rangé dans `src/niveaux/`. Toutes les positions s
 | `gardiens` | à partir de quelle vague chaque gardien est disponible, ex. `{ "braise": 1, "givrine": 2 }`. Facultatif : sinon tous, dès le début |
 | `didacticiel` | les leçons et les personnages à présenter (voir « Le didacticiel »). Facultatif |
 | `survie` | `true` : une arène du mode survie (après les vagues écrites, des vagues sans fin). Facultatif |
+| `pouvoirs` | `true` : le joueur a les pouvoirs du château (le Météore et le Grand froid). Facultatif |
 | `vagues` | la liste des vagues. Chaque vague contient des groupes `{ "type", "nombre", "ecart", "delai" }` : quel monstre, combien, les secondes entre deux monstres et les secondes avant le premier. Un groupe peut ajouter `"force": 2` pour des monstres deux fois plus résistants |
 
 Si une fiche contient une erreur (champ manquant, mauvais type de monstre…), le jeu affiche la liste des problèmes à l'écran au lieu de démarrer.
@@ -787,6 +806,7 @@ Le code est dans `src/jeu/equilibrage.js` (partagé par la commande `scripts/equ
 Dans la console du navigateur (F12) :
 
 - `__jeu.etat.or = 999` : de l'or à volonté pour tester ;
+- `__jeu.avancer(3)` : fait avancer la partie de 3 secondes, puis redessine (pour tester même quand l'onglet est caché : le navigateur met alors la boucle du jeu en pause) ;
 - sur la carte des époques (avec `npm run dev`) : « Ouvrir tous les niveaux (test) » (« Effacer la progression » est maintenant dans les options, pour tout le monde) ;
 - `__capturer('nom')` : enregistre une capture du jeu dans `captures/nom.jpg` (seulement avec `npm run dev`) ;
 - `__planche('nom')` (dans la galerie des personnages) : assemble les personnages affichés en une seule image, une ligne par personnage et une colonne par style, dans `captures/nom.jpg` ;
