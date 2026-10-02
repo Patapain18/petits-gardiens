@@ -43,6 +43,7 @@ export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
     aApparaitre: [],          // monstres en attente d'entrer sur le chemin
     evenements: [],           // ce qui vient de se passer (pour les effets visuels)
     battus: 0,                // monstres battus depuis le début (départage le classement de la survie)
+    degatsPar: {},            // les dégâts faits par chacun (type de gardien, 'heros' ou 'meteore') : pour les statistiques des parties enregistrées
     prochainId: 1,
     // les pouvoirs du château (si la fiche du niveau en donne) : le temps qu'il reste avant
     // que chacun soit prêt (0 = prêt). Voir POUVOIRS dans donnees.js.
@@ -576,17 +577,19 @@ function exploser(etat, p, fiche) {
 // la vie maximale : deux Météores battaient n'importe quel monstre, et une défense de
 // Givrine seules tenait les 150 vagues de l'arène !)
 function meteoreTombe(etat, p) {
+  let touches = 0;
   for (const e of etat.ennemis) {
-    if (e.pv > 0 && !e.cache && distance(e.x - p.x, e.y - p.y) <= p.rayon) blesser(etat, e, e.pv * p.part, { perce: true, par: 'meteore' });
+    if (e.pv > 0 && !e.cache && distance(e.x - p.x, e.y - p.y) <= p.rayon) { blesser(etat, e, e.pv * p.part, { perce: true, par: 'meteore' }); touches++; }
   }
-  etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon: p.rayon });
+  etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon: p.rayon, touches });
 }
 
 // perce : le coup traverse les carapaces ; flash : le monstre clignote (pas pour un rayon
 // continu, il clignoterait sans arrêt). Le rayon du Prisme fait les deux.
-// par : qui frappe (un type de gardien, 'heros' ou 'meteore') ; l'événement « mort » le
-// répète, avec gele (était-il gelé par le Grand froid ?) : les statistiques des parties
-// enregistrées s'en servent (qui bat le plus de monstres, combien de combos…).
+// par : qui frappe (un type de gardien, 'heros' ou 'meteore'). Ses dégâts s'ajoutent à
+// etat.degatsPar, et l'événement « mort » le répète, avec gele (était-il gelé par le Grand
+// froid ?) : les statistiques des parties enregistrées s'en servent (qui fait le plus de
+// dégâts, qui donne le dernier coup, combien de combos…).
 function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null } = {}) {
   if (ennemi.pv <= 0) return;
   const armure = MONSTRES[ennemi.type].armure;
@@ -596,6 +599,7 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null
     etat.evenements.push({ type: 'carapace', x: ennemi.x, y: ennemi.y, quoi: ennemi.type });
   }
   if (ennemi.gele > 0) degats *= POUVOIRS.froid.fragile; // gelé par le Grand froid, il est fragile
+  if (par) etat.degatsPar[par] = (etat.degatsPar[par] || 0) + Math.min(degats, ennemi.pv); // (ce qu'il lui enlève vraiment)
   ennemi.pv -= degats;
   if (flash) ennemi.touche = 0.12;
   if (ennemi.pv <= 0) {

@@ -107,7 +107,7 @@ async function analyser(p) {
   const vagues = [];                  // une ligne par vague jouée
   let v = null;                       // la vague en cours
   const par = {};                     // monstres battus, par qui
-  let combos = 0, meteores = 0, froids = 0, ordres = 0, frappes = 0, chemin = 0, arretEnVague = 0, enVague = 0;
+  let combos = 0, meteores = 0, froids = 0, ordres = 0, frappes = 0, chemin = 0, arretEnVague = 0, enVague = 0, touches = 0, chutes = 0;
   const niveauxHeros = [];            // [niveau, vague]
   const offres = [];                  // [vague, [3 propositions]]
   let fuite = null;
@@ -116,7 +116,7 @@ async function analyser(p) {
   while (!lecteur.fini) {
     lecteur.avancer(1);
     if (e.statut === 'vague' && (!v || v.numero !== e.vague)) {
-      v = { numero: e.vague, debut: e.pas, orDebut: e.or, battus: 0, par: {}, auPlusPres: Infinity, meteores: 0, froids: 0, ordres: 0, heros: 0 };
+      v = { numero: e.vague, debut: e.pas, orDebut: e.or, battus: 0, par: {}, auPlusPres: Infinity, meteores: 0, froids: 0, ordres: 0, heros: 0, degatsAvant: { ...(e.degatsPar || {}) } };
       vagues.push(v);
     }
     for (const ev of e.evenements) {
@@ -127,6 +127,7 @@ async function analyser(p) {
         if (v) { v.battus++; v.par[qui] = (v.par[qui] || 0) + 1; if (qui === 'heros') v.heros++; }
       }
       if (ev.type === 'meteore') { meteores++; if (v) v.meteores++; }
+      if (ev.type === 'explosion' && ev.quoi === 'meteore' && ev.touches !== undefined) { touches += ev.touches; chutes++; }
       if (ev.type === 'grandFroid') { froids++; if (v) v.froids++; }
       if (ev.type === 'herosEnvoye') { ordres++; if (v) v.ordres++; }
       if (ev.type === 'frappe') frappes++;
@@ -140,16 +141,28 @@ async function analyser(p) {
       enVague++;
       if (e.heros && !e.heros.cible) arretEnVague++;
     }
-    if (v && e.statut !== 'vague' && v.fin === undefined) { v.fin = e.pas; v.orFin = e.or; }
+    if (v && e.statut !== 'vague' && v.fin === undefined) { v.fin = e.pas; v.orFin = e.or; v.degats = difference(e.degatsPar, v.degatsAvant); }
     if (e.heros) {
       chemin += Math.hypot(e.heros.x - herosAvant.x, e.heros.y - herosAvant.y);
       herosAvant = { x: e.heros.x, y: e.heros.y };
     }
   }
   return {
-    p, m, niveau, e, ecarts: lecteur.ecarts, vagues, par, combos, meteores, froids, ordres, frappes, chemin,
+    p, m, niveau, e, ecarts: lecteur.ecarts, vagues, par, combos, meteores, froids, ordres, frappes, chemin, touches, chutes,
     arretEnVague: enVague ? arretEnVague / enVague : 0, niveauxHeros, offres, fuite,
   };
+}
+
+// Les dégâts faits pendant une vague : ceux de la fin, moins ceux du début (null si la partie
+// a été jouée avec une version du jeu qui ne les comptait pas encore)
+function difference(apres, avant) {
+  if (!apres) return null;
+  return Object.fromEntries(Object.entries(apres).map(([qui, d]) => [qui, d - (avant[qui] || 0)]));
+}
+// « Météore 41 %, Grondin 25 %… » : la part de chacun
+function parts(table) {
+  const total = Object.values(table).reduce((t, n) => t + n, 0);
+  return Object.entries(table).sort((x, y) => y[1] - x[1]).map(([qui, n]) => `${nom(qui)} ${pourcent(n, total)}`).join(', ');
 }
 
 // Le thème d'une vague (mode survie) : les premières sont écrites dans la fiche du niveau
@@ -191,15 +204,15 @@ function raconter(a, rang) {
     lignes.push(`   Bénédictions : ${texte.join(' · ')}`);
   }
   if (e.pouvoirs) {
-    lignes.push(`   Pouvoirs : ${pluriel(a.meteores, 'Météore')}, ${a.froids} Grand froid · combos (Météore sur des gelés) : ${pluriel(a.combos, 'monstre')} battu${a.combos > 1 ? 's' : ''} d'un coup`);
+    const vise = a.chutes ? ` (${virgule(a.touches / a.chutes)} monstres touchés à chaque fois)` : '';
+    lignes.push(`   Pouvoirs : ${pluriel(a.meteores, 'Météore')}${vise}, ${a.froids} Grand froid · combos (Météore sur des gelés) : ${pluriel(a.combos, 'monstre')} battu${a.combos > 1 ? 's' : ''} d'un coup`);
   }
   if (e.heros) {
     const n6 = a.niveauxHeros.map(([n, vague]) => `niv. ${n} v${vague}`).join(', ');
     lignes.push(`   Héros : niveau ${e.heros.niveau} (${n6 || 'jamais monté'}) · ${pluriel(a.ordres, 'ordre')} · ${virgule(a.chemin, 0)} cases parcourues · arrêté ${pourcent(a.arretEnVague, 1)} du temps des vagues · ${a.par.heros || 0} battus`);
   }
-  const total = Object.values(a.par).reduce((t, n) => t + n, 0);
-  const qui = Object.entries(a.par).sort((x, y) => y[1] - x[1]).map(([type, n]) => `${nom(type)} ${pourcent(n, total)}`).join(', ');
-  lignes.push(`   Qui bat les monstres : ${qui || '—'}`);
+  if (e.degatsPar) lignes.push(`   Qui fait les dégâts : ${parts(e.degatsPar) || '—'}`);
+  lignes.push(`   Qui donne le dernier coup : ${parts(a.par) || '—'}`);
   if (a.fuite) {
     const leType = a.m.MONSTRES[a.fuite.quoi]?.nom || a.fuite.quoi;
     const t = theme(a, a.fuite.vague);
@@ -218,6 +231,7 @@ function detailler(a) {
     const danger = v.auPlusPres < 3 ? rouge(pres) : v.auPlusPres < 8 ? jaune(pres) : pres;
     const extras = [v.meteores && pluriel(v.meteores, 'Météore'), v.froids && `${v.froids} froid`, v.ordres && pluriel(v.ordres, 'ordre')].filter(Boolean).join(', ');
     lignes.push(`   ${String(v.numero).padStart(3)} ${gris((t || '').padEnd(24))} ${String(Math.round(duree)).padStart(4)} s · ${String(v.battus).padStart(3)} battus (héros ${v.heros}) · or ${v.orDebut} → ${v.orFin ?? '—'} · au plus près du château : ${danger} case(s)${extras ? ` · ${extras}` : ''}`);
+    if (v.degats) lignes.push(gris(`        dégâts : ${parts(v.degats)}`));
   }
   return lignes.join('\n');
 }
@@ -238,6 +252,9 @@ function bilan(analyses) {
   const somme = (cle) => analyses.reduce((t, a) => t + a[cle], 0);
   if (analyses.some((a) => a.e.pouvoirs)) lignes.push(`   Par partie : ${virgule(somme('meteores') / analyses.length)} Météores, ${virgule(somme('froids') / analyses.length)} Grand froid, ${virgule(somme('combos') / analyses.length)} monstres battus par combo`);
   if (analyses.some((a) => a.e.heros)) lignes.push(`   Héros, par partie : ${virgule(somme('ordres') / analyses.length)} ordres, ${virgule(analyses.reduce((t, a) => t + (a.par.heros || 0), 0) / analyses.length)} monstres battus`);
+  const degats = {};
+  for (const a of analyses) for (const [qui, d] of Object.entries(a.e.degatsPar || {})) degats[qui] = (degats[qui] || 0) + d;
+  if (Object.keys(degats).length) lignes.push(`   Qui fait les dégâts (toutes les parties) : ${parts(degats)}`);
   const fuites = {};
   for (const a of analyses) if (a.fuite) { const t = theme(a, a.fuite.vague) || 'vague'; fuites[t] = (fuites[t] || 0) + 1; }
   if (Object.keys(fuites).length) lignes.push(`   Vagues fatales : ${Object.entries(fuites).sort((x, y) => y[1] - x[1]).map(([t, n]) => `${t} ${n}`).join(', ')}`);
