@@ -1,0 +1,36 @@
+/* ─────────────────────────────────────────────────────────────
+   La salle des sons (sons.html) : elle reprend le look de la galerie
+   des personnages, avec des colonnes de boutons.
+   ───────────────────────────────────────────────────────────── */
+@import './personnages.css';
+
+.epoques {
+  max-width: 1100px;
+  margin: 18px auto 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+.epoque {
+  padding: 14px 16px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+.epoque h2 { margin: 0; }
+.epoque .orchestre { margin: 2px 0 10px; color: #c8b8a8; font-size: 0.85rem; }
+.epoque h3 { margin: 16px 0 8px; font-size: 1rem; color: #e9d6b8; }
+.boutons { display: flex; flex-wrap: wrap; gap: 6px; }
+.boutons button {
+  font: inherit;
+  font-size: 0.85rem;
+  color: #fff4e0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 210, 122, 0.35);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.boutons button:hover { background: rgba(255, 210, 122, 0.16); }
+.boutons button:focus-visible { outline: 3px solid #ffd27a; outline-offset: 2px; }
+.boutons button[aria-pressed='true'] { color: #2a1a10; background: #ffd27a; border-color: #ffd27a; }

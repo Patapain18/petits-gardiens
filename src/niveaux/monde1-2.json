@@ -1,0 +1,65 @@
+{
+  "id": "monde1-2",
+  "nom": "Les deux étangs",
+  "description": "Le chemin serpente entre deux étangs. Les Filous foncent : garde une Givrine sous la main.",
+  "difficulte": "facile",
+  "style": "pixel",
+  "ambiance": "doree",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 200,
+  "chemin": [
+    { "x": 4.5, "y": -1.5 },
+    { "x": 4.5, "y": 9.5 },
+    { "x": 10.5, "y": 9.5 },
+    { "x": 10.5, "y": 3.5 },
+    { "x": 16.5, "y": 3.5 },
+    { "x": 16.5, "y": 8.5 },
+    { "x": 20.5, "y": 8.5 }
+  ],
+  "socles": [
+    { "x": 2, "y": 4.5 },
+    { "x": 6.5, "y": 8 },
+    { "x": 8.5, "y": 12.2 },
+    { "x": 12.5, "y": 5.5 },
+    { "x": 13.5, "y": 0.9 },
+    { "x": 18.5, "y": 6.5 },
+    { "x": 14.5, "y": 6 }
+  ],
+  "chateau": { "x": 21.9, "y": 8.5 },
+  "etangs": [
+    { "x": 7.5, "y": 5, "rayon": 1.9 },
+    { "x": 13.5, "y": 9.2, "rayon": 1.9 }
+  ],
+  "lanternes": [
+    { "x": 3.6, "y": 8.4 },
+    { "x": 11.4, "y": 8.4 },
+    { "x": 15.6, "y": 4.4 },
+    { "x": 17.4, "y": 9.4 }
+  ],
+  "decor": { "graine": 2207 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 6, "ecart": 1.7, "delai": 0 }
+    ],
+    [
+      { "type": "filou", "nombre": 6, "ecart": 0.9, "delai": 0 },
+      { "type": "gluant", "nombre": 6, "ecart": 1.2, "delai": 5 }
+    ],
+    [
+      { "type": "filou", "nombre": 6, "ecart": 0.5, "delai": 0 },
+      { "type": "gluant", "nombre": 9, "ecart": 0.7, "delai": 4 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 2, "ecart": 4, "delai": 0 },
+      { "type": "gluant", "nombre": 12, "ecart": 0.5, "delai": 2 },
+      { "type": "filou", "nombre": 9, "ecart": 0.4, "delai": 9 }
+    ],
+    [
+      { "type": "filou", "nombre": 15, "ecart": 0.34, "delai": 0 },
+      { "type": "gluant", "nombre": 16, "ecart": 0.4, "delai": 4 },
+      { "type": "cuirasse", "nombre": 4, "ecart": 2.2, "delai": 8 }
+    ]
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "id": "monde3-3",
+  "nom": "Le champ des Taupes",
+  "description": "Cette nuit, sous les trois longs sillons du champ, des Taupes creusent. Elles ressortent toujours… mais où ?",
+  "difficulte": "normal",
+  "style": "voxel",
+  "ambiance": "nuit",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 250,
+  "chemin": [
+    { "x": -1.5, "y": 2.5 },
+    { "x": 19.5, "y": 2.5 },
+    { "x": 19.5, "y": 6.5 },
+    { "x": 3.5, "y": 6.5 },
+    { "x": 3.5, "y": 10.5 },
+    { "x": 20.5, "y": 10.5 }
+  ],
+  "socles": [
+    { "x": 6, "y": 4.5 },
+    { "x": 11, "y": 4.5 },
+    { "x": 16, "y": 4.5 },
+    { "x": 8.5, "y": 8.5 },
+    { "x": 13.5, "y": 8.5 },
+    { "x": 18.5, "y": 8.5 },
+    { "x": 1.5, "y": 8.5 },
+    { "x": 21.6, "y": 4.5 },
+    { "x": 11, "y": 12.6 }
+  ],
+  "chateau": { "x": 21.9, "y": 10.5 },
+  "etangs": [
+    { "x": 1.5, "y": 12.2, "rayon": 1.2 }
+  ],
+  "lanternes": [
+    { "x": 20.4, "y": 1.6 },
+    { "x": 2.6, "y": 7.4 },
+    { "x": 20.4, "y": 7.4 },
+    { "x": 2.6, "y": 11.4 },
+    { "x": 8.5, "y": 1.6 },
+    { "x": 14.5, "y": 1.6 },
+    { "x": 11, "y": 7.4 },
+    { "x": 8.5, "y": 11.4 },
+    { "x": 14.5, "y": 11.4 }
+  ],
+  "decor": { "graine": 3303, "arbres": 0.14 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1, "pepite": 1, "prisme": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 10, "ecart": 1, "delai": 0 }
+    ],
+    [
+      { "type": "taupe", "nombre": 10, "ecart": 1, "delai": 0 },
+      { "type": "filou", "nombre": 8, "ecart": 0.7, "delai": 8 }
+    ],
+    [
+      { "type": "carapace", "nombre": 6, "ecart": 2.5, "delai": 0 },
+      { "type": "voltigeur", "nombre": 10, "ecart": 0.8, "delai": 6 }
+    ],
+    [
+      { "type": "taupe", "nombre": 16, "ecart": 0.6, "delai": 0 },
+      { "type": "carapace", "nombre": 10, "ecart": 2.4, "delai": 6 },
+      { "type": "filou", "nombre": 14, "ecart": 0.5, "delai": 12 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 8, "ecart": 1.6, "delai": 0 },
+      { "type": "taupe", "nombre": 24, "ecart": 0.45, "delai": 5 },
+      { "type": "carapace", "nombre": 14, "ecart": 2.4, "delai": 10 }
+    ],
+    [
+      { "type": "carapace", "nombre": 24, "ecart": 2.4, "delai": 0 },
+      { "type": "cuirasse", "nombre": 8, "ecart": 3, "delai": 5 },
+      { "type": "gluant", "nombre": 60, "ecart": 0.12, "delai": 10 },
+      { "type": "gigogne", "nombre": 12, "ecart": 0.8, "delai": 16 }
+    ],
+    [
+      { "type": "gluant", "nombre": 90, "ecart": 0.1, "delai": 0 },
+      { "type": "carapace", "nombre": 30, "ecart": 1, "delai": 6 },
+      { "type": "voltigeur", "nombre": 50, "ecart": 0.15, "delai": 12 },
+      { "type": "taupe", "nombre": 40, "ecart": 0.25, "delai": 18 }
+    ],
+    [
+      { "type": "gluant", "nombre": 120, "ecart": 0.08, "delai": 0 },
+      { "type": "carapace", "nombre": 40, "ecart": 0.8, "delai": 6 },
+      { "type": "voltigeur", "nombre": 70, "ecart": 0.12, "delai": 12 },
+      { "type": "gigogne", "nombre": 24, "ecart": 0.5, "delai": 18 }
+    ]
+  ]
+}

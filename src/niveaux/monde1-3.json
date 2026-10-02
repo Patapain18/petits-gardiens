@@ -1,0 +1,68 @@
+{
+  "id": "monde1-3",
+  "nom": "Le bois brumeux",
+  "description": "Un long chemin sinueux sous les arbres, au petit matin. Les monstres arrivent en foule.",
+  "difficulte": "normal",
+  "style": "pixel",
+  "ambiance": "aube",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 230,
+  "chemin": [
+    { "x": -1.5, "y": 2.5 },
+    { "x": 5.5, "y": 2.5 },
+    { "x": 5.5, "y": 11.5 },
+    { "x": 10.5, "y": 11.5 },
+    { "x": 10.5, "y": 2.5 },
+    { "x": 15.5, "y": 2.5 },
+    { "x": 15.5, "y": 11.5 },
+    { "x": 20.5, "y": 11.5 }
+  ],
+  "socles": [
+    { "x": 3.5, "y": 5 },
+    { "x": 8, "y": 4.5 },
+    { "x": 8, "y": 9.5 },
+    { "x": 13, "y": 5 },
+    { "x": 13, "y": 9.5 },
+    { "x": 17.5, "y": 7 },
+    { "x": 8, "y": 13.2 },
+    { "x": 13, "y": 0.8 }
+  ],
+  "chateau": { "x": 21.9, "y": 11.5 },
+  "etangs": [],
+  "lanternes": [
+    { "x": 4.6, "y": 3.4 },
+    { "x": 9.6, "y": 10.6 },
+    { "x": 11.4, "y": 3.4 },
+    { "x": 16.4, "y": 10.6 }
+  ],
+  "decor": { "graine": 731, "arbres": 0.8 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 7, "ecart": 1.5, "delai": 0 }
+    ],
+    [
+      { "type": "filou", "nombre": 8, "ecart": 0.8, "delai": 0 },
+      { "type": "gluant", "nombre": 8, "ecart": 1, "delai": 6 }
+    ],
+    [
+      { "type": "gluant", "nombre": 20, "ecart": 0.4, "delai": 0 },
+      { "type": "cuirasse", "nombre": 3, "ecart": 3, "delai": 6 }
+    ],
+    [
+      { "type": "filou", "nombre": 26, "ecart": 0.28, "delai": 0 },
+      { "type": "gluant", "nombre": 20, "ecart": 0.35, "delai": 5 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 8, "ecart": 1.5, "delai": 0 },
+      { "type": "gluant", "nombre": 38, "ecart": 0.22, "delai": 3 },
+      { "type": "filou", "nombre": 24, "ecart": 0.22, "delai": 10 }
+    ],
+    [
+      { "type": "filou", "nombre": 40, "ecart": 0.2, "delai": 0 },
+      { "type": "cuirasse", "nombre": 14, "ecart": 1.2, "delai": 4 },
+      { "type": "gluant", "nombre": 50, "ecart": 0.2, "delai": 8 }
+    ]
+  ]
+}

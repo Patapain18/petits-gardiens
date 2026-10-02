@@ -1,0 +1,92 @@
+{
+  "id": "monde2-3",
+  "nom": "Le marais des Gigognes",
+  "description": "Le chemin serpente entre les mares, et chaque Gigogne cache trois petits. Il faudra des gardiens tout du long.",
+  "difficulte": "normal",
+  "style": "cartoon",
+  "ambiance": "aube",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 260,
+  "chemin": [
+    { "x": -1.5, "y": 2.5 },
+    { "x": 4.5, "y": 2.5 },
+    { "x": 4.5, "y": 11.5 },
+    { "x": 9.5, "y": 11.5 },
+    { "x": 9.5, "y": 3.5 },
+    { "x": 14.5, "y": 3.5 },
+    { "x": 14.5, "y": 11.5 },
+    { "x": 18.5, "y": 11.5 },
+    { "x": 18.5, "y": 5.5 },
+    { "x": 20.5, "y": 5.5 }
+  ],
+  "socles": [
+    { "x": 7, "y": 4.5 },
+    { "x": 7, "y": 9.8 },
+    { "x": 12, "y": 5.5 },
+    { "x": 12, "y": 10.6 },
+    { "x": 16.5, "y": 5 },
+    { "x": 16.5, "y": 10 },
+    { "x": 2, "y": 5.5 },
+    { "x": 12, "y": 1.5 },
+    { "x": 20.2, "y": 9.5 }
+  ],
+  "chateau": { "x": 21.9, "y": 5.5 },
+  "etangs": [
+    { "x": 7, "y": 7.1, "rayon": 1.2 },
+    { "x": 12, "y": 8, "rayon": 1.1 },
+    { "x": 16.5, "y": 7.5, "rayon": 1 },
+    { "x": 2, "y": 11.8, "rayon": 1.3 }
+  ],
+  "lanternes": [
+    { "x": 3.6, "y": 3.4 },
+    { "x": 5.4, "y": 10.6 },
+    { "x": 8.6, "y": 10.6 },
+    { "x": 10.4, "y": 4.4 },
+    { "x": 13.6, "y": 4.4 },
+    { "x": 15.4, "y": 10.6 },
+    { "x": 19.4, "y": 6.4 }
+  ],
+  "decor": { "graine": 2303, "arbres": 0.25 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 10, "ecart": 1, "delai": 0 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 2, "ecart": 5, "delai": 0 },
+      { "type": "filou", "nombre": 8, "ecart": 0.7, "delai": 4 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 10, "ecart": 0.8, "delai": 0 },
+      { "type": "gigogne", "nombre": 2, "ecart": 4, "delai": 6 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 4, "ecart": 3, "delai": 0 },
+      { "type": "cuirasse", "nombre": 2, "ecart": 4, "delai": 6 },
+      { "type": "filou", "nombre": 10, "ecart": 0.5, "delai": 10 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 27, "ecart": 0.3, "delai": 0 },
+      { "type": "gigogne", "nombre": 7, "ecart": 1.5, "delai": 5 },
+      { "type": "cuirasse", "nombre": 3, "ecart": 3, "delai": 8 },
+      { "type": "gluant", "nombre": 27, "ecart": 0.3, "delai": 12 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 7, "ecart": 3, "delai": 0 },
+      { "type": "gigogne", "nombre": 11, "ecart": 1.2, "delai": 4 },
+      { "type": "voltigeur", "nombre": 25, "ecart": 0.3, "delai": 8 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 15, "ecart": 1, "delai": 0 },
+      { "type": "cuirasse", "nombre": 9, "ecart": 2.8, "delai": 4 },
+      { "type": "filou", "nombre": 45, "ecart": 0.2, "delai": 8 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 12, "ecart": 2.6, "delai": 0 },
+      { "type": "gigogne", "nombre": 18, "ecart": 0.9, "delai": 3 },
+      { "type": "voltigeur", "nombre": 45, "ecart": 0.22, "delai": 8 },
+      { "type": "gluant", "nombre": 45, "ecart": 0.22, "delai": 14 }
+    ]
+  ]
+}

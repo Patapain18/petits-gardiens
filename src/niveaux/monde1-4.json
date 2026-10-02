@@ -1,0 +1,78 @@
+{
+  "id": "monde1-4",
+  "nom": "Le col des Cuirassés",
+  "description": "La nuit tombe sur le col. Les Cuirassés descendent de la montagne : c’est le dernier combat du monde 1.",
+  "difficulte": "normal",
+  "style": "pixel",
+  "ambiance": "nuit",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 260,
+  "chemin": [
+    { "x": 2.5, "y": 15.5 },
+    { "x": 2.5, "y": 4.5 },
+    { "x": 8.5, "y": 4.5 },
+    { "x": 8.5, "y": 10.5 },
+    { "x": 14.5, "y": 10.5 },
+    { "x": 14.5, "y": 3.5 },
+    { "x": 20.5, "y": 3.5 }
+  ],
+  "socles": [
+    { "x": 4.5, "y": 7 },
+    { "x": 5.5, "y": 2.5 },
+    { "x": 6.5, "y": 8.5 },
+    { "x": 10.5, "y": 8.5 },
+    { "x": 11.5, "y": 12.5 },
+    { "x": 12.5, "y": 6 },
+    { "x": 16.5, "y": 6 },
+    { "x": 17.5, "y": 1.5 },
+    { "x": 0.5, "y": 9.5 }
+  ],
+  "chateau": { "x": 21.9, "y": 3.5 },
+  "etangs": [
+    { "x": 19.5, "y": 10.5, "rayon": 2.2 }
+  ],
+  "lanternes": [
+    { "x": 3.4, "y": 11.6 },
+    { "x": 3.4, "y": 5.4 },
+    { "x": 7.6, "y": 3.6 },
+    { "x": 9.4, "y": 9.6 },
+    { "x": 13.6, "y": 9.6 },
+    { "x": 15.4, "y": 4.4 },
+    { "x": 19.6, "y": 2.6 }
+  ],
+  "decor": { "graine": 9014, "arbres": 0.1 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 8, "ecart": 1.3, "delai": 0 }
+    ],
+    [
+      { "type": "filou", "nombre": 10, "ecart": 0.7, "delai": 0 },
+      { "type": "gluant", "nombre": 8, "ecart": 0.9, "delai": 5 }
+    ],
+    [
+      { "type": "gluant", "nombre": 14, "ecart": 0.5, "delai": 0 },
+      { "type": "cuirasse", "nombre": 2, "ecart": 4, "delai": 6 }
+    ],
+    [
+      { "type": "filou", "nombre": 20, "ecart": 0.32, "delai": 0 },
+      { "type": "cuirasse", "nombre": 3, "ecart": 3, "delai": 5 },
+      { "type": "gluant", "nombre": 14, "ecart": 0.45, "delai": 9 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 8, "ecart": 1.6, "delai": 0 },
+      { "type": "filou", "nombre": 22, "ecart": 0.28, "delai": 6 }
+    ],
+    [
+      { "type": "gluant", "nombre": 36, "ecart": 0.25, "delai": 0 },
+      { "type": "cuirasse", "nombre": 10, "ecart": 1.4, "delai": 5 },
+      { "type": "filou", "nombre": 26, "ecart": 0.25, "delai": 12 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 16, "ecart": 1.1, "delai": 0 },
+      { "type": "filou", "nombre": 34, "ecart": 0.22, "delai": 4 },
+      { "type": "gluant", "nombre": 44, "ecart": 0.22, "delai": 10 }
+    ]
+  ]
+}

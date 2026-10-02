@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Petits Gardiens</title>
+  <meta name="description" content="Petits Gardiens, un tower defense à travers les époques du jeu vidéo : des petits monstres gardiens protègent leur château." />
+  <!-- Sans niveau dans l'adresse (jeu.html?niveau=monde1-1), on retourne à la carte des époques -->
+  <script>if (!new URLSearchParams(location.search).get('niveau')) location.replace('./');</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='4' width='10' height='6' fill='%23f0803a'/%3E%3Crect x='1' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='13' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='5' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='10' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='4' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='6' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='9' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='11' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='7' y='2' width='2' height='2' fill='%23ffd23a'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body data-style="voxel">
+  <!-- Le style graphique choisi dessine dans cette zone -->
+  <div id="scene" aria-label="Plateau de jeu"></div>
+
+  <!-- Barre du haut : ressources + choix du style -->
+  <header class="barre">
+    <div class="panneau ressources">
+      <span class="ressource" title="Pièces d'or"><span class="piece" aria-hidden="true"></span><b id="or">0</b></span>
+      <span class="ressource">Vague <b id="vague">0 / 5</b></span>
+      <span class="ressource" id="ligne-record" hidden>Record <b id="record">0</b></span>
+      <a class="bouton-lien" href="./">Carte</a>
+      <a id="lien-editeur" class="bouton-lien" href="./editeur.html" hidden>Modifier dans l'éditeur</a>
+    </div>
+    <div class="panneau choix" role="group" aria-label="Style graphique">
+      <span class="etiquette">Style</span>
+      <button data-style="voxel" aria-pressed="true">Voxel doré</button>
+      <button data-style="cartoon" aria-pressed="false">Diorama cartoon</button>
+      <button data-style="pixel" aria-pressed="false">Pixel art</button>
+    </div>
+  </header>
+
+  <!-- Réglages d'affichage : l'ambiance (les trois styles) et la caméra (voxel) -->
+  <div class="panneau choix reglages" id="reglages" role="group" aria-label="Ambiance">
+    <span class="etiquette">Ambiance</span>
+    <button data-ambiance="doree" aria-pressed="true">Heure dorée</button>
+    <button data-ambiance="aube" aria-pressed="false">Aube brumeuse</button>
+    <button data-ambiance="midi" aria-pressed="false">Plein midi</button>
+    <button data-ambiance="nuit" aria-pressed="false">Nuit</button>
+    <span class="groupe-camera">
+      <span class="etiquette">Caméra</span>
+      <button data-camera="haute" aria-pressed="true">Vue de jeu</button>
+      <button data-camera="cinema" aria-pressed="false">Cinéma</button>
+    </span>
+  </div>
+
+  <!-- Commandes du bas -->
+  <footer class="barre bas">
+    <div class="panneau">
+      <button id="lancer" class="principal">Lancer la vague 1</button>
+    </div>
+    <div class="panneau">
+      <button id="vitesse" title="Vitesse du jeu">Vitesse ×1</button>
+      <button id="pause" aria-pressed="false">Pause</button>
+      <button id="recommencer">Recommencer</button>
+      <button id="bouton-options" aria-haspopup="dialog">Options</button>
+    </div>
+  </footer>
+
+
+  <!-- Menu qui s'ouvre quand on clique sur un socle -->
+  <div id="menu" class="panneau menu" role="dialog" aria-label="Choisir un gardien" hidden></div>
+
+  <!-- Petits textes « +6 » qui s'envolent quand un monstre meurt -->
+  <div id="bulles" aria-hidden="true"></div>
+
+  <!-- Messages : début, victoire, défaite (remplis par main.js) -->
+  <div id="message" class="voile">
+    <div class="panneau carte"></div>
+  </div>
+
+  <!-- Didacticiel : la fiche qui présente un nouveau personnage -->
+  <div id="presentation" class="voile voile-presentation" hidden>
+    <div class="panneau carte presentation" role="dialog" aria-modal="true" aria-labelledby="presentation-nom">
+      <p class="surtitre" id="presentation-sorte"></p>
+      <div class="presentation-corps">
+        <div class="portrait" id="presentation-portrait"></div>
+        <div class="presentation-texte">
+          <h2 id="presentation-nom"></h2>
+          <p id="presentation-description"></p>
+          <ul class="caracteristiques" id="presentation-chiffres"></ul>
+        </div>
+      </div>
+      <p class="conseil-perso"><strong>Conseil :</strong> <span id="presentation-conseil"></span></p>
+      <button class="principal" id="presentation-ok">Compris !</button>
+    </div>
+  </div>
+
+  <!-- Didacticiel : la leçon en cours, et la flèche qui montre où cliquer -->
+  <div id="lecon" class="panneau lecon" role="status" aria-live="polite" hidden>
+    <strong id="lecon-titre"></strong>
+    <p id="lecon-texte"></p>
+  </div>
+  <div id="indice" class="indice" aria-hidden="true" hidden>
+    <svg viewBox="0 0 14 16" width="34" height="39" shape-rendering="crispEdges"><path d="M4 1h6v7h3l-6 7l-6-7h3z" fill="#ffd24a" stroke="#2a1208" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 2h2v6H5z" fill="#fff4b0"/></svg>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

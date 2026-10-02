@@ -1,0 +1,78 @@
+{
+  "id": "monde3-2",
+  "nom": "La prairie des Carapaces",
+  "description": "Dans cette grande prairie, les tortues de pierre sortent par dizaines. Les petits coups ricochent sur leur carapace…",
+  "difficulte": "facile",
+  "style": "voxel",
+  "ambiance": "midi",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 250,
+  "chemin": [
+    { "x": -1.5, "y": 10.5 },
+    { "x": 5.5, "y": 10.5 },
+    { "x": 5.5, "y": 3.5 },
+    { "x": 11.5, "y": 3.5 },
+    { "x": 11.5, "y": 10.5 },
+    { "x": 17.5, "y": 10.5 },
+    { "x": 17.5, "y": 6.5 },
+    { "x": 20.5, "y": 6.5 }
+  ],
+  "socles": [
+    { "x": 7.4, "y": 5.4 },
+    { "x": 9.6, "y": 5.4 },
+    { "x": 13.4, "y": 8.6 },
+    { "x": 15.6, "y": 8.6 },
+    { "x": 3.6, "y": 5.4 },
+    { "x": 19.5, "y": 8.6 },
+    { "x": 19.6, "y": 4.4 },
+    { "x": 8.5, "y": 1.3 },
+    { "x": 14.5, "y": 12.8 }
+  ],
+  "chateau": { "x": 21.9, "y": 6.5 },
+  "etangs": [
+    { "x": 8.5, "y": 12, "rayon": 1.6 }
+  ],
+  "lanternes": [
+    { "x": 4.6, "y": 11.4 },
+    { "x": 4.6, "y": 2.6 },
+    { "x": 12.4, "y": 2.6 },
+    { "x": 10.6, "y": 11.4 },
+    { "x": 18.4, "y": 11.4 },
+    { "x": 16.6, "y": 5.6 }
+  ],
+  "decor": { "graine": 3202, "arbres": 0.04 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1, "pepite": 1, "prisme": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 8, "ecart": 1.1, "delai": 0 }
+    ],
+    [
+      { "type": "carapace", "nombre": 2, "ecart": 4, "delai": 0 },
+      { "type": "gluant", "nombre": 6, "ecart": 0.9, "delai": 8 }
+    ],
+    [
+      { "type": "taupe", "nombre": 8, "ecart": 1, "delai": 0 },
+      { "type": "carapace", "nombre": 2, "ecart": 3, "delai": 6 }
+    ],
+    [
+      { "type": "carapace", "nombre": 6, "ecart": 1.8, "delai": 0 },
+      { "type": "filou", "nombre": 10, "ecart": 0.6, "delai": 8 }
+    ],
+    [
+      { "type": "carapace", "nombre": 8, "ecart": 1.4, "delai": 0 },
+      { "type": "taupe", "nombre": 10, "ecart": 0.8, "delai": 6 },
+      { "type": "voltigeur", "nombre": 6, "ecart": 0.8, "delai": 12 }
+    ],
+    [
+      { "type": "carapace", "nombre": 12, "ecart": 1.1, "delai": 0 },
+      { "type": "gigogne", "nombre": 3, "ecart": 3, "delai": 6 },
+      { "type": "taupe", "nombre": 12, "ecart": 0.6, "delai": 10 }
+    ],
+    [
+      { "type": "carapace", "nombre": 18, "ecart": 0.8, "delai": 0 },
+      { "type": "taupe", "nombre": 14, "ecart": 0.5, "delai": 6 },
+      { "type": "voltigeur", "nombre": 14, "ecart": 0.4, "delai": 12 }
+    ]
+  ]
+}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Salle des sons — Petits Gardiens</title>
+  <meta name="description" content="La musique et les bruitages de Petits Gardiens, dans les trois époques : console 8 bits, dessin animé et aujourd'hui." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/sons.css" />
+</head>
+<body>
+  <header class="entete">
+    <h1>Salle des sons</h1>
+    <p>Tous les sons sont fabriqués par le code (<code>src/son/</code>), sans aucun fichier. Les mêmes musiques et les mêmes bruitages, joués par l'orchestre de chaque époque.</p>
+    <nav class="filtres" aria-label="Autres pages">
+      <a href="./personnages.html">Galerie des personnages</a>
+      <a href="./">Carte des époques</a>
+    </nav>
+  </header>
+
+  <!-- Une colonne par époque (remplie par sons.js) -->
+  <main class="epoques" id="epoques"></main>
+
+  <script type="module" src="/src/sons.js"></script>
+</body>
+</html>

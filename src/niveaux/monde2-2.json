@@ -1,0 +1,76 @@
+{
+  "id": "monde2-2",
+  "nom": "Le lac aux Voltigeurs",
+  "description": "Au coucher du soleil, les Voltigeurs quittent leur lac par nuées entières. Le Grondin ne suffira pas !",
+  "difficulte": "facile",
+  "style": "cartoon",
+  "ambiance": "doree",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 230,
+  "chemin": [
+    { "x": -1.5, "y": 11.5 },
+    { "x": 4.5, "y": 11.5 },
+    { "x": 4.5, "y": 2.5 },
+    { "x": 14.5, "y": 2.5 },
+    { "x": 14.5, "y": 11.5 },
+    { "x": 18.5, "y": 11.5 },
+    { "x": 18.5, "y": 6.5 },
+    { "x": 20.5, "y": 6.5 }
+  ],
+  "socles": [
+    { "x": 7, "y": 5 },
+    { "x": 12, "y": 5 },
+    { "x": 6.6, "y": 9.8 },
+    { "x": 12.4, "y": 9.8 },
+    { "x": 16.5, "y": 8.5 },
+    { "x": 16.8, "y": 4.5 },
+    { "x": 2.3, "y": 7.5 },
+    { "x": 9.5, "y": 0.7 },
+    { "x": 1.8, "y": 13.3 }
+  ],
+  "chateau": { "x": 21.9, "y": 6.5 },
+  "etangs": [
+    { "x": 9.5, "y": 7.5, "rayon": 2.4 },
+    { "x": 21.6, "y": 12.2, "rayon": 1 }
+  ],
+  "lanternes": [
+    { "x": 3.6, "y": 10.6 },
+    { "x": 5.4, "y": 3.4 },
+    { "x": 13.6, "y": 3.4 },
+    { "x": 15.4, "y": 10.6 },
+    { "x": 17.6, "y": 7.4 }
+  ],
+  "decor": { "graine": 2202, "arbres": 0.06 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 8, "ecart": 1.2, "delai": 0 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 8, "ecart": 1, "delai": 0 }
+    ],
+    [
+      { "type": "filou", "nombre": 10, "ecart": 0.7, "delai": 0 },
+      { "type": "voltigeur", "nombre": 6, "ecart": 1, "delai": 6 }
+    ],
+    [
+      { "type": "gluant", "nombre": 14, "ecart": 0.6, "delai": 0 },
+      { "type": "voltigeur", "nombre": 10, "ecart": 0.7, "delai": 4 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 2, "ecart": 4, "delai": 0 },
+      { "type": "voltigeur", "nombre": 12, "ecart": 0.6, "delai": 3 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 18, "ecart": 0.45, "delai": 0 },
+      { "type": "filou", "nombre": 12, "ecart": 0.5, "delai": 6 },
+      { "type": "cuirasse", "nombre": 2, "ecart": 4, "delai": 10 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 26, "ecart": 0.35, "delai": 0 },
+      { "type": "gluant", "nombre": 20, "ecart": 0.4, "delai": 5 },
+      { "type": "gigogne", "nombre": 3, "ecart": 3, "delai": 10 }
+    ]
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "id": "monde2-1",
+  "nom": "Le pré des moulins",
+  "description": "Bienvenue dans l’époque cartoon ! De nouveaux amis t’attendent dans ce pré… et de nouveaux monstres aussi.",
+  "difficulte": "didacticiel",
+  "style": "cartoon",
+  "ambiance": "midi",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 240,
+  "chemin": [
+    { "x": -1.5, "y": 4.5 },
+    { "x": 6.5, "y": 4.5 },
+    { "x": 6.5, "y": 10.5 },
+    { "x": 13.5, "y": 10.5 },
+    { "x": 13.5, "y": 4.5 },
+    { "x": 17.5, "y": 4.5 },
+    { "x": 17.5, "y": 8.5 },
+    { "x": 20.5, "y": 8.5 }
+  ],
+  "socles": [
+    { "x": 4.5, "y": 6.5 },
+    { "x": 8.5, "y": 7.5 },
+    { "x": 11.5, "y": 7.5 },
+    { "x": 10, "y": 12.6 },
+    { "x": 15.5, "y": 6.5 },
+    { "x": 19.5, "y": 6 },
+    { "x": 4, "y": 2.3 }
+  ],
+  "chateau": { "x": 21.9, "y": 8.5 },
+  "etangs": [
+    { "x": 3.5, "y": 11, "rayon": 1.8 },
+    { "x": 16, "y": 11.8, "rayon": 1.3 }
+  ],
+  "lanternes": [
+    { "x": 5.6, "y": 3.6 },
+    { "x": 7.4, "y": 9.6 },
+    { "x": 12.6, "y": 9.6 },
+    { "x": 14.4, "y": 3.6 },
+    { "x": 18.4, "y": 9.4 }
+  ],
+  "decor": { "graine": 2101, "arbres": 0.08 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 2, "bourrasque": 4 },
+  "didacticiel": {
+    "presenter": ["etincelle", "voltigeur", "bourrasque", "gigogne"]
+  },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 5, "ecart": 2, "delai": 0 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 4, "ecart": 1.6, "delai": 0 },
+      { "type": "gluant", "nombre": 4, "ecart": 1.2, "delai": 5 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 5, "ecart": 1.1, "delai": 0 },
+      { "type": "filou", "nombre": 5, "ecart": 0.8, "delai": 6 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 1, "ecart": 1, "delai": 0 },
+      { "type": "gluant", "nombre": 6, "ecart": 1, "delai": 6 },
+      { "type": "voltigeur", "nombre": 3, "ecart": 1, "delai": 10 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 2, "ecart": 4, "delai": 0 },
+      { "type": "voltigeur", "nombre": 6, "ecart": 0.9, "delai": 4 },
+      { "type": "filou", "nombre": 5, "ecart": 0.7, "delai": 10 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 6, "ecart": 0.8, "delai": 0 },
+      { "type": "gigogne", "nombre": 2, "ecart": 3, "delai": 4 },
+      { "type": "gluant", "nombre": 7, "ecart": 0.7, "delai": 8 }
+    ]
+  ]
+}

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Petits Gardiens</title>
+  <meta name="description" content="Petits Gardiens, un tower defense à travers les époques du jeu vidéo : choisis un monde et un niveau sur la carte des époques." />
+  <!-- L'ancienne adresse du jeu (?niveau=…) mène maintenant à jeu.html -->
+  <script>if (new URLSearchParams(location.search).get('niveau')) location.replace('./jeu.html' + location.search);</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='4' width='10' height='6' fill='%23f0803a'/%3E%3Crect x='1' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='13' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='5' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='10' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='4' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='6' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='9' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='11' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='7' y='2' width='2' height='2' fill='%23ffd23a'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/accueil.css" />
+</head>
+<body>
+  <header class="titre-jeu">
+    <!-- Les options (le son, la vitesse, l'affichage, la progression) : une fenêtre, fabriquée par fenetre-options.js -->
+    <button class="bouton-options" id="bouton-options" aria-haspopup="dialog">Options</button>
+    <!-- Les personnages en pixel art, dessinés par le même code que le jeu -->
+    <div class="defile" id="defile" aria-hidden="true"></div>
+    <h1>Petits Gardiens</h1>
+    <p>Un tower defense à travers les époques du jeu vidéo</p>
+  </header>
+
+  <!-- La carte des époques : une colonne par monde (remplie par accueil.js) -->
+  <main class="frise" id="frise" aria-label="Carte des époques"></main>
+
+  <!-- Le défi : les arènes de survie et leur classement (remplies par accueil.js) -->
+  <section class="defi" id="defi" aria-labelledby="titre-defi">
+    <header class="entete-defi">
+      <h2 id="titre-defi">Défi : la survie</h2>
+      <p>Des vagues sans fin, et un classement pour savoir qui tient le plus longtemps.</p>
+    </header>
+    <div class="arenes" id="arenes"></div>
+  </section>
+
+  <footer class="atelier">
+    <a href="./editeur.html">Éditeur de niveaux</a>
+    <a href="./personnages.html">Galerie des personnages</a>
+    <a href="./sons.html">Salle des sons</a>
+    <a href="./jeu.html?niveau=essai">Niveau d’essai (voxel)</a>
+    <span class="outils-test" id="outils-test" hidden>
+      <label><input type="checkbox" id="tout-debloquer" /> Ouvrir tous les niveaux (test)</label>
+    </span>
+  </footer>
+
+  <script type="module" src="/src/accueil.js"></script>
+</body>
+</html>

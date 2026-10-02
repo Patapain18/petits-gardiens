@@ -1,0 +1,67 @@
+/* ─────────────────────────────────────────────────────────────
+   La galerie des personnages (personnages.html)
+   ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { background: #140e1a; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 0 16px 40px;
+  color: #fff4e0;
+  font: 17px/1.4 'Pixelify Sans', system-ui, sans-serif;
+  font-variant-ligatures: none; /* la police Pixelify Sans dessine « fi » d'un seul glyphe, qui ressemble à un A */
+  background:
+    radial-gradient(ellipse 90% 50% at 50% 0%, rgba(255, 170, 90, 0.18), transparent 70%),
+    linear-gradient(#2a1d36, #140e1a 60%);
+}
+code { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; color: #ffd27a; }
+
+.entete { max-width: 1100px; margin: 0 auto; padding: 28px 0 8px; }
+.entete h1 { margin: 0 0 6px; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; color: #ffd27a; text-shadow: 0 3px 0 #6a3a14; }
+.entete p { margin: 0 0 14px; color: #e9d6b8; }
+.filtres { display: flex; flex-wrap: wrap; gap: 8px; }
+.filtres a {
+  padding: 5px 12px;
+  color: #ffd27a;
+  text-decoration: none;
+  border: 1px solid rgba(255, 210, 122, 0.4);
+  border-radius: 999px;
+}
+.filtres a:hover { background: rgba(255, 210, 122, 0.12); }
+.filtres a[aria-current='page'] { color: #2a1a10; background: #ffd27a; border-color: #ffd27a; }
+.filtres a:last-child { margin-left: auto; border-color: transparent; }
+
+main { max-width: 1100px; margin: 0 auto; }
+h2 { margin: 26px 0 12px; font-size: 1.5rem; color: #ffd27a; }
+.grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+
+.perso {
+  padding: 12px 14px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+.perso h3 { margin: 0 0 8px; font-size: 1.2rem; line-height: 1.1; }
+.perso small { display: block; margin-top: 2px; color: #c8b8a8; font-size: 0.75rem; font-weight: 500; }
+.styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.styles figure { margin: 0; text-align: center; }
+.styles canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 190, 0.22), rgba(255, 236, 190, 0) 68%);
+}
+.styles figure[data-style='pixel'] canvas { image-rendering: pixelated; border-radius: 0; padding: 14%; }
+.styles figcaption { margin-top: 2px; color: #a8988c; font-size: 0.75rem; }
+
+/* les rendus 3D cachés qui servent d'appareil photo */
+.ateliers { position: fixed; left: -10000px; top: 0; width: 640px; height: 400px; overflow: hidden; }
+
+@media (max-width: 400px) {
+  .grille { grid-template-columns: 1fr; }
+  .filtres a:last-child { margin-left: 0; }
+}

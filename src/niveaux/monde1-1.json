@@ -1,0 +1,65 @@
+{
+  "id": "monde1-1",
+  "nom": "La clairière",
+  "description": "Ton premier jour de gardien, dans une clairière bien tranquille… pour l’instant.",
+  "difficulte": "didacticiel",
+  "style": "pixel",
+  "ambiance": "midi",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 160,
+  "chemin": [
+    { "x": -1.5, "y": 7.5 },
+    { "x": 7.5, "y": 7.5 },
+    { "x": 7.5, "y": 3.5 },
+    { "x": 15.5, "y": 3.5 },
+    { "x": 15.5, "y": 10.5 },
+    { "x": 20.5, "y": 10.5 }
+  ],
+  "socles": [
+    { "x": 5.5, "y": 5.5 },
+    { "x": 9.5, "y": 5.5 },
+    { "x": 13.5, "y": 5.5 },
+    { "x": 17.5, "y": 8.5 },
+    { "x": 3.5, "y": 9.5 },
+    { "x": 11.5, "y": 1.5 }
+  ],
+  "chateau": { "x": 21.9, "y": 10.5 },
+  "etangs": [
+    { "x": 10.5, "y": 11, "rayon": 1.8 }
+  ],
+  "lanternes": [
+    { "x": 6.6, "y": 8.4 },
+    { "x": 8.4, "y": 2.6 },
+    { "x": 14.6, "y": 2.6 },
+    { "x": 16.4, "y": 9.6 }
+  ],
+  "decor": { "graine": 417 },
+  "gardiens": { "braise": 1, "givrine": 2, "grondin": 4 },
+  "didacticiel": {
+    "lecons": ["poser", "lancer", "ameliorer"],
+    "presenter": ["braise", "gluant", "givrine", "filou", "grondin", "cuirasse"]
+  },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 5, "ecart": 2.2, "delai": 0 }
+    ],
+    [
+      { "type": "gluant", "nombre": 6, "ecart": 1.6, "delai": 0 },
+      { "type": "filou", "nombre": 3, "ecart": 1.4, "delai": 7 }
+    ],
+    [
+      { "type": "filou", "nombre": 6, "ecart": 1, "delai": 0 },
+      { "type": "gluant", "nombre": 8, "ecart": 1.2, "delai": 4 }
+    ],
+    [
+      { "type": "gluant", "nombre": 8, "ecart": 1.1, "delai": 0 },
+      { "type": "cuirasse", "nombre": 1, "ecart": 1, "delai": 7 }
+    ],
+    [
+      { "type": "gluant", "nombre": 10, "ecart": 0.9, "delai": 0 },
+      { "type": "filou", "nombre": 8, "ecart": 0.7, "delai": 5 },
+      { "type": "cuirasse", "nombre": 2, "ecart": 5, "delai": 10 }
+    ]
+  ]
+}

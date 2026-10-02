@@ -1,0 +1,67 @@
+{
+  "id": "essai",
+  "nom": "Le pré du château",
+  "style": "voxel",
+  "ambiance": "doree",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 230,
+  "chemin": [
+    { "x": -1.5, "y": 3.5 },
+    { "x": 5.5, "y": 3.5 },
+    { "x": 5.5, "y": 9.5 },
+    { "x": 11.5, "y": 9.5 },
+    { "x": 11.5, "y": 4.5 },
+    { "x": 17.5, "y": 4.5 },
+    { "x": 17.5, "y": 10.5 },
+    { "x": 21.2, "y": 10.5 }
+  ],
+  "socles": [
+    { "x": 2.5, "y": 1.5 },
+    { "x": 3.5, "y": 5.5 },
+    { "x": 7.5, "y": 7.5 },
+    { "x": 8.5, "y": 11.5 },
+    { "x": 9.5, "y": 5.5 },
+    { "x": 13.5, "y": 7.5 },
+    { "x": 14.5, "y": 2.5 },
+    { "x": 15.5, "y": 8.5 },
+    { "x": 19.5, "y": 7.5 },
+    { "x": 19.5, "y": 12.5 }
+  ],
+  "chateau": { "x": 22.6, "y": 10.5 },
+  "etangs": [
+    { "x": 1.6, "y": 11.6, "rayon": 2.4 }
+  ],
+  "lanternes": [
+    { "x": 4.4, "y": 2.4 },
+    { "x": 6.6, "y": 8.4 },
+    { "x": 12.6, "y": 5.6 },
+    { "x": 16.4, "y": 3.4 },
+    { "x": 18.6, "y": 9.4 }
+  ],
+  "decor": { "graine": 1312 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1 },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 6, "ecart": 1.5, "delai": 0 }
+    ],
+    [
+      { "type": "gluant", "nombre": 8, "ecart": 1.1, "delai": 0 },
+      { "type": "filou", "nombre": 5, "ecart": 0.9, "delai": 8 }
+    ],
+    [
+      { "type": "filou", "nombre": 10, "ecart": 0.6, "delai": 0 },
+      { "type": "cuirasse", "nombre": 2, "ecart": 4, "delai": 5 }
+    ],
+    [
+      { "type": "gluant", "nombre": 12, "ecart": 0.7, "delai": 0 },
+      { "type": "cuirasse", "nombre": 3, "ecart": 3, "delai": 3 },
+      { "type": "filou", "nombre": 10, "ecart": 0.45, "delai": 10 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 5, "ecart": 2.4, "delai": 0 },
+      { "type": "filou", "nombre": 16, "ecart": 0.38, "delai": 4 },
+      { "type": "gluant", "nombre": 16, "ecart": 0.5, "delai": 9 }
+    ]
+  ]
+}

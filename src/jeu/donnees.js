@@ -1,0 +1,415 @@
+// ─────────────────────────────────────────────────────────────
+// LES FICHES DES PERSONNAGES
+// Tout ce qu'il faut savoir sur un personnage, au même endroit :
+// - ses chiffres de jeu (prix, dégâts, vitesse…), lus par le moteur ;
+// - son « apparence », lue par les trois styles graphiques.
+// Changer une fiche change le personnage dans TOUS les styles.
+// Vitesses en cases par seconde, portées et zones en cases, temps en secondes.
+//
+// L'apparence : (vocabulaire complet dans src/rendus/apparence.js)
+// - gabarit    : la silhouette de base (gardien, gelee, rongeur, golem, volant)
+// - couleurs   : clair (le dessus éclairé), peau, fonce (l'ombre, les pattes),
+//                et parfois yeux, mousse ou lave
+// - taille     : 1 = taille normale
+// - accessoires: flamme, cristaux, echarpe, cornes, mortier, cape, couronne,
+//                antennes, moulinet, petits
+//                (une couleur peut être précisée : { type: 'flamme', couleur: '#5ab8ff' })
+//                L'ordre compte en pixel art : chaque accessoire se peint par-dessus
+//                les précédents (la couronne en dernier passe devant la flamme).
+// ─────────────────────────────────────────────────────────────
+
+// Les volants volent à cette hauteur au-dessus du chemin (en cases) : le moteur
+// s'en sert pour viser, les styles pour les dessiner là-haut.
+export const HAUTEUR_VOL = 0.8;
+
+// Nos petits monstres gentils : les GARDIENS (= les tours).
+// Chacun a 3 niveaux. Le « cout » du niveau 1 est le prix d'achat ;
+// celui des niveaux 2 et 3 est le prix de l'amélioration.
+// Une amélioration rapporte à peu près autant de dégâts par pièce qu'un
+// nouveau gardien : améliorer est donc un vrai choix, pas un piège.
+// Code visuel : niveau 2 = une cape, niveau 3 = une couronne dorée (la même pour tous,
+// pour qu'on reconnaisse un niveau 3 d'un coup d'œil).
+// « description » et « conseil » sont lus par le didacticiel, sur la fiche qui
+// présente un nouveau personnage.
+export const GARDIENS = {
+  braise: {
+    nom: 'Braise',
+    role: 'Crache des boules de feu, rapide et fiable',
+    description: 'Une petite boule de feu sur pattes. Elle crache des flammes vite et souvent, toujours sur le monstre le plus avancé.',
+    conseil: 'Pas chère et fiable : c’est la base de toute défense. Pose-la près d’un virage, elle aura le temps de tirer plus souvent.',
+    projectile: { vitesse: 9, type: 'feu' },
+    niveaux: [
+      {
+        cout: 70, degats: 9, cadence: 0.8, portee: 3.0, // cadence : une attaque toutes les 0,8 s
+        apparence: {
+          gabarit: 'gardien',
+          couleurs: { clair: '#ffb46a', peau: '#f0803a', fonce: '#b8522a' },
+          accessoires: ['flamme'],
+        },
+      },
+      {
+        nom: 'Braise ardente', cout: 70, degats: 14, cadence: 0.62, portee: 3.2,
+        apparence: {
+          gabarit: 'gardien', taille: 1.08,
+          couleurs: { clair: '#ff9a5a', peau: '#e8602a', fonce: '#a8381e' },
+          accessoires: [{ type: 'cape', couleur: '#b8302a' }, 'flamme'],
+        },
+      },
+      {
+        nom: 'Brasier', cout: 110, degats: 22, cadence: 0.54, portee: 3.4,
+        apparence: {
+          gabarit: 'gardien', taille: 1.16,
+          couleurs: { clair: '#ff8a6a', peau: '#d8402a', fonce: '#8a2418' },
+          accessoires: [{ type: 'cape', couleur: '#7a1e2a' }, { type: 'flamme', couleur: '#6ac8ff' }, 'couronne'],
+        },
+      },
+    ],
+  },
+  givrine: {
+    nom: 'Givrine',
+    role: 'Gèle un petit groupe : les monstres avancent deux fois moins vite',
+    description: 'Elle souffle de la glace. Les monstres touchés avancent deux fois moins vite, et le froid gagne aussi leurs voisins.',
+    conseil: 'Elle fait peu de dégâts : son rôle est de ralentir les monstres, pour que tes autres gardiens aient le temps de les battre.',
+    projectile: { vitesse: 8, type: 'glace' },
+    niveaux: [
+      {
+        cout: 75, degats: 7, cadence: 0.8, portee: 3.0,
+        // facteur 0,45 = vitesse × 0,45 ; zone = le gel touche aussi les voisins de la cible
+        ralentissement: { facteur: 0.45, duree: 2.5, zone: 0.9 },
+        apparence: {
+          gabarit: 'gardien',
+          couleurs: { clair: '#e0f6ff', peau: '#94d2ee', fonce: '#4f8ebc' },
+          accessoires: ['echarpe', 'cristaux'],
+        },
+      },
+      {
+        nom: 'Givre', cout: 70, degats: 11, cadence: 0.7, portee: 3.2,
+        ralentissement: { facteur: 0.4, duree: 3, zone: 1.1 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.08,
+          couleurs: { clair: '#ecfaff', peau: '#a8e0f8', fonce: '#5a9ccc' },
+          accessoires: [{ type: 'cape', couleur: '#3a6eb8' }, 'echarpe', 'cristaux'],
+        },
+      },
+      {
+        nom: 'Blizzard', cout: 110, degats: 16, cadence: 0.6, portee: 3.4,
+        ralentissement: { facteur: 0.35, duree: 3.5, zone: 1.4 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.16,
+          couleurs: { clair: '#ffffff', peau: '#c4ecff', fonce: '#6aa8d8' },
+          accessoires: [{ type: 'cape', couleur: '#f4fbff' }, { type: 'echarpe', couleur: '#5ab0e8' }, 'couronne', { type: 'cristaux', couleur: '#e4fbff' }],
+        },
+      },
+    ],
+  },
+  grondin: {
+    nom: 'Grondin',
+    role: 'Lance des rochers qui touchent tout un groupe',
+    description: 'Le plus costaud. Il lance des rochers en cloche qui explosent et touchent tout un groupe d’un coup.',
+    conseil: 'Il tire lentement mais très fort : parfait contre les groupes serrés et les monstres résistants. Il coûte cher, garde de l’or pour lui.',
+    projectile: { vitesse: 7, type: 'rocher', cloche: true }, // tir en cloche : il retombe au sol, les volants passent au-dessus
+    niveaux: [
+      {
+        cout: 120, degats: 24, cadence: 2.3, portee: 3.6,
+        zone: 1.2, // rayon de l'explosion
+        apparence: {
+          gabarit: 'gardien', taille: 1.1, // un peu plus costaud que les autres
+          couleurs: { clair: '#bc94ee', peau: '#8a5cc8', fonce: '#583890' },
+          accessoires: ['cornes', 'mortier'],
+        },
+      },
+      {
+        nom: 'Tonnerre', cout: 100, degats: 40, cadence: 2.1, portee: 3.8, zone: 1.4,
+        apparence: {
+          gabarit: 'gardien', taille: 1.18,
+          couleurs: { clair: '#c8a0f4', peau: '#7a48c0', fonce: '#4a2a80' },
+          accessoires: [{ type: 'cape', couleur: '#1f5a5a' }, 'cornes', 'mortier'],
+        },
+      },
+      {
+        nom: 'Séisme', cout: 150, degats: 62, cadence: 1.9, portee: 4.0, zone: 1.6,
+        apparence: {
+          gabarit: 'gardien', taille: 1.26,
+          couleurs: { clair: '#d8b0ff', peau: '#6a38b0', fonce: '#3a1e6a' },
+          accessoires: [{ type: 'cape', couleur: '#164646' }, 'cornes', { type: 'mortier', couleur: '#6f7a90' }, 'couronne'],
+        },
+      },
+    ],
+  },
+
+  // ── Les nouveaux gardiens du monde 2 ──
+  etincelle: {
+    nom: 'Étincelle',
+    role: 'Un éclair qui saute d’un monstre à l’autre, et touche les volants',
+    description: 'Une petite pile électrique sur pattes. Son éclair frappe un monstre, puis saute sur ses voisins, un peu moins fort à chaque saut.',
+    conseil: 'Parfaite contre les groupes et contre les volants. Mais seule face à un gros monstre, elle tape moins fort qu’une Braise.',
+    projectile: { type: 'eclair', instantane: true }, // instantané : l'éclair frappe tout de suite, rien ne voyage
+    niveaux: [
+      {
+        cout: 90, degats: 9, cadence: 1.1, portee: 3.0,
+        // rebonds : après sa cible, l'éclair saute sur « nombre » autres monstres, chacun à moins
+        // de « saut » cases du précédent ; chaque saut fait « attenuation » × les dégâts du précédent.
+        // Réglé pour valoir à peu près une Braise sur un groupe, et bien moins sur un monstre seul
+        // (son éclair ne rate jamais : il frappe tout de suite, rien ne se perd en route).
+        rebonds: { nombre: 2, saut: 1.6, attenuation: 0.6 },
+        apparence: {
+          gabarit: 'gardien',
+          couleurs: { clair: '#fff2a0', peau: '#f2cc36', fonce: '#b48c1c' },
+          accessoires: ['antennes'],
+        },
+      },
+      {
+        nom: 'Éclair', cout: 75, degats: 14, cadence: 1.0, portee: 3.2,
+        rebonds: { nombre: 3, saut: 1.7, attenuation: 0.62 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.08,
+          couleurs: { clair: '#ffec86', peau: '#eebf22', fonce: '#a67c12' },
+          accessoires: [{ type: 'cape', couleur: '#3048a8' }, 'antennes'],
+        },
+      },
+      {
+        nom: 'Foudre', cout: 115, degats: 20, cadence: 0.95, portee: 3.4,
+        rebonds: { nombre: 3, saut: 1.8, attenuation: 0.65 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.16,
+          couleurs: { clair: '#ffe46a', peau: '#e6b012', fonce: '#9a6c0c' },
+          accessoires: [{ type: 'cape', couleur: '#1c2868' }, { type: 'antennes', couleur: '#f4f0ff' }, 'couronne'],
+        },
+      },
+    ],
+  },
+  bourrasque: {
+    nom: 'Bourrasque',
+    role: 'Souffle les monstres en arrière sur le chemin',
+    description: 'Un petit coup de vent sur pattes, coiffé d’un moulinet. Son souffle fait reculer les monstres… qui doivent refaire du chemin !',
+    conseil: 'Elle fait très peu de dégâts : pose-la près de gardiens qui tapent fort, ils garderont les monstres plus longtemps sous le feu. Les volants, légers, s’envolent plus loin ; les Cuirassés, lourds, reculent à peine.',
+    projectile: { vitesse: 10, type: 'vent' },
+    niveaux: [
+      {
+        cout: 75, degats: 3, cadence: 2.6, portee: 3.0,
+        // souffle : les monstres à moins de « zone » cases de la cible reculent de « recul » cases
+        souffle: { recul: 1.2, zone: 0.9 },
+        apparence: {
+          gabarit: 'gardien',
+          couleurs: { clair: '#e2fff2', peau: '#8adcbe', fonce: '#3c967a' },
+          accessoires: ['moulinet'],
+        },
+      },
+      {
+        nom: 'Rafale', cout: 75, degats: 5, cadence: 2.3, portee: 3.2,
+        souffle: { recul: 1.5, zone: 1.1 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.08,
+          couleurs: { clair: '#d4fbec', peau: '#70d0ae', fonce: '#2c8668' },
+          accessoires: [{ type: 'cape', couleur: '#e05a7c' }, 'moulinet'],
+        },
+      },
+      {
+        nom: 'Tornade', cout: 115, degats: 8, cadence: 2.0, portee: 3.4,
+        souffle: { recul: 1.9, zone: 1.3 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.16,
+          couleurs: { clair: '#c6f6e4', peau: '#56c29c', fonce: '#20765a' },
+          accessoires: [{ type: 'cape', couleur: '#a82c58' }, { type: 'moulinet', couleur: '#8a6aff' }, 'couronne'],
+        },
+      },
+    ],
+  },
+
+  // ── Les nouveaux gardiens du monde 3 ──
+  pepite: {
+    nom: 'Pépite',
+    role: 'Ne tire pas : creuse de l’or, et en rapporte à chaque vague',
+    description: 'Une petite mineuse, casque sur la tête et pioche dans le dos. Elle ne se bat pas : pendant chaque vague, elle creuse, et à la fin elle te rapporte de l’or.',
+    conseil: 'Pose-la tôt, sur un socle loin du chemin : en quatre vagues, elle est remboursée, et tout le reste est du bonus. Mais une Pépite de trop, et il te manquera des gardiens qui tapent.',
+    // pas de projectile : elle ne vise personne. « recolte » = l'or rapporté à la fin de chaque vague
+    niveaux: [
+      {
+        cout: 100, recolte: 25, portee: 0,
+        apparence: {
+          gabarit: 'gardien',
+          couleurs: { clair: '#ecc89c', peau: '#c8925a', fonce: '#8a5a32' },
+          accessoires: ['pioche', 'casque'],
+        },
+      },
+      {
+        nom: 'Filon', cout: 80, recolte: 45, portee: 0,
+        apparence: {
+          gabarit: 'gardien', taille: 1.08,
+          couleurs: { clair: '#e8bc8a', peau: '#bc8248', fonce: '#7e4e28' },
+          accessoires: [{ type: 'cape', couleur: '#2e6a4a' }, 'pioche', 'casque'],
+        },
+      },
+      {
+        nom: 'Trésor', cout: 120, recolte: 75, portee: 0,
+        apparence: {
+          gabarit: 'gardien', taille: 1.16,
+          couleurs: { clair: '#e4b47c', peau: '#b0743a', fonce: '#724420' },
+          accessoires: [{ type: 'cape', couleur: '#1e4a34' }, { type: 'pioche', couleur: '#7ae8ff' }, 'casque', 'couronne'],
+        },
+      },
+    ],
+  },
+  prisme: {
+    nom: 'Prisme',
+    role: 'Un rayon de lumière qui chauffe sur le même monstre, et traverse les carapaces',
+    description: 'Un petit gardien rose qui fait flotter un cristal au-dessus de sa tête. Le cristal concentre la lumière en un rayon qui ne lâche plus son monstre : plus il reste dessus, plus il brûle.',
+    conseil: 'Parfait contre les gros monstres et contre les carapaces, que son rayon traverse. Mais face à une foule, il reste accroché à un seul monstre pendant que les autres passent.',
+    // rayon : un rayon qui ne s'arrête pas (« degats » = par seconde) et reste accroché à sa
+    // cible tant qu'il peut la toucher ; il chauffe jusqu'à « max » fois plus fort en « montee » secondes
+    projectile: { type: 'rayon' },
+    niveaux: [
+      {
+        cout: 110, degats: 10, portee: 3.2,
+        rayon: { montee: 2, max: 3 },
+        apparence: {
+          gabarit: 'gardien',
+          couleurs: { clair: '#ffe0f2', peau: '#f0a4d4', fonce: '#b0689a' },
+          accessoires: ['prisme'],
+        },
+      },
+      {
+        nom: 'Rayon', cout: 90, degats: 15, portee: 3.4,
+        rayon: { montee: 1.8, max: 3.2 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.08,
+          couleurs: { clair: '#ffd6ee', peau: '#ec94cc', fonce: '#a85a90' },
+          accessoires: [{ type: 'cape', couleur: '#5a3a9a' }, 'prisme'],
+        },
+      },
+      {
+        nom: 'Arc-en-ciel', cout: 130, degats: 22, portee: 3.6,
+        rayon: { montee: 1.6, max: 3.5 },
+        apparence: {
+          gabarit: 'gardien', taille: 1.16,
+          couleurs: { clair: '#ffcce8', peau: '#e682c2', fonce: '#9c4c84' },
+          accessoires: [{ type: 'cape', couleur: '#3a2a7a' }, { type: 'prisme', couleur: '#fff6a0' }, 'couronne'],
+        },
+      },
+    ],
+  },
+};
+
+export const NIVEAU_MAX = 3;
+
+// Les caractéristiques d'un gardien à un niveau donné : ce qui est commun à
+// tous ses niveaux (nom, rôle, projectile) + ce qui est propre à ce niveau.
+// On garde le résultat en mémoire : le moteur en a besoin à chaque instant.
+const memoire = new Map();
+export function caracteristiques(type, niveau = 1) {
+  const cle = type + ':' + niveau;
+  if (!memoire.has(cle)) {
+    const { niveaux, ...commun } = GARDIENS[type];
+    memoire.set(cle, { ...commun, ...niveaux[niveau - 1], niveau, type });
+  }
+  return memoire.get(cle);
+}
+
+// Les méchants qui suivent le chemin : les MONSTRES
+// pv = points de vie ; vitesse en cases par seconde ; prime = l'or gagné quand on le bat.
+// Et parfois :
+// - volant : il vole au-dessus du chemin (les tirs en cloche ne le touchent pas) ;
+// - enfants : quand on le bat, d'autres monstres apparaissent là où il est tombé ;
+// - vent : combien il recule quand une Bourrasque souffle (1 = normal, 0 = pas du tout) ;
+// - gel : combien le gel le ralentit (1 = normal, 0,5 = deux fois moins) ;
+// - armure : sa carapace ; chaque coup perd ces dégâts-là (un rayon la traverse) ;
+// - creuse : il passe « dessous » secondes sous terre (personne ne peut le viser), puis
+//   « dessus » secondes dehors ; sous terre, il va « vitesse » fois plus vite ;
+// - feu : toutes les « toutesLes » secondes, il crache sur le gardien le plus proche
+//   (à moins de « portee » cases), qui reste assommé « duree » secondes ;
+// - boss : c'est un chef, présenté comme tel par le didacticiel.
+export const MONSTRES = {
+  gluant: {
+    nom: 'Gluant', pv: 44, vitesse: 1.15, prime: 6,
+    description: 'Une gelée qui avance en sautillant. Ni rapide, ni très solide : c’est le monstre de base.',
+    conseil: 'Une ou deux Braise suffisent pour arrêter un petit groupe de Gluants.',
+    apparence: { gabarit: 'gelee', couleurs: { clair: '#b4f498', peau: '#5ed048', fonce: '#3a9a30' } },
+  },
+  filou: {
+    nom: 'Filou', pv: 26, vitesse: 2.1, prime: 5,
+    description: 'Petit et fragile… mais très rapide ! Il fonce vers le château en profitant de la moindre faille.',
+    conseil: 'Une Givrine le ralentit : tes autres gardiens auront le temps de l’attraper.',
+    apparence: { gabarit: 'rongeur', couleurs: { clair: '#e8d0b0', peau: '#a87a56', fonce: '#6e4a30' } },
+  },
+  cuirasse: {
+    nom: 'Cuirassé', pv: 260, vitesse: 0.68, prime: 22,
+    vent: 0.5, // lourd : le vent le fait deux fois moins reculer
+    description: 'Un golem de pierre couvert de mousse. Il marche lentement, mais il encaisse énormément de coups.',
+    conseil: 'Il faut beaucoup de dégâts : les rochers du Grondin et les gardiens améliorés en viennent à bout.',
+    apparence: { gabarit: 'golem', couleurs: { clair: '#b0b2ba', peau: '#8d8f98', fonce: '#6a6c74', mousse: '#5fa03a' } },
+  },
+
+  // ── Les nouveaux monstres du monde 2 ──
+  voltigeur: {
+    nom: 'Voltigeur', pv: 34, vitesse: 1.55, prime: 7,
+    volant: true,
+    vent: 1.5, // léger : le vent l'emporte une fois et demie plus loin
+    description: 'Une petite chauve-souris qui vole au-dessus du chemin. Les rochers du Grondin retombent par terre sans jamais la toucher.',
+    conseil: 'Braise, Givrine et Étincelle l’attrapent en plein vol, le Grondin non. Une Bourrasque l’envoie valser loin en arrière.',
+    apparence: { gabarit: 'volant', couleurs: { clair: '#ff9cc6', peau: '#de4e88', fonce: '#94285a', yeux: '#ffe14a' } },
+  },
+  gigogne: {
+    nom: 'Gigogne', pv: 120, vitesse: 0.85, prime: 10,
+    enfants: { type: 'gluant', nombre: 3 }, // battue, elle libère 3 Gluants
+    vent: 0.7,
+    description: 'Une grosse maman gelée qui porte ses petits sur le dos. Quand on la bat, trois Gluants sautent par terre et continuent la route !',
+    conseil: 'Garde des gardiens derrière elle pour les petits. Un Grondin bien placé les attrape tous les trois d’un seul rocher.',
+    apparence: {
+      gabarit: 'gelee', taille: 1.6,
+      couleurs: { clair: '#a8f0d8', peau: '#36c29a', fonce: '#1e886a' },
+      accessoires: [{ type: 'petits', couleur: '#5ed048' }],
+    },
+  },
+  colosse: {
+    nom: 'Colosse', pv: 5500, vitesse: 0.42, prime: 100,
+    boss: true,
+    enfants: { type: 'cuirasse', nombre: 2 }, // battu, il se brise en deux Cuirassés
+    vent: 0,  // bien trop lourd : le vent ne le pousse pas
+    gel: 0.5, // le gel ne le ralentit qu'à moitié
+    description: 'Le chef des monstres : un géant de roche et de lave, qui avance lentement vers le château en faisant trembler le sol. Et quand on le bat, il se brise en deux !',
+    conseil: 'Il faut beaucoup de dégâts, tout le long du chemin : des gardiens améliorés, des Grondin, des Étincelle. Et garde de la place derrière lui pour les deux Cuirassés.',
+    apparence: {
+      gabarit: 'golem', taille: 2.1,
+      couleurs: { clair: '#8a8090', peau: '#5c5462', fonce: '#3a3240', mousse: '#4a4250', lave: '#ff7a2a', yeux: '#ffd23a' },
+      accessoires: ['cornes'],
+    },
+  },
+
+  // ── Les nouveaux monstres du monde 3 ──
+  carapace: {
+    nom: 'Carapace', pv: 90, vitesse: 0.8, prime: 13,
+    armure: 5, // chaque coup perd 5 dégâts sur sa carapace
+    vent: 0.7,
+    description: 'Une tortue de pierre à la carapace épaisse. Chaque coup perd 5 dégâts sur sa carapace : les petits coups ne lui font presque rien.',
+    conseil: 'Il faut de gros coups : le rocher du Grondin, des gardiens améliorés… ou le rayon du Prisme, qui traverse la carapace.',
+    apparence: { gabarit: 'tortue', couleurs: { clair: '#bcd48c', peau: '#8eaa62', fonce: '#5c7238', carapace: '#6c7c8a' } },
+  },
+  taupe: {
+    nom: 'Taupe', pv: 50, vitesse: 1.1, prime: 9,
+    creuse: { dessous: 1.6, dessus: 2, vitesse: 1.5 }, // 1,6 s sous terre (1,5 fois plus vite), puis 2 s dehors
+    description: 'Une taupe à lunettes qui creuse sous le chemin. Sous terre, aucun gardien ne peut la viser : on ne voit qu’un petit tas de terre qui avance.',
+    conseil: 'Elle ressort régulièrement : des gardiens tout le long du chemin la cueillent chaque fois qu’elle sort.',
+    apparence: {
+      gabarit: 'taupe',
+      couleurs: { clair: '#8c7c86', peau: '#5e4e58', fonce: '#3c3038' },
+      accessoires: ['lunettes'],
+    },
+  },
+  dragon: {
+    nom: 'Dragon', pv: 3500, vitesse: 0.45, prime: 150,
+    boss: true,
+    volant: true,
+    vent: 0,  // bien trop fort : le vent ne le pousse pas
+    gel: 0.5, // le gel ne le ralentit qu'à moitié
+    feu: { toutesLes: 5, portee: 3.2, duree: 2 },
+    description: 'Le chef des monstres d’aujourd’hui : un énorme dragon rouge qui vole au-dessus du chemin. De temps en temps, il crache du feu sur un gardien, qui reste assommé.',
+    conseil: 'Les rochers du Grondin ne l’atteignent pas : il faut des Prisme, qui ne le lâchent plus, et des Braise bien améliorées. Et assez de gardiens pour que les autres continuent quand il en assomme un.',
+    apparence: {
+      gabarit: 'dragon', taille: 2.2,
+      couleurs: { clair: '#ff8c6a', peau: '#d23c2c', fonce: '#8a1e1a', ventre: '#ffd27a', yeux: '#ffe14a' },
+      accessoires: ['cornes'],
+    },
+  },
+};
+
+export const PART_REVENTE = 0.6; // on récupère 60 % de ce qu'on a dépensé (achat + améliorations)

@@ -1,0 +1,73 @@
+/* ─────────────────────────────────────────────────────────────
+   La fenêtre des options (src/fenetre-options.js).
+   Dans le jeu, elle prend les couleurs et la police du style choisi
+   (les variables de style.css) ; sur la carte des époques, ces variables
+   n'existent pas et ce sont les valeurs de secours (après la virgule).
+   ───────────────────────────────────────────────────────────── */
+.fenetre-options {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 18px 20px 16px;
+  color: var(--texte, #fff4e0);
+  /* le fond du panneau, posé sur un fond sombre : la fenêtre reste bien lisible par-dessus le jeu */
+  background: linear-gradient(var(--fond-panneau, #2a1d36), var(--fond-panneau, #2a1d36)), #1c1424;
+  border: 3px solid var(--bord-sombre, #120a14);
+  border-radius: var(--rayon, 12px);
+  box-shadow: inset 2px 2px 0 var(--bord-clair, rgba(255, 236, 200, 0.28)), 0 18px 50px rgba(0, 0, 0, 0.55);
+  /* la police et la taille du texte viennent de la page (la fenêtre grandit avec l'option « grande ») */
+  font: inherit;
+  line-height: 1.4;
+}
+.fenetre-options::backdrop { background: rgba(10, 6, 14, 0.62); }
+.fenetre-options h2 { margin: 0 0 6px; font-size: 1.5em; color: var(--accent, #ffd27a); }
+.fenetre-options h3 { margin: 0 0 8px; font-size: 1.05em; color: var(--accent, #ffd27a); }
+.section-options { padding: 12px 0; border-top: 2px solid rgba(255, 255, 255, 0.08); }
+.reglage { margin-bottom: 12px; }
+.reglage:last-child { margin-bottom: 0; }
+.fenetre-options .aide { margin: 6px 0 0; color: var(--texte-doux, #e9d6b8); font-size: 0.8em; line-height: 1.45; }
+
+/* un curseur : son nom, la barre, et la valeur en % */
+.reglage-curseur { display: grid; grid-template-columns: 8.5em 1fr auto; align-items: center; gap: 10px; }
+.reglage-curseur input { width: 100%; accent-color: var(--accent, #ffb547); cursor: pointer; }
+.reglage-curseur output { min-width: 4.2ch; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--texte-doux, #e9d6b8); }
+
+/* une case à cocher */
+.reglage-case { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.reglage-case input { width: 1.1em; height: 1.1em; accent-color: var(--accent, #ffb547); cursor: pointer; }
+
+/* un choix : des boutons radio dessinés comme des boutons du jeu */
+.reglage-choix { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.reglage-choix legend { width: 100%; margin-bottom: 6px; padding: 0; }
+.reglage-choix label { position: relative; display: inline-flex; }
+.reglage-choix input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.reglage-choix span,
+.fenetre-options button {
+  display: inline-block;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--texte, #fff4e0);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid var(--bord-sombre, #120a14);
+  border-radius: calc(var(--rayon, 10px) * 0.6);
+  box-shadow: inset 2px 2px 0 var(--bord-clair, rgba(255, 236, 200, 0.28));
+  cursor: pointer;
+}
+.reglage-choix input:checked + span,
+.fenetre-options button.principal { color: var(--accent-texte, #2b1a08); background: var(--accent, #ffb547); }
+.reglage-choix input:focus-visible + span,
+.fenetre-options button:focus-visible,
+.fenetre-options input[type='range']:focus-visible,
+.reglage-case input:focus-visible { outline: 3px solid var(--accent, #ffb547); outline-offset: 2px; }
+@media (hover: hover) {
+  .reglage-choix label:hover span,
+  .fenetre-options button:hover { filter: brightness(1.15); }
+}
+.fenetre-options button.danger { color: #fff0ec; background: #9a2f2a; }
+.confirmation p { margin: 0 0 8px; }
+.confirmation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pied-options { display: flex; justify-content: flex-end; padding-top: 12px; border-top: 2px solid rgba(255, 255, 255, 0.08); }
+
+/* la police pixel est large et serrée : un peu plus d'air */
+body[data-style='pixel'] .fenetre-options { line-height: 1.7; }
+body[data-style='pixel'] .reglage-curseur { grid-template-columns: 9.5em 1fr auto; }

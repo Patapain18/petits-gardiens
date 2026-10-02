@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Éditeur de niveaux — Petits Gardiens</title>
+  <meta name="description" content="Éditeur de niveaux de Petits Gardiens : tracer le chemin, poser les socles, régler les vagues, tester et enregistrer la fiche du niveau." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='4' width='10' height='6' fill='%23f0803a'/%3E%3Crect x='1' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='13' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='5' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='10' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='4' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='6' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='9' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='11' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='7' y='2' width='2' height='2' fill='%23ffd23a'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/editeur/editeur.css" />
+</head>
+<body>
+  <!-- Barre du haut : le titre, l'état de l'enregistrement et les actions sur le fichier -->
+  <header class="entete">
+    <div class="titre">
+      <a class="retour" href="./">Accueil</a>
+      <h1>Éditeur de niveaux</h1>
+      <span id="etat-sauvegarde" class="etat-sauvegarde"></span>
+    </div>
+    <div class="actions">
+      <label class="invisible" for="ouvrir">Ouvrir un niveau du projet</label>
+      <select id="ouvrir"></select>
+      <button id="nouveau">Nouveau</button>
+      <span class="separateur" aria-hidden="true"></span>
+      <button id="annuler" aria-keyshortcuts="Control+Z" title="Annuler (Ctrl+Z)">Annuler</button>
+      <button id="refaire" aria-keyshortcuts="Control+Shift+Z" title="Refaire (Ctrl+Maj+Z)">Refaire</button>
+      <span class="separateur" aria-hidden="true"></span>
+      <button id="copier">Copier le JSON</button>
+      <button id="telecharger">Télécharger</button>
+      <button id="enregistrer">Enregistrer dans le projet</button>
+      <button id="tester" class="principal">Tester ce niveau</button>
+    </div>
+  </header>
+
+  <main class="atelier">
+    <!-- Les outils : chacun modifie un type d'objet sur le plan -->
+    <nav class="outils" aria-label="Outils de dessin">
+      <button data-outil="chemin" aria-keyshortcuts="1"><span class="touche">1</span>Chemin</button>
+      <button data-outil="socles" aria-keyshortcuts="2"><span class="touche">2</span>Socles</button>
+      <button data-outil="lanternes" aria-keyshortcuts="3"><span class="touche">3</span>Lanternes</button>
+      <button data-outil="etangs" aria-keyshortcuts="4"><span class="touche">4</span>Étangs</button>
+    </nav>
+
+    <!-- Le plan du niveau -->
+    <section class="plan" aria-label="Plan du niveau">
+      <canvas id="carte"></canvas>
+    </section>
+
+    <!-- Les réglages de la fiche -->
+    <aside class="reglages" aria-label="Réglages du niveau">
+      <section>
+        <h2>Le niveau</h2>
+        <label class="champ">Nom<input id="nom" type="text" maxlength="60" autocomplete="off" /></label>
+        <label class="champ">Nom du fichier<input id="fichier" type="text" maxlength="40" autocomplete="off" spellcheck="false" /></label>
+        <p class="note" id="chemin-fichier"></p>
+        <label class="champ">Description (sur la carte des époques et au début du niveau)
+          <textarea id="description" rows="2" maxlength="200"></textarea>
+        </label>
+        <label class="champ" id="ligne-difficulte">Difficulté visée (le test d’équilibrage dit si elle est atteinte)
+          <select id="difficulte"></select>
+        </label>
+        <label class="case-survie"><input type="checkbox" id="survie" /> Mode survie : après les vagues écrites, la partie continue sans fin, avec des vagues de plus en plus dures (et un classement)</label>
+      </section>
+
+      <section>
+        <h2>Époque</h2>
+        <div class="epoques" role="group" aria-label="Époque du niveau">
+          <button data-epoque="pixel"><strong>Pixel art</strong><span>Monde 1</span></button>
+          <button data-epoque="cartoon"><strong>Cartoon</strong><span>Monde 2</span></button>
+          <button data-epoque="voxel"><strong>Voxel doré</strong><span>Monde 3</span></button>
+        </div>
+        <label class="champ" id="ligne-ambiance">Ambiance
+          <select id="ambiance">
+            <option value="doree">Heure dorée</option>
+            <option value="aube">Aube brumeuse</option>
+            <option value="midi">Plein midi</option>
+            <option value="nuit">Nuit</option>
+          </select>
+        </label>
+      </section>
+
+      <section>
+        <h2>Carte</h2>
+        <div class="deux-colonnes">
+          <label class="champ">Largeur<input id="largeur" type="number" min="8" max="60" step="1" /></label>
+          <label class="champ">Hauteur<input id="hauteur" type="number" min="6" max="40" step="1" /></label>
+          <label class="champ">Or au départ<input id="or" type="number" min="0" step="10" /></label>
+          <label class="champ">Graine du décor<input id="graine" type="number" min="0" step="1" /></label>
+        </div>
+        <label class="champ">Arbres dans la zone de jeu : <span id="valeur-arbres"></span>
+          <input id="arbres" type="range" min="0" max="1" step="0.05" />
+        </label>
+        <button id="autre-decor" class="large">Tirer un autre décor</button>
+      </section>
+
+      <section>
+        <h2>Vagues</h2>
+        <div id="vagues"></div>
+        <button id="ajouter-vague" class="large">Ajouter une vague</button>
+      </section>
+
+      <section>
+        <h2>Gardiens</h2>
+        <p class="note">À partir de quelle vague on peut poser chaque gardien. Dans un didacticiel, on les découvre un par un.</p>
+        <div id="gardiens-dispo" class="gardiens-dispo"></div>
+      </section>
+
+      <section>
+        <h2>Didacticiel</h2>
+        <p class="note">Le premier niveau de chaque monde apprend à jouer. Coche les leçons à donner et les personnages à présenter : leur fiche s’ouvre quand un gardien arrive, ou quand un monstre se montre pour la première fois.</p>
+        <fieldset class="cases" id="lecons"><legend>Leçons</legend></fieldset>
+        <fieldset class="cases" id="presenter"><legend>Personnages présentés</legend></fieldset>
+      </section>
+
+      <section>
+        <h2>Vérification</h2>
+        <p class="note" id="resume-niveau"></p>
+        <ul id="verification" class="verification"></ul>
+      </section>
+
+      <section>
+        <h2>Équilibrage</h2>
+        <p class="note">Le jeu joue tout seul avec des joueurs imaginaires (selon les gardiens du niveau, jusqu’à 9), du plus malin au plus maladroit, pour voir si le niveau a bien la difficulté visée.</p>
+        <button id="equilibrer" class="large">Tester l’équilibrage</button>
+        <progress id="progression-equilibrage" class="progression" max="1" value="0" hidden aria-label="Avancement du test d'équilibrage"></progress>
+        <div id="resultat-equilibrage" class="resultat-equilibrage" aria-live="polite"></div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- Barre d'état : position de la souris et aide de l'outil -->
+  <footer class="barre-etat">
+    <span id="coordonnees" class="coordonnees"></span>
+    <span id="aide" class="aide"></span>
+  </footer>
+
+  <div id="annonce" class="annonce" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="/src/editeur/editeur.js"></script>
+</body>
+</html>

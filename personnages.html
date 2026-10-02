@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Galerie des personnages — Petits Gardiens</title>
+  <meta name="description" content="Chaque personnage de Petits Gardiens dans les trois styles : voxel, cartoon et pixel art." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/personnages.css" />
+</head>
+<body>
+  <header class="entete">
+    <h1>Galerie des personnages</h1>
+    <p>Chaque personnage est décrit une seule fois, dans <code>src/jeu/donnees.js</code>, et chaque style le dessine à sa façon.</p>
+    <!-- Tous, Monde 1, Monde 2… (rempli par personnages.js, d'après les niveaux de la campagne) -->
+    <nav class="filtres" id="filtres" aria-label="Quels personnages montrer"></nav>
+  </header>
+
+  <main>
+    <section aria-labelledby="titre-gardiens">
+      <h2 id="titre-gardiens">Les gardiens</h2>
+      <div class="grille" id="gardiens"></div>
+    </section>
+    <section aria-labelledby="titre-monstres">
+      <h2 id="titre-monstres">Les monstres</h2>
+      <div class="grille" id="monstres"></div>
+    </section>
+  </main>
+
+  <!-- Les styles 3D photographient les personnages avec un rendu complet, caché ici -->
+  <div class="ateliers" id="ateliers" aria-hidden="true"></div>
+
+  <script type="module" src="/src/personnages.js"></script>
+</body>
+</html>

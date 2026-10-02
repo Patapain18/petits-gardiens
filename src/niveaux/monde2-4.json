@@ -1,0 +1,93 @@
+{
+  "id": "monde2-4",
+  "nom": "La vallée du Colosse",
+  "description": "La nuit, le sol de la vallée tremble. Tout au bout du chemin, quelque chose d’énorme approche : c’est le dernier combat du monde 2.",
+  "difficulte": "normal",
+  "style": "cartoon",
+  "ambiance": "nuit",
+  "largeur": 24,
+  "hauteur": 14,
+  "or": 280,
+  "chemin": [
+    { "x": 2.5, "y": -1.5 },
+    { "x": 2.5, "y": 10.5 },
+    { "x": 7.5, "y": 10.5 },
+    { "x": 7.5, "y": 3.5 },
+    { "x": 12.5, "y": 3.5 },
+    { "x": 12.5, "y": 10.5 },
+    { "x": 17.5, "y": 10.5 },
+    { "x": 17.5, "y": 4.5 },
+    { "x": 20.5, "y": 4.5 }
+  ],
+  "socles": [
+    { "x": 5, "y": 8.5 },
+    { "x": 5, "y": 3.5 },
+    { "x": 10, "y": 6 },
+    { "x": 10, "y": 1.5 },
+    { "x": 10, "y": 9.5 },
+    { "x": 15, "y": 9 },
+    { "x": 15, "y": 3 },
+    { "x": 20, "y": 8 },
+    { "x": 0.5, "y": 6 },
+    { "x": 5, "y": 12.8 }
+  ],
+  "chateau": { "x": 21.9, "y": 4.5 },
+  "etangs": [
+    { "x": 5, "y": 6, "rayon": 1 },
+    { "x": 15, "y": 6.4, "rayon": 1.2 },
+    { "x": 10, "y": 12.6, "rayon": 1 }
+  ],
+  "lanternes": [
+    { "x": 3.4, "y": 2.4 },
+    { "x": 3.4, "y": 9.6 },
+    { "x": 6.6, "y": 9.6 },
+    { "x": 8.4, "y": 4.4 },
+    { "x": 11.6, "y": 4.4 },
+    { "x": 13.4, "y": 9.6 },
+    { "x": 16.6, "y": 9.6 },
+    { "x": 18.4, "y": 5.4 }
+  ],
+  "decor": { "graine": 2404, "arbres": 0.12 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1 },
+  "didacticiel": {
+    "presenter": ["colosse"]
+  },
+  "vagues": [
+    [
+      { "type": "gluant", "nombre": 12, "ecart": 0.9, "delai": 0 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 12, "ecart": 0.7, "delai": 0 },
+      { "type": "filou", "nombre": 10, "ecart": 0.6, "delai": 5 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 4, "ecart": 3, "delai": 0 },
+      { "type": "cuirasse", "nombre": 2, "ecart": 4, "delai": 6 }
+    ],
+    [
+      { "type": "voltigeur", "nombre": 18, "ecart": 0.45, "delai": 0 },
+      { "type": "gigogne", "nombre": 4, "ecart": 2.5, "delai": 4 },
+      { "type": "filou", "nombre": 14, "ecart": 0.4, "delai": 9 }
+    ],
+    [
+      { "type": "cuirasse", "nombre": 8, "ecart": 2.5, "delai": 0 },
+      { "type": "voltigeur", "nombre": 21, "ecart": 0.45, "delai": 5 },
+      { "type": "gluant", "nombre": 26, "ecart": 0.4, "delai": 9 }
+    ],
+    [
+      { "type": "gigogne", "nombre": 10, "ecart": 1.6, "delai": 0 },
+      { "type": "cuirasse", "nombre": 8, "ecart": 2, "delai": 5 },
+      { "type": "voltigeur", "nombre": 29, "ecart": 0.35, "delai": 9 }
+    ],
+    [
+      { "type": "filou", "nombre": 39, "ecart": 0.25, "delai": 0 },
+      { "type": "cuirasse", "nombre": 10, "ecart": 1.6, "delai": 4 },
+      { "type": "gigogne", "nombre": 10, "ecart": 1.4, "delai": 10 }
+    ],
+    [
+      { "type": "colosse", "nombre": 1, "ecart": 1, "delai": 0 },
+      { "type": "voltigeur", "nombre": 26, "ecart": 0.5, "delai": 6 },
+      { "type": "gigogne", "nombre": 8, "ecart": 2, "delai": 12 }
+    ]
+  ]
+}
