@@ -11,11 +11,17 @@
 // mais plus résistants (« force » multiplie leurs points de vie) : l'écran
 // reste lisible, et l'or gagné ne suit plus. C'est ce qui finit toujours
 // par faire tomber le château.
+//
+// Réglé en octobre 2026 (avant : 17 % et 40 monstres par groupe). Givrine +
+// Grondin tenait alors 35 vagues, plus d'une demi-heure, et toute la défense
+// était achetée dès la vague 13 : il ne restait plus rien à décider. Avec
+// moins de monstres par groupe, on gagne moins d'or et la foule est moins
+// serrée pour les rochers ; avec 20 %, le danger arrive plus tôt.
 // ─────────────────────────────────────────────────────────────
 import { MONSTRES } from './donnees.js';
 
-export const CROISSANCE = 1.17;   // chaque vague fabriquée : 17 % de menace en plus
-const MAX_PAR_GROUPE = 40;        // au-delà, des monstres renforcés plutôt que plus nombreux
+export const CROISSANCE = 1.2;    // chaque vague fabriquée : 20 % de menace en plus
+const MAX_PAR_GROUPE = 15;        // au-delà, des monstres renforcés plutôt que plus nombreux
 const VAGUES_EN_TOUT = 150;       // bien plus que ce qu'on peut tenir
 
 // La menace d'un groupe de monstres

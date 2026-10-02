@@ -232,6 +232,7 @@ function chiffresDe(c) {
   if (c.rayon) return [['Dégâts', `${fr(c.degats)} par seconde`], ['Chauffe', `jusqu’à ×${fr(c.rayon.max)}`], ['Portée', fr(c.portee)]];
   const lignes = [['Dégâts', fr(c.degats)], ['Cadence', `${fr(c.cadence)} s`], ['Portée', fr(c.portee)]];
   if (c.zone) lignes.push(['Explosion', fr(c.zone)]);
+  if (c.monstresMax) lignes.push(['Touche', `${c.monstresMax} monstres au plus`]);
   if (c.ralentissement) lignes.push(['Gel', `${fr(c.ralentissement.duree)} s, vitesse × ${fr(c.ralentissement.facteur)}`]);
   if (c.rebonds) lignes.push(['Éclair', `${c.rebonds.nombre + 1} monstres`]);
   if (c.souffle) lignes.push(['Recul', `${fr(c.souffle.recul)} case${c.souffle.recul >= 2 ? 's' : ''}`]);
@@ -256,6 +257,7 @@ function differences(avant, apres) {
   comparer('portée', avant.portee, apres.portee);
   if (avant.rayon) comparer('chauffe ×', avant.rayon.max, apres.rayon.max);
   if (avant.zone) comparer('explosion', avant.zone, apres.zone);
+  if (avant.monstresMax) comparer('monstres touchés', avant.monstresMax, apres.monstresMax);
   if (avant.ralentissement) comparer('gel', avant.ralentissement.duree, apres.ralentissement.duree, ' s');
   if (avant.rebonds) comparer('éclair', avant.rebonds.nombre + 1, apres.rebonds.nombre + 1, ' monstres');
   if (avant.souffle) comparer('recul', avant.souffle.recul, apres.souffle.recul);

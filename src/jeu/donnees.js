@@ -104,14 +104,16 @@ export const GARDIENS = {
   },
   grondin: {
     nom: 'Grondin',
-    role: 'Lance des rochers qui touchent tout un groupe',
-    description: 'Le plus costaud. Il lance des rochers en cloche qui explosent et touchent tout un groupe d’un coup.',
+    role: 'Lance des rochers qui touchent tout un petit groupe',
+    description: 'Le plus costaud. Il lance des rochers en cloche qui explosent et touchent jusqu’à 5 monstres d’un coup.',
     conseil: 'Il tire lentement mais très fort : parfait contre les groupes serrés et les monstres résistants. Il coûte cher, garde de l’or pour lui.',
     projectile: { vitesse: 7, type: 'rocher', cloche: true }, // tir en cloche : il retombe au sol, les volants passent au-dessus
     niveaux: [
       {
         cout: 120, degats: 24, cadence: 2.3, portee: 3.6,
         zone: 1.2, // rayon de l'explosion
+        // l'explosion touche au plus 5 monstres, les plus près du point de chute (voir exploser() dans moteur.js)
+        monstresMax: 5,
         apparence: {
           gabarit: 'gardien', taille: 1.1, // un peu plus costaud que les autres
           couleurs: { clair: '#bc94ee', peau: '#8a5cc8', fonce: '#583890' },
@@ -119,7 +121,7 @@ export const GARDIENS = {
         },
       },
       {
-        nom: 'Tonnerre', cout: 100, degats: 40, cadence: 2.1, portee: 3.8, zone: 1.4,
+        nom: 'Tonnerre', cout: 100, degats: 40, cadence: 2.1, portee: 3.8, zone: 1.4, monstresMax: 6,
         apparence: {
           gabarit: 'gardien', taille: 1.18,
           couleurs: { clair: '#c8a0f4', peau: '#7a48c0', fonce: '#4a2a80' },
@@ -127,7 +129,7 @@ export const GARDIENS = {
         },
       },
       {
-        nom: 'Séisme', cout: 150, degats: 62, cadence: 1.9, portee: 4.0, zone: 1.6,
+        nom: 'Séisme', cout: 150, degats: 62, cadence: 1.9, portee: 4.0, zone: 1.6, monstresMax: 8,
         apparence: {
           gabarit: 'gardien', taille: 1.26,
           couleurs: { clair: '#d8b0ff', peau: '#6a38b0', fonce: '#3a1e6a' },

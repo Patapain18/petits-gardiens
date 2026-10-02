@@ -40,7 +40,7 @@ Ce qui change en ligne :
 |---|---|---|
 | Braise (orange) | 70 | Boules de feu rapides, sur une seule cible |
 | Givrine (bleue) | 75 | Gèle un petit groupe : les monstres avancent deux fois moins vite |
-| Grondin (violet) | 120 | Rochers en cloche qui touchent tout un groupe (mais pas les volants) |
+| Grondin (violet) | 120 | Rochers en cloche qui touchent jusqu'à 5 monstres d'un coup (mais pas les volants) |
 | Étincelle (jaune), monde 2 | 90 | Un éclair qui saute d'un monstre à l'autre, et touche les volants |
 | Bourrasque (menthe), monde 2 | 75 | Souffle les monstres en arrière sur le chemin |
 | Pépite (cuivre), monde 3 | 100 | Ne tire pas : rapporte de l'or à la fin de chaque vague |
@@ -66,7 +66,7 @@ Chaque gardien a **3 niveaux**. On l'améliore depuis son menu : le bouton « Am
 |---|---|---|---|
 | Braise | 70 pièces · 9 dégâts toutes les 0,8 s | **Braise ardente** (+70) · 14 dégâts / 0,62 s | **Brasier** (+110) · 22 dégâts / 0,54 s, flamme bleue |
 | Givrine | 75 · 7 dégâts, gel 2,5 s | **Givre** (+70) · 11 dégâts, gel 3 s, zone plus large | **Blizzard** (+110) · 16 dégâts, gel 3,5 s, cape blanche |
-| Grondin | 120 · 24 dégâts toutes les 2,3 s | **Tonnerre** (+100) · 40 dégâts, explosion plus large | **Séisme** (+150) · 62 dégâts, mortier d'acier |
+| Grondin | 120 · 24 dégâts toutes les 2,3 s, 5 monstres au plus | **Tonnerre** (+100) · 40 dégâts, explosion plus large, 6 monstres | **Séisme** (+150) · 62 dégâts, 8 monstres, mortier d'acier |
 | Étincelle | 90 · 9 dégâts, l'éclair touche 3 monstres | **Éclair** (+75) · 14 dégâts, 4 monstres | **Foudre** (+115) · 20 dégâts, 4 monstres, antennes blanches |
 | Bourrasque | 75 · recul de 1,2 case | **Rafale** (+75) · recul de 1,5 case, souffle plus large | **Tornade** (+115) · recul de 1,9 case, moulinet violet |
 | Pépite | 100 · +25 pièces à chaque vague | **Filon** (+80) · +45 pièces | **Trésor** (+120) · +75 pièces, pioche de cristal |
@@ -143,9 +143,25 @@ Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagu
 
 ![L'arène pixel, en pleine partie](docs/arene.jpg)
 
-**Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **17 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 40 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
+**Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **20 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
 
-**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel : le bon joueur tient 26 à 30 vagues, des Braise seules 16, et sans jamais améliorer 17. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
+**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel : le bon joueur tient 20 vagues, des Braise seules 12, et sans jamais améliorer 11 ou 12. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
+
+**Le réglage d'octobre 2026.** L'arène était trop facile, surtout avec Givrine + Grondin. Les mesures (des parties simulées, et une recherche automatique de la meilleure composition, socle par socle) l'ont confirmé : ce mélange tenait 34 à 36 vagues, plus d'une demi-heure, contre 26 pour le bon joueur. La raison : les monstres gelés se tassent les uns contre les autres, et dans les dernières vagues un seul rocher en touchait 20 à 40 (jusqu'à 75 !). Autre problème : toute la défense était achetée dès la vague 13. Pendant plus de 20 vagues, il ne restait rien à décider, et l'or s'entassait (22 000 pièces à la fin). Trois changements :
+
+- un rocher du Grondin touche **au plus 5 monstres** (6 pour Tonnerre, 8 pour Séisme) : les plus près du point de chute. C'est la limite la plus basse qui laisse tous les niveaux de la campagne à leur difficulté (avec 4, le pic du Dragon devient trop dur) ;
+- les vagues fabriquées apportent **20 %** de menace en plus à chaque fois, au lieu de 17 % : le danger arrive plus tôt ;
+- **15 monstres au plus par groupe**, au lieu de 40 (au-delà, ils sont renforcés) : moins de monstres, c'est moins d'or gagné, et une foule moins serrée pour les rochers. La défense est complète vers la vague 14, et non plus 13 : l'or compte un peu plus longtemps.
+
+| Composition | Avant | Après |
+|---|---|---|
+| La meilleure trouvée par la recherche (surtout des Grondin, et 3 ou 4 Givrine) | 38 vagues | 24 |
+| Givrine + Grondin, un sur deux | 34 à 36 | 22 à 24 |
+| Le bon joueur (le mélange) | 26 à 30 | 20 |
+| Braise + Givrine + Grondin | 30 | 20 |
+| Que des Braise | 16 | 12 |
+
+Givrine + Grondin reste le meilleur mélange de l'arène (c'est le rôle du Grondin : les foules), mais il ne tient plus que quelques vagues de plus qu'un bon mélange, au lieu de dix. Un bonus de fin de vague plus petit a aussi été essayé : aucun effet mesurable (la défense est complète avant que ça compte), il n'a donc pas changé.
 
 **Le classement** (`src/classement.js`) est **en ligne** : tous les joueurs se comparent (voir la partie suivante). Ses fonctions répondaient déjà « plus tard » (`async`) quand les scores étaient gardés sur l'ordinateur : pour passer en ligne, ce fichier a changé, et le reste du jeu presque pas. Les pseudos sont toujours affichés tels quels (`textContent`), jamais interprétés comme du HTML.
 
@@ -601,6 +617,7 @@ Les monstres n'ont qu'un niveau : leur fiche contient directement leurs chiffres
 |---|---|---|
 | `ralentissement: { facteur, duree, zone }` | gardien | le gel de Givrine |
 | `zone` | gardien | le rayon d'explosion du Grondin |
+| `monstresMax` | gardien | combien de monstres une explosion touche au plus (les plus près du point de chute) |
 | `rebonds: { nombre, saut, attenuation }` | gardien | l'éclair d'Étincelle : combien de sauts, à quelle distance, et ce qui reste des dégâts à chaque saut (0,7 = 70 %) |
 | `souffle: { recul, zone }` | gardien | le vent de Bourrasque : de combien de cases reculent les monstres autour de la cible |
 | `projectile: { cloche: true }` | gardien | un tir en cloche, qui ne touche pas les volants |

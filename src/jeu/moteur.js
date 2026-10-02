@@ -413,10 +413,18 @@ function souffler(etat, cible, { recul, zone }) {
   etat.evenements.push({ type: 'souffle', x: cible.x, y: cible.y, rayon: zone });
 }
 
+// L'explosion d'un rocher touche les monstres autour du point de chute, mais au plus
+// « monstresMax » : les plus proches d'abord. Sans cette limite, des monstres gelés par une
+// Givrine, tassés les uns contre les autres, prenaient tous le même rocher (jusqu'à 75 d'un
+// coup dans l'arène !), et Givrine + Grondin rendait le mode survie bien trop facile.
 function exploser(etat, p, fiche) {
+  const autour = [];
   for (const e of etat.ennemis) {
-    if (e.pv > 0 && peutViser(fiche, e) && Math.hypot(e.x - p.x, e.y - p.y) <= fiche.zone) blesser(etat, e, fiche.degats);
+    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    if (e.pv > 0 && peutViser(fiche, e) && d <= fiche.zone) autour.push({ e, d });
   }
+  autour.sort((a, b) => a.d - b.d);
+  for (const { e } of autour.slice(0, fiche.monstresMax ?? Infinity)) blesser(etat, e, fiche.degats);
   etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: p.type, rayon: fiche.zone });
 }
 
