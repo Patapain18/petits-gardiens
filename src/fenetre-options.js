@@ -34,7 +34,7 @@ const SECTIONS = [
       },
       {
         cle: 'partage', type: 'case', texte: 'Partager mes parties',
-        aide: 'À la fin de chaque partie, tes décisions (où tu poses tes gardiens, quand tu lances les pouvoirs…) partent sur le serveur du classement, avec ton pseudo. Elles servent à revoir les parties et à mieux régler le jeu. Rien d’autre sur toi n’est envoyé.',
+        aide: 'À la fin de chaque partie, tes décisions (où tu poses tes gardiens, quand tu lances les pouvoirs…) partent sur le serveur du classement, avec ton pseudo. Elles servent à revoir les parties et à mieux régler le jeu. Rien d’autre sur toi n’est envoyé. (Le site compte aussi ses visites, sans savoir qui tu es : pas de cookie, seulement des compteurs.)',
       },
     ],
   },

@@ -13,6 +13,9 @@ import { Carte } from './carte.js';
 import { Panneau } from './panneau.js';
 import { conseilsNiveau } from './conseils.js';
 import { arrondir, formaterFiche, nouvelleFiche, placerChateau } from './format.js';
+import { compterVisite } from '../compteur.js';
+
+compterVisite('editeur'); // une visite de plus (voir compteur.js)
 
 const CLE_BROUILLON = 'pg-editeur-brouillon'; // le travail en cours (fiche + infos d'enregistrement)
 const CLE_TEST = 'pg-editeur-fiche';          // la dernière fiche valide, lue par le jeu avec ?niveau=editeur

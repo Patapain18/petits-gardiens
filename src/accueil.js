@@ -10,6 +10,7 @@ import { DIFFICULTES } from './jeu/niveau.js';
 import { lireProgression, choisirToutDebloque, effacerProgression } from './progression.js';
 import { meilleursScores, sourceDuClassement, SAISON } from './classement.js';
 import { envoyerPartiesEnAttente } from './parties.js';
+import { compterVisite } from './compteur.js';
 import { imagePersonnage } from './rendus/pixel.js';
 import { creerFenetreOptions } from './fenetre-options.js';
 
@@ -159,6 +160,7 @@ dessinerDefile();
 dessinerFrise();
 dessinerDefis();
 envoyerPartiesEnAttente(); // une partie quittée en route la dernière fois (voir parties.js)
+compterVisite('accueil'); // une visite de plus (voir compteur.js)
 // Si on revient sur la page avec le bouton « retour » du navigateur, la progression
 // et le classement ont pu changer
 addEventListener('pageshow', () => { dessinerFrise(); dessinerDefis(); });

@@ -1,0 +1,142 @@
+/* ─────────────────────────────────────────────────────────────
+   La page des visites (visites.html) : les couleurs de la carte des
+   époques, et des panneaux façon pixel art (comme les cartes des arènes).
+   ───────────────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+:root {
+  --fond: #2a1b2e;
+  --bord-clair: #8a5a6a;
+  --bord-sombre: #120a14;
+  --texte: #fff4e0;
+  --texte-doux: #e8b88a;
+  --texte-pale: #c9b8a0;
+  --or: #ffd27a;
+  --brun: #6a3a14;
+  --accent: #ffa63d;
+  --barre-visiteurs: #8a5a6a; /* les visiteurs du jour… */
+  --barre-joueurs: #ffa63d;   /* …dont ceux qui ont joué */
+}
+
+html { background: #140e1a; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--texte);
+  font: 17px/1.4 'Pixelify Sans', system-ui, sans-serif;
+  font-variant-ligatures: none; /* (comme sur la carte : Pixelify Sans dessine « fi » d'un seul glyphe) */
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 170, 90, 0.22), transparent 70%),
+    linear-gradient(#2a1d36, #140e1a 70%);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Le haut de la page ── */
+.entete { position: relative; max-width: 1040px; margin: 0 auto; padding: 22px 16px 8px; text-align: center; }
+.retour { position: absolute; top: 18px; left: 16px; color: var(--or); text-underline-offset: 3px; }
+.entete h1 {
+  margin: 26px 0 4px;
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  line-height: 1;
+  color: var(--or);
+  text-shadow: 0 4px 0 var(--brun), 0 8px 18px rgba(0, 0, 0, 0.5);
+}
+.entete p { margin: 0 0 14px; color: #e9d6b8; }
+
+/* les boutons de la période (7, 30 ou 90 jours) */
+.periodes { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.periodes button {
+  padding: 6px 14px;
+  font: inherit;
+  color: var(--texte);
+  background: var(--fond);
+  border: 2px solid var(--bord-sombre);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--bord-sombre);
+  cursor: pointer;
+}
+.periodes button[aria-pressed='true'] { color: #2a1a10; background: var(--or); border-color: var(--brun); box-shadow: 0 3px 0 var(--brun); }
+.periodes button:active { translate: 0 2px; box-shadow: 0 1px 0 var(--bord-sombre); }
+.periodes button:focus-visible, .barres:focus-visible, .pied input:focus-visible { outline: 3px solid var(--texte); outline-offset: 2px; }
+
+/* ── Le contenu ── */
+.contenu, #tableau { display: grid; gap: 18px; }
+.contenu { max-width: 1040px; margin: 0 auto; padding: 8px 16px 10px; }
+.panneau {
+  padding: 16px 18px;
+  background: var(--fond);
+  border: 3px solid var(--bord-sombre);
+  box-shadow: inset 3px 3px 0 var(--bord-clair), 5px 5px 0 var(--bord-sombre);
+}
+.panneau h2 { margin: 0 0 10px; font-size: 1.15em; color: var(--or); }
+.etat { margin: 0; text-align: center; color: var(--texte-doux); }
+
+/* les quatre grands chiffres */
+.chiffres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.chiffre { display: flex; flex-direction: column; gap: 2px; }
+.titre-chiffre { color: var(--texte-doux); font-size: 0.9em; }
+.valeur { font-size: 2.2em; line-height: 1.1; color: var(--or); font-variant-numeric: tabular-nums; }
+.aide { color: var(--texte-pale); font-size: 0.78em; }
+
+/* ── Le graphique : une colonne par jour ──
+   Chaque colonne reçoit ses deux hauteurs (de 0 à 1) dans --visiteurs et --joueurs ;
+   la barre orange (les joueurs) se dessine par-dessus la barre claire (tous les visiteurs). */
+.barres {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
+  gap: 2px;
+  height: 200px;
+  padding-top: 20px; /* la place du repère, en haut */
+  border-bottom: 2px solid var(--bord-clair);
+}
+/* le repère : le jour le plus haut monte jusqu'au trait pointillé */
+.barres::before { content: ''; position: absolute; top: 20px; left: 0; right: 0; border-top: 1px dashed rgba(232, 184, 138, 0.35); }
+.repere { position: absolute; top: 0; left: 0; font-size: 0.75em; color: var(--texte-doux); }
+.jour { position: relative; cursor: pointer; }
+.jour.choisi { background: rgba(255, 244, 224, 0.07); }
+.barre { position: absolute; right: 0; bottom: 0; left: 0; }
+.barre.visiteurs { height: calc(var(--visiteurs) * 100%); background: var(--barre-visiteurs); }
+.barre.joueurs { height: calc(var(--joueurs) * 100%); background: var(--barre-joueurs); }
+.jour:hover .barre.visiteurs, .jour.choisi .barre.visiteurs { background: #b47f8e; }
+
+.axe { display: flex; justify-content: space-between; margin-top: 6px; color: var(--texte-doux); font-size: 0.8em; }
+.detail-jour { min-height: 1.4em; margin: 12px 0 6px; }
+.legende { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; color: var(--texte-pale); font-size: 0.8em; }
+.pastille { display: inline-block; width: 12px; height: 12px; }
+.pastille.visiteurs { background: var(--barre-visiteurs); }
+.pastille.joueurs { margin-left: 10px; background: var(--barre-joueurs); }
+
+/* ── Les listes : une ligne par page, niveau, pays… avec une barre de fond à sa mesure ── */
+.listes { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.liste h2 { margin-bottom: 0; }
+.unite { margin: 0 0 10px; color: var(--texte-pale); font-size: 0.78em; }
+.liste ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.liste li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 8px;
+  background: linear-gradient(to right, rgba(255, 166, 61, 0.3) calc(var(--part) * 100%), rgba(0, 0, 0, 0.22) 0);
+}
+.liste .nom { min-width: 0; overflow-wrap: anywhere; }
+.liste small { display: block; color: var(--texte-pale); font-size: 0.75em; }
+.liste b { color: var(--or); font-variant-numeric: tabular-nums; }
+.liste-vide { margin: 0; color: var(--texte-doux); font-size: 0.9em; }
+
+/* ── Le bas de la page ── */
+.pied { max-width: 1040px; margin: 0 auto; padding: 14px 16px 30px; color: var(--texte-pale); font-size: 0.85em; text-align: center; }
+.pied label { color: var(--texte); cursor: pointer; }
+.pied p { max-width: 640px; margin: 8px auto 0; }
+.pied .mot-ignorer { min-height: 1.2em; margin-top: 4px; color: var(--accent); }
+
+/* ── Petits écrans ── */
+@media (max-width: 760px) {
+  .retour { position: static; display: inline-block; }
+  .entete h1 { margin-top: 14px; }
+  .chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .barres { height: 160px; gap: 1px; }
+}

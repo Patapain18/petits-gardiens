@@ -15,6 +15,9 @@ import { MONDES } from './jeu/campagne.js';
 import RenduVoxel from './rendus/voxel.js';
 import RenduCartoon from './rendus/cartoon.js';
 import { imagePersonnage } from './rendus/pixel.js';
+import { compterVisite } from './compteur.js';
+
+compterVisite('personnages'); // une visite de plus (voir compteur.js)
 
 const FICHES = import.meta.glob('./niveaux/*.json', { eager: true, import: 'default' });
 const $ = (s) => document.querySelector(s);

@@ -25,7 +25,7 @@ Ce qui change en ligne :
 - **Le site vit dans un sous-dossier** (`…github.io/petits-gardiens/`) : `vite.config.js` fabrique donc des adresses relatives (`base: './'`).
 - **Les outils de développement n'existent pas en ligne** : pas d'« Ouvrir tous les niveaux (test) », pas de captures d'écran ni de sons enregistrés. Dans l'éditeur, on peut ouvrir les niveaux du jeu (ils sont rangés dans le site), les modifier, les tester et télécharger leur fiche, mais pas les enregistrer dans le projet : ça demande `npm run dev`.
 - **La progression et les options sont gardées par chaque navigateur** : chacun a les siennes, sur son ordinateur.
-- **Le classement du mode survie, lui, est en ligne**, sur un petit serveur à part. Il ne part pas avec le site : il se met en ligne sur Vercel (voir « Le classement en ligne »).
+- **Le classement du mode survie, lui, est en ligne**, sur un petit serveur à part (avec les parties enregistrées et le compteur de visites). Il ne part pas avec le site : il se met en ligne sur Vercel (voir « Le classement en ligne »).
 
 ## Comment on joue
 
@@ -350,6 +350,28 @@ Chaque partie est rejouée avec **les règles de sa version** : le moteur de l'�
 
 **Ce qui est envoyé** : les décisions de la partie, le pseudo du classement (s'il y en a un) et la famille du navigateur (Safari, Chrome…), utile si une partie se rejoue mal. Rien d'autre. Chaque joueur peut refuser dans les Options (« Partager mes parties »), et la carte de début de partie le rappelle. Les parties jouées avec `npm run dev` partent « pour essai » : le serveur les range à part, pour ne pas les mélanger aux vraies.
 
+## Les visites
+
+La page **`visites.html`** montre combien de monde passe par le jeu : les visiteurs de chaque jour (et combien ont lancé une partie), les pages ouvertes, les niveaux joués, les pays, les navigateurs, les systèmes, et les sites d'où viennent les visiteurs, sur 7, 30 ou 90 jours. Aucune autre page n'y mène : c'est la page du créateur du jeu, à garder dans ses favoris (https://patapain18.github.io/petits-gardiens/visites.html). En développement, `visites.html?demo` montre de faux chiffres, pour voir la page sans attendre de visiteurs.
+
+**Pourquoi pas le compteur de Vercel ?** Vercel propose un compteur tout prêt (« Web Analytics »), mais il ne compte que les pages que Vercel envoie lui-même. Le jeu, lui, est envoyé par GitHub Pages. Essayé depuis le site en ligne, l'envoi d'une visite au compteur de Vercel est bloqué par le navigateur (« No 'Access-Control-Allow-Origin' header ») : c'est la règle CORS (voir « Le classement en ligne »), et le compteur de Vercel n'a pas notre site dans sa liste. Notre serveur, si.
+
+**Comment ça compte :**
+
+1. Chaque page appelle `compterVisite('accueil')`, `compterVisite('jeu', niveau)`… (dans `src/compteur.js`), et le jeu appelle `compterPartie(niveau)` quand on lance la première vague d'une partie.
+2. Le message part avec `sendBeacon` : sans attendre de réponse, et même si on quitte la page aussitôt. Il contient le nom de la page (et du niveau), et le site d'où vient le visiteur s'il a suivi un lien (juste son nom : `discord.com`).
+3. Le serveur (`serveur/api/visites.js`, dans la même base que le classement) ajoute 1 aux compteurs du jour : la page, le niveau, le site d'origine. Pour un visiteur pas encore vu aujourd'hui, il ajoute aussi 1 aux visiteurs, à son pays (Vercel le devine d'après l'adresse Internet), à son navigateur et à son système.
+
+**Compter les visiteurs différents sans savoir qui ils sont.** Le serveur calcule une empreinte du visiteur : un hachage SHA-256 de son adresse Internet, de son navigateur et de la date du jour. Il la donne à un **HyperLogLog** de Redis (`PFADD`), une petite structure qui estime combien de choses différentes on lui a données, sans jamais pouvoir les rendre : elle répond seulement « nouveau » ou « déjà vu ». L'empreinte n'est rangée nulle part, et demain la même personne en aura une autre : impossible de suivre quelqu'un d'un jour à l'autre. La base ne contient donc que des compteurs, effacés au bout de 400 jours. Le revers : quelqu'un qui vient trois jours compte trois visiteurs (la page le dit : « chacun compte une fois par jour »).
+
+**Ce qui ne compte pas** : le développement (`npm run dev`) et le site fabriqué essayé sur l'ordinateur (`localhost`), les robots des moteurs de recherche, les navigateurs pilotés par un programme, et au-delà de 30 envois par minute d'un même visiteur. La page des visites a aussi une case « Ne pas compter mes visites sur cet ordinateur », pour ne pas se compter soi-même (le choix est gardé par le navigateur).
+
+| Question au serveur | Réponse |
+|---|---|
+| `POST /api/visites` avec `{ page, niveau?, source? }` | compte une visite (seulement depuis le vrai site) |
+| `POST /api/visites` avec `{ evenement: 'partie', niveau }` | compte une partie lancée |
+| `GET /api/visites?jours=30` | les compteurs des 30 derniers jours (400 au plus), jour par jour |
+
 ## Le didacticiel
 
 Le premier niveau de chaque monde apprend à jouer. Tout est dans sa fiche :
@@ -634,6 +656,7 @@ personnages.html       la galerie des personnages, chacun dans les trois styles
 sons.html              la salle des sons : le thème et les bruitages, dans les trois époques
 lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
+visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
 src/
 ├── accueil.js         la carte des époques : les mondes, les niveaux, la progression
 ├── accueil.css        son allure (chaque monde dans le style de son époque)
@@ -648,6 +671,8 @@ src/
 ├── classement.js      le classement du mode survie : il demande au serveur, ou garde le score sur l'ordinateur
 ├── parties.js         l'envoi des parties enregistrées au serveur (et celles en attente)
 ├── revoir.js          la page « Revoir la partie » : la partie rejouée et dessinée (+ revoir.css)
+├── compteur.js        le compteur de visites : chaque page prévient le serveur qu'on l'a ouverte
+├── visites.js         la page des visites : les chiffres additionnés et dessinés (+ visites.css)
 ├── style.css          l'interface du jeu (elle change de look selon le style choisi)
 ├── niveaux/           LES FICHES DE NIVEAU (des données pures, sans code)
 │   ├── monde1-1.json … monde1-4.json   les quatre niveaux du monde 1
@@ -692,6 +717,7 @@ src/
 serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir « Le classement en ligne »)
 ├── api/scores.js      la fonction du classement : vérifie, range et lit les scores
 ├── api/parties.js     la fonction des parties enregistrées : vérifie, range et relit les parties
+├── api/visites.js     la fonction du compteur de visites : des compteurs par jour, rien sur les visiteurs
 ├── vercel.json        la fonction tourne à Paris, près de la base ; l'adresse seule renvoie vers le jeu
 └── package.json
 scripts/

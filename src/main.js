@@ -16,6 +16,7 @@ import { NIVEAU_MAX, POUVOIRS, HEROS, caracteristiques } from './jeu/donnees.js'
 import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe, ficheDuHeros } from './jeu/benedictions.js';
 import { nouvelEnregistrement, agir as agirEtNoter, noterControle } from './jeu/enregistrement.js';
 import { VERSION, preparerEnvoi, garderEtEnvoyer, garderEnAttente, envoyerPartiesEnAttente } from './parties.js';
+import { compterVisite, compterPartie } from './compteur.js';
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
 import { noterVictoire } from './progression.js';
@@ -85,6 +86,10 @@ function boutons(liste) {
 
 const niveau = chargerOuSignaler(ficheDemandee());
 const place = depuisEditeur ? null : placeDuNiveau(niveau.id); // sa place dans la campagne (null hors campagne)
+// Le compteur de visites (voir compteur.js) : une visite du jeu, avec le niveau ouvert. (Une fiche
+// de l'éditeur n'existe que dans ce navigateur : son nom ne dirait rien, on la compte « editeur ».)
+const niveauCompte = depuisEditeur ? 'editeur' : niveau.id;
+compterVisite('jeu', niveauCompte);
 const didacticiel = new Didacticiel(niveau);
 const son = creerSon(); // la musique et les bruitages (rien ne sonne avant le premier clic)
 
@@ -848,7 +853,11 @@ $('#message').addEventListener('click', (e) => {
   if (action === 'jouer') { $('#message').hidden = true; enPause = false; }
   if (action === 'recommencer') recommencer();
 });
-$('#lancer').addEventListener('click', () => { if (agir('lancerVague')) son.effet('vague'); });
+$('#lancer').addEventListener('click', () => {
+  if (!agir('lancerVague')) return;
+  son.effet('vague');
+  if (etat.vague === 1) compterPartie(niveauCompte); // la première vague : une partie lancée de plus
+});
 $('#recommencer').addEventListener('click', recommencer);
 // la vitesse est une option : le jeu s'en souvient (l'abonnement aux options, plus bas, l'applique)
 $('#vitesse').addEventListener('click', () => changerOptions({ vitesse: vitesse === 1 ? 2 : vitesse === 2 ? 3 : 1 }));

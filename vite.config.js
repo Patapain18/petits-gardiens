@@ -183,13 +183,16 @@ export default defineConfig(({ command }) => ({
   // Des adresses relatives (« ./assets/… » plutôt que « /assets/… ») : le site marche aussi
   // rangé dans un sous-dossier, comme sur GitHub Pages (patapain18.github.io/petits-gardiens/)
   base: './',
-  // Sept pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
+  // Huit pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
   // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html),
-  // la salle des sons (sons.html), l'atelier des lumières (lumieres.html) et la page
-  // pour revoir une partie enregistrée (revoir.html)
+  // la salle des sons (sons.html), l'atelier des lumières (lumieres.html), la page
+  // pour revoir une partie enregistrée (revoir.html) et celle des visites (visites.html)
   build: {
     rollupOptions: {
-      input: { accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html', lumieres: 'lumieres.html', revoir: 'revoir.html' },
+      input: {
+        accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html',
+        sons: 'sons.html', lumieres: 'lumieres.html', revoir: 'revoir.html', visites: 'visites.html',
+      },
     },
   },
 }));

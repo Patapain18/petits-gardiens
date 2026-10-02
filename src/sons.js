@@ -6,6 +6,9 @@
 // ─────────────────────────────────────────────────────────────
 import { creerSon } from './son/son.js';
 import { ORCHESTRES } from './son/orchestres.js';
+import { compterVisite } from './compteur.js';
+
+compterVisite('sons'); // une visite de plus (voir compteur.js)
 
 // le thème ne démarre pas tout seul ici : on choisit ce qu'on écoute
 const son = creerSon({ musique: false });

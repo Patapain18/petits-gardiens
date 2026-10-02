@@ -23,6 +23,9 @@ import { creerPartie, majPartie, construire, ameliorer, lancerVague, estDisponib
 import { MONDES } from './jeu/campagne.js';
 import AMBIANCES from './rendus/ambiances.json';
 import { formaterAmbiances } from './rendus/format-ambiances.js';
+import { compterVisite } from './compteur.js';
+
+compterVisite('lumieres'); // une visite de plus (voir compteur.js)
 
 const FICHES = import.meta.glob('./niveaux/*.json', { eager: true, import: 'default' });
 const ficheDe = (id) => FICHES[`./niveaux/${id}.json`];

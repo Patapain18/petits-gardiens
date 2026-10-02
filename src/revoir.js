@@ -17,6 +17,9 @@ import { creerLecteur } from './jeu/enregistrement.js';
 import { lirePartie, VERSION } from './parties.js';
 import { lireOptions } from './options.js';
 import { creerSon } from './son/son.js';
+import { compterVisite } from './compteur.js';
+
+compterVisite('revoir'); // une visite de plus (voir compteur.js)
 
 const FICHES = import.meta.glob('./niveaux/*.json', { eager: true, import: 'default' });
 const STYLES = {
