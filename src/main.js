@@ -10,9 +10,9 @@
 // ─────────────────────────────────────────────────────────────
 import {
   creerPartie, majPartie, construire, vendre, lancerVague, tourSur, ameliorer, prixAmelioration, prixRevente, estDisponible,
-  vaguesTerminees, pouvoirPret, lancerMeteore, lancerGrandFroid,
+  vaguesTerminees, pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros,
 } from './jeu/moteur.js';
-import { NIVEAU_MAX, POUVOIRS, caracteristiques } from './jeu/donnees.js';
+import { NIVEAU_MAX, POUVOIRS, HEROS, caracteristiques } from './jeu/donnees.js';
 import { BENEDICTIONS, TOUTES_LES, choisirBenediction, ficheDe, pouvoirDe } from './jeu/benedictions.js';
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
@@ -108,8 +108,9 @@ const optionsDeDepart = lireOptions(); // les options du joueur (voir src/option
 let vitesse = optionsDeDepart.vitesse;
 let enPause = true;            // en pause tant qu'on n'a pas cliqué sur « Jouer »
 // socle survolé / sélectionné ; apercuPortee = la portée à montrer pendant qu'on survole « Améliorer » ;
-// visee = 'meteore' pendant qu'on vise le Météore, viseeMeteore = l'endroit visé ({ x, y, rayon })
-const ui = { survol: -1, selection: -1, apercuPortee: null, visee: null, viseeMeteore: null };
+// visee = 'meteore' pendant qu'on vise le Météore, viseeMeteore = l'endroit visé ({ x, y, rayon }) ;
+// herosChoisi : on a cliqué sur le héros, le prochain clic sur la carte l'envoie (viseeHeros : où)
+const ui = { survol: -1, selection: -1, apercuPortee: null, visee: null, viseeMeteore: null, herosChoisi: false, viseeHeros: null };
 
 // Réglages d'affichage, gardés si on change de style puis qu'on revient : l'ambiance de départ vient
 // de la fiche du niveau, la caméra (voxel) et la qualité viennent des options du joueur.
@@ -187,6 +188,7 @@ function traiterEvenements() {
     if (ev.type === 'amelioration') bulle(`Niveau ${ev.niveau}`, ev.x, ev.y, 1.4, 'bulle-niveau');
     if (ev.type === 'recolte') bulle('+' + ev.or, ev.x, ev.y, 1.4); // la Pépite rapporte sa récolte
     if (ev.type === 'grandFroid') montrerGivre();
+    if (ev.type === 'herosNiveau') bulle(`${HEROS.nom} : niveau ${ev.niveau} !`, ev.x, ev.y, 1.9, 'bulle-niveau');
   }
   etat.evenements.length = 0;
   if (etat.statut === 'perdu' && !$('#message').dataset.fin) afficherFin(false);
@@ -224,6 +226,7 @@ function majInterface() {
   }
   if (etat.pouvoirs) majPouvoirs();
   if (niveau.benedictions) majBenedictions();
+  if (etat.heros) majBoutonHeros();
   // Le menu ouvert se met à jour si l'or change, ou si un gardien arrive (boutons grisés ou non)
   if (!menu.hidden) {
     menu.querySelectorAll('[data-prix]').forEach((b) => {
@@ -394,6 +397,7 @@ function utiliserPouvoir(nom) {
   if (!pouvoirPret(etat, nom)) return;
   if (nom === 'froid') { lancerGrandFroid(etat); return; }
   if (ui.visee) { arreterVisee(); return; }
+  lacherHeros();
   ui.visee = 'meteore';
   fermerMenu();
   conteneur.classList.add('visee');
@@ -417,6 +421,52 @@ function majPouvoirs() {
     if (nom === 'meteore') b.setAttribute('aria-pressed', String(ui.visee === 'meteore'));
   }
   if (ui.visee && !pouvoirPret(etat, 'meteore')) arreterVisee(); // la vague est finie : on ne vise plus
+}
+
+// ── Le héros ─────────────────────────────────────────────────
+// On clique sur lui (ou sur son bouton, ou la touche H), puis sur la carte : il y marche.
+// Clic droit, Échap ou un nouveau clic sur lui : on le lâche.
+const boutonHeros = $('#bouton-heros');
+boutonHeros.title = `${HEROS.description} (touche H)`;
+boutonHeros.addEventListener('click', () => { basculerHeros(); boutonHeros.blur(); });
+
+function basculerHeros() {
+  if (!etat.heros) return;
+  if (ui.herosChoisi) { lacherHeros(); return; }
+  arreterVisee();
+  fermerMenu();
+  ui.herosChoisi = true;
+  conteneur.classList.add('deplacement');
+}
+
+function lacherHeros() {
+  ui.herosChoisi = false;
+  ui.viseeHeros = null;
+  conteneur.classList.remove('deplacement');
+}
+
+// Le héros est-il sous la souris ? (on compare à l'écran : il est grand, et debout). S'il se tient
+// tout près d'un socle, c'est le plus proche de la souris qui gagne : on peut toujours ouvrir le socle.
+function herosSous(px, py) {
+  const h = etat.heros;
+  if (!h || !rendu) return false;
+  const pied = rendu.versEcran(h.x, h.y, 0), corps = rendu.versEcran(h.x, h.y, 0.5), cote = rendu.versEcran(h.x + 0.7, h.y, 0);
+  const rayon = Math.max(22, Math.hypot(cote.x - pied.x, cote.y - pied.y));
+  const dHeros = Math.hypot(px - corps.x, py - corps.y);
+  if (dHeros >= rayon) return false;
+  const i = rendu.socleSous(px, py);
+  if (i < 0) return true;
+  const s = niveau.socles[i], ps = rendu.versEcran(s.x, s.y, 0.3);
+  return dHeros < Math.hypot(px - ps.x, py - ps.y);
+}
+
+// Son bouton : son niveau, et la barre de son expérience vers le niveau suivant
+function majBoutonHeros() {
+  const h = etat.heros;
+  ecrire(boutonHeros.querySelector('.niveau-heros'), `niv. ${h.niveau}`);
+  const actuel = HEROS.niveaux[h.niveau - 1].xp, suivant = HEROS.niveaux[h.niveau]?.xp;
+  boutonHeros.style.setProperty('--xp', String(suivant ? (h.xp - actuel) / (suivant - actuel) : 1));
+  boutonHeros.setAttribute('aria-pressed', String(ui.herosChoisi));
 }
 
 // Le voile de givre du Grand froid (une animation CSS, relancée à chaque fois)
@@ -446,6 +496,7 @@ function remplirBenediction() {
   offreAffichee = etat.offre;
   fermerMenu();
   arreterVisee();
+  lacherHeros();
   $('#benediction-titre').textContent = `Vague ${vaguesTerminees(etat)} tenue !`;
   $('#choix-benedictions').replaceChildren(...etat.offre.map((id, i) => {
     const b = BENEDICTIONS[id];
@@ -504,6 +555,9 @@ function afficherIntro() {
     : 'Des monstres suivent le chemin vers le château : ');
   regle.append(element('strong', '', niveau.survie ? 'Un seul monstre dans le château, et la partie s’arrête.' : 'si un seul entre, c’est perdu.'));
   carte.append(regle);
+  if (niveau.heros) {
+    carte.append(element('p', 'mention-heros', `Le ${HEROS.nom} t’aide : clique sur lui, puis sur la carte pour le déplacer (touche H). Il frappe les monstres autour de lui, et leur barre la route.`));
+  }
   if (niveau.benedictions) {
     carte.append(element('p', 'mention-benedictions', `Toutes les ${TOUTES_LES} vagues tenues, une bénédiction : un bonus à choisir parmi 3, pour le reste de la partie.`));
   }
@@ -655,6 +709,7 @@ function afficherFin(victoire) {
 function recommencer() {
   etat = nouvellePartie();
   arreterVisee();
+  lacherHeros();
   offreAffichee = null;
   $('#benediction').hidden = true;
   afficherMesBenedictions(); // (plus aucune)
@@ -707,6 +762,17 @@ conteneur.addEventListener('pointermove', (e) => {
     ui.survol = -1;
     return;
   }
+  if (ui.herosChoisi) {
+    // on choisit où envoyer le héros : une marque suit la souris
+    ui.viseeHeros = rendu.versSol(e.clientX, e.clientY);
+    ui.survol = -1;
+    return;
+  }
+  if (herosSous(e.clientX, e.clientY)) {
+    ui.survol = -1;
+    conteneur.style.cursor = 'pointer';
+    return;
+  }
   ui.survol = rendu.socleSous(e.clientX, e.clientY);
   conteneur.style.cursor = ui.survol >= 0 ? 'pointer' : '';
 });
@@ -717,14 +783,23 @@ conteneur.addEventListener('click', (e) => {
     if (p && lancerMeteore(etat, p.x, p.y)) arreterVisee();
     return;
   }
+  if (ui.herosChoisi) {
+    // un clic sur le héros lui-même le lâche ; ailleurs, il y va
+    const p = rendu.versSol(e.clientX, e.clientY);
+    if (!herosSous(e.clientX, e.clientY) && p) envoyerHeros(etat, p.x, p.y);
+    lacherHeros();
+    return;
+  }
+  if (herosSous(e.clientX, e.clientY)) { basculerHeros(); son.effet('menu'); return; }
   const i = rendu.socleSous(e.clientX, e.clientY);
   if (i >= 0) { ouvrirMenu(i); son.effet('menu'); } else fermerMenu();
 });
 // clic droit pendant qu'on vise : on annule (sans ouvrir le menu du navigateur)
 conteneur.addEventListener('contextmenu', (e) => {
-  if (!ui.visee) return;
+  if (!ui.visee && !ui.herosChoisi) return;
   e.preventDefault();
   arreterVisee();
+  lacherHeros();
 });
 addEventListener('keydown', (e) => {
   // la carte des bénédictions est ouverte : 1, 2 et 3 choisissent (et rien d'autre ne réagit)
@@ -733,7 +808,7 @@ addEventListener('keydown', (e) => {
     if (id) { e.preventDefault(); prendreBenediction(id); }
     return;
   }
-  if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); }
+  if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); lacherHeros(); }
   // Espace lance la vague, sauf si un bouton actif a le clavier (Espace appuie alors sur lui)
   if (e.key === ' ' && (e.target === document.body || e.target.disabled)) { e.preventDefault(); $('#lancer').click(); }
   // les pouvoirs du château : touches 1 et 2 (pas pendant qu'on écrit son pseudo)
@@ -742,6 +817,8 @@ addEventListener('keydown', (e) => {
     const nom = Object.keys(POUVOIRS).find((n) => POUVOIRS[n].touche === e.key);
     if (nom) utiliserPouvoir(nom);
   }
+  // le héros : touche H
+  if (etat.heros && !dansUnChamp && e.key.toLowerCase() === HEROS.touche) basculerHeros();
 });
 addEventListener('resize', () => rendu?.redimensionner());
 
@@ -803,6 +880,7 @@ choisirStyle(niveau.style);
 document.title = `${niveau.nom} — Petits Gardiens`;
 $('#ligne-record').hidden = !niveau.survie;
 $('#pouvoirs').hidden = !niveau.pouvoirs;
+boutonHeros.hidden = !niveau.heros;
 lireRecord();
 if (depuisEditeur) {
   // On vient de l'éditeur : pas besoin de la carte de début, on joue directement

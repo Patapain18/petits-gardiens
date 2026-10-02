@@ -442,4 +442,35 @@ export const POUVOIRS = {
   },
 };
 
+// LE HÉROS : un Grand Gardien que le joueur déplace lui-même sur la carte (dans les niveaux dont la
+// fiche dit « heros: true »). On clique sur lui, puis sur la carte : il y marche. Arrêté, il frappe
+// le sol et touche les monstres tout autour de lui ; posé sur le chemin, il leur barre la route (ils
+// passent au ralenti). Il gagne des niveaux en battant des monstres. Pendant qu'il marche, il ne
+// frappe pas et ne barre rien : le déplacer au bon moment, c'est tout l'art.
+export const HEROS = {
+  nom: 'Grand Gardien',
+  touche: 'h',
+  description: 'Clique sur lui, puis sur la carte : il y marche. Il frappe le sol et touche les monstres autour de lui ; sur le chemin, il leur barre la route.',
+  apparence: {
+    gabarit: 'gardien', taille: 1.5, // une fois et demie un gardien (en pixel art : le grand gardien, redessiné)
+    couleurs: { clair: '#ffffff', peau: '#dfe6f2', fonce: '#8e9ab0' },
+    accessoires: [{ type: 'cape', couleur: '#b8283a' }, { type: 'echarpe', couleur: '#ffcf3a' }, 'couronne'],
+  },
+  vitesse: 3,        // en cases par seconde, quand il marche
+  rayon: 1.3,        // jusqu'où porte sa frappe, tout autour de lui
+  monstresMax: 6,    // une frappe touche au plus 6 monstres, les plus proches
+  cadence: 1.1,      // une frappe toutes les 1,1 seconde
+  barrage: { rayon: 0.8, facteur: 0.5 }, // les monstres tout près de lui avancent deux fois moins vite
+  // ses niveaux : les dégâts d'une frappe, et l'expérience qu'il faut pour y arriver
+  // (il gagne la prime de chaque monstre qu'il bat lui-même)
+  niveaux: [
+    { degats: 28, xp: 0 },
+    { degats: 38, xp: 40 },
+    { degats: 52, xp: 120 },
+    { degats: 70, xp: 260 },
+    { degats: 94, xp: 480 },
+    { degats: 126, xp: 800 },
+  ],
+};
+
 export const PART_REVENTE = 0.6; // on récupère 60 % de ce qu'on a dépensé (achat + améliorations)

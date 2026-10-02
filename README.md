@@ -37,6 +37,7 @@ Ce qui change en ligne :
 - Le bouton **Options**, en bas à droite, règle le son, la vitesse et l'affichage (voir « L'écran d'options ») ; la touche **M** coupe tout le son.
 - Dans l'arène, deux **pouvoirs du château** aident pendant les vagues : le **Météore** (touche **1**), que l'on vise sur le chemin, et le **Grand froid** (touche **2**). Voir « Les pouvoirs du château ».
 - Dans l'arène aussi, toutes les 5 vagues tenues, une **bénédiction** : un bonus à choisir parmi 3 (clic, ou touches 1, 2, 3), qui reste jusqu'à la fin de la partie. Voir « Les bénédictions ».
+- Et un **héros**, le Grand Gardien : clique sur lui (ou touche **H**), puis sur la carte, et il y marche. Il frappe les monstres autour de lui et leur barre la route. Voir « Le héros ».
 
 | Gardien | Prix | Pouvoir |
 |---|---|---|
@@ -145,9 +146,9 @@ Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagu
 
 ![L'arène pixel, en pleine partie](docs/arene.jpg)
 
-**Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **20 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
+**Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **25 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
 
-**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château et les bénédictions : le bon joueur tient 25 à 29 vagues, des Braise seules 16 à 21, et sans jamais améliorer 16 à 18. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
+**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château, les bénédictions et le héros : le bon joueur tient 25 à 29 vagues, des Braise seules 17, sans jamais améliorer 16 à 19, et les meilleures compositions bien jouées 27 à 29. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
 
 **Le réglage d'octobre 2026.** L'arène était trop facile, surtout avec Givrine + Grondin. Les mesures (des parties simulées, et une recherche automatique de la meilleure composition, socle par socle) l'ont confirmé : ce mélange tenait 34 à 36 vagues, plus d'une demi-heure, contre 26 pour le bon joueur. La raison : les monstres gelés se tassent les uns contre les autres, et dans les dernières vagues un seul rocher en touchait 20 à 40 (jusqu'à 75 !). Autre problème : toute la défense était achetée dès la vague 13. Pendant plus de 20 vagues, il ne restait rien à décider, et l'or s'entassait (22 000 pièces à la fin). Trois changements :
 
@@ -167,9 +168,9 @@ Givrine + Grondin reste le meilleur mélange de l'arène (c'est le rôle du Gron
 
 **Le classement** (`src/classement.js`) est **en ligne** : tous les joueurs se comparent (voir la partie suivante). Ses fonctions répondaient déjà « plus tard » (`async`) quand les scores étaient gardés sur l'ordinateur : pour passer en ligne, ce fichier a changé, et le reste du jeu presque pas. Les pseudos sont toujours affichés tels quels (`textContent`), jamais interprétés comme du HTML.
 
-**Créer une arène** : dans l'éditeur, coche « Mode survie » (et « Pouvoirs du château » pour donner le Météore et le Grand froid, « Bénédictions » pour les bonus toutes les 5 vagues). Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
+**Créer une arène** : dans l'éditeur, coche « Mode survie » (et « Pouvoirs du château » pour donner le Météore et le Grand froid, « Bénédictions » pour les bonus toutes les 5 vagues, « Héros » pour le Grand Gardien). Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
 
-**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château et les bénédictions (faits, ci-dessous), puis un héros à déplacer.
+**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château, les bénédictions et un héros à déplacer (ci-dessous). Chacune rendait l'arène plus facile et les parties plus longues : à la fin, la montée des vagues est passée de 20 % à **25 %** (avec 20 %, un très bon joueur imaginaire repartait vers 35 vagues ; avec 28 %, tout le monde finissait pareil, et le savoir-faire ne comptait plus).
 
 ### Les pouvoirs du château
 
@@ -219,6 +220,20 @@ Les chiffres d'un gardien dans une partie viennent de `ficheDe(etat, type, nivea
 - **Comète** (un Météore plus gros) ne changeait presque rien : le Météore touche déjà les paquets. Il est maintenant aussi plus fort (10 % de vie en plus).
 - Les bonus de gardien (Feu de joie, Hiver éternel, Rochers géants) rapportent 2 à 4 vagues… mais seulement à une défense qui a ce gardien : c'est voulu.
 - L'or et le nouveau socle comptent peu pour un bon joueur, dont la défense est complète vers la vague 14 ; ils aident surtout au début.
+
+### Le héros
+
+Dans les niveaux dont la fiche dit `"heros": true` : un **Grand Gardien**, une fois et demie plus grand qu'un gardien, tout blanc avec une cape rouge, une écharpe dorée et une couronne (en pixel art, il a son propre dessin, plus grand). Il commence sur le chemin, devant le château.
+
+- **Le déplacer** : un clic sur lui (ou sur son bouton, ou la touche H), puis un clic sur la carte : il y marche, à 3 cases par seconde. Un cercle doré à ses pieds le montre toujours ; choisi, il montre aussi la portée de sa frappe, et un petit drapeau marque où il va. Clic droit ou Échap : on le lâche.
+- **Arrêté, il frappe le sol** (toutes les 1,1 seconde) : jusqu'à 6 monstres autour de lui (à 1,3 case), les plus proches d'abord. Pas ceux qui volent, ni ceux qui sont sous terre.
+- **Il barre la route** : les monstres qui passent tout près de lui (à 0,8 case) avancent deux fois moins vite. Sur le chemin, il les retient sous le feu des gardiens.
+- **Pendant qu'il marche, il ne frappe pas et ne barre rien** : le déplacer au bon moment, c'est tout l'art.
+- **Il gagne des niveaux** (jusqu'au 6) avec la prime des monstres qu'il bat lui-même : 28 dégâts au niveau 1, 126 au niveau 6. Son bouton montre son niveau et une barre d'expérience. Les bénédictions « pour tous les gardiens » (Entraînement, Furie, Œil de lynx) comptent aussi pour lui.
+
+Ses chiffres sont dans `HEROS` (`src/jeu/donnees.js`), ses règles dans le moteur (`envoyerHeros`, et `majHeros` à chaque image), ses chiffres du moment dans `ficheDuHeros(etat)`.
+
+**Ce que les joueurs imaginaires ont appris** : au premier essai, le bon joueur postait son héros au cœur de sa défense, là où le plus de gardiens tirent… et il ne frappait presque jamais : les monstres y mouraient avant d'arriver jusqu'à lui (0 frappe pendant 12 vagues, toujours niveau 1). Le bon réflexe, c'est l'inverse : le mettre **là où les monstres passent encore**. Le bon joueur retient où ils sont tombés à la vague d'avant, se poste vers le bout de cette zone, et court devant un monstre qui approche du château. Ainsi, un héros bien déplacé fait gagner 1 à 7 vagues selon la composition, contre 0 à 5 s'il ne bouge jamais.
 
 ## Le classement en ligne
 
@@ -784,6 +799,7 @@ Un niveau est un fichier JSON rangé dans `src/niveaux/`. Toutes les positions s
 | `pouvoirs` | `true` : le joueur a les pouvoirs du château (le Météore et le Grand froid). Facultatif |
 | `benedictions` | `true` : toutes les 5 vagues tenues, une bénédiction à choisir parmi 3. Facultatif |
 | `soclesBonus` | des socles en plus (`[{ "x": …, "y": … }]`), qui dorment jusqu'à la bénédiction « Nouveau socle ». Facultatif |
+| `heros` | `true` : le joueur a un héros, le Grand Gardien, qu'il déplace sur la carte. Facultatif |
 | `vagues` | la liste des vagues. Chaque vague contient des groupes `{ "type", "nombre", "ecart", "delai" }` : quel monstre, combien, les secondes entre deux monstres et les secondes avant le premier. Un groupe peut ajouter `"force": 2` pour des monstres deux fois plus résistants |
 
 Si une fiche contient une erreur (champ manquant, mauvais type de monstre…), le jeu affiche la liste des problèmes à l'écran au lieu de démarrer.

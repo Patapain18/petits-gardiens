@@ -4,9 +4,9 @@
 // et le fait avancer d'un petit pas de temps à chaque appel.
 // Les styles graphiques ne font que LIRE cet état pour le dessiner.
 // ─────────────────────────────────────────────────────────────
-import { GARDIENS, MONSTRES, POUVOIRS, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, HEROS, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
 import { creerAleatoire } from './aleatoire.js';
-import { ficheDe, pouvoirDe, socleActif, bonusDeDepart, proposerBenedictions, TOUTES_LES } from './benedictions.js';
+import { ficheDe, ficheDuHeros, pouvoirDe, socleActif, bonusDeDepart, proposerBenedictions, TOUTES_LES } from './benedictions.js';
 
 // Le vent de Bourrasque : le monstre poussé glisse en arrière à VITESSE_RECUL cases
 // par seconde, puis s'accroche au sol pendant ACCROCHE secondes (un autre coup de
@@ -47,6 +47,20 @@ export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
     offre: null,
     soclesDebloques: [],
     fiches: new Map(),        // les chiffres des gardiens avec les bonus (calculés une fois)
+    heros: niveau.heros ? creerHeros(niveau) : null, // le Grand Gardien, que le joueur déplace (voir HEROS)
+  };
+}
+
+// Le héros commence sur le chemin, juste devant le château : la dernière ligne de défense
+function creerHeros(niveau) {
+  const p = niveau.pointSurChemin(niveau.longueurChemin - 2);
+  return {
+    x: p.x, y: p.y,
+    cible: null,      // là où le joueur l'envoie (null : il est arrêté)
+    niveau: 1, xp: 0, // il gagne des niveaux en battant des monstres
+    recharge: 0.5,    // le temps avant sa prochaine frappe
+    attaque: 0,       // compte à rebours de l'animation de frappe
+    angle: Math.PI,   // il regarde vers le début du chemin (à gauche)
   };
 }
 
@@ -165,6 +179,60 @@ export function lancerGrandFroid(etat) {
   return true;
 }
 
+// ── Le héros ─────────────────────────────────────────────────
+// Le joueur l'envoie en (x, y) : il y marche (sans sortir de la carte, ni entrer dans un étang)
+export function envoyerHeros(etat, x, y) {
+  const h = etat.heros;
+  if (!h || partieFinie(etat)) return false;
+  const { largeur, hauteur } = etat.niveau;
+  x = Math.max(0.4, Math.min(largeur - 0.4, x));
+  y = Math.max(0.4, Math.min(hauteur - 0.4, y));
+  if (etat.niveau.distanceEtang(x, y) < 0.3) return false;
+  h.cible = { x, y };
+  etat.evenements.push({ type: 'herosEnvoye', x, y });
+  return true;
+}
+
+// Il marche vers l'endroit choisi ; arrêté, il frappe le sol quand des monstres sont à portée
+function majHeros(etat, dt) {
+  const h = etat.heros;
+  h.attaque = Math.max(0, h.attaque - dt);
+  if (h.cible) {
+    const dx = h.cible.x - h.x, dy = h.cible.y - h.y, d = Math.hypot(dx, dy);
+    const pas = HEROS.vitesse * dt;
+    h.angle = Math.atan2(dy, dx);
+    if (d <= pas) { h.x = h.cible.x; h.y = h.cible.y; h.cible = null; h.recharge = Math.max(h.recharge, 0.2); }
+    else { h.x += (dx / d) * pas; h.y += (dy / d) * pas; }
+    return; // il marche : il ne frappe pas
+  }
+  h.recharge -= dt;
+  if (h.recharge > 0) return;
+  const f = ficheDuHeros(etat);
+  // les monstres à portée, les plus proches d'abord (pas ceux qui volent, ni ceux qui sont sous terre)
+  const autour = [];
+  for (const e of etat.ennemis) {
+    if (e.pv <= 0 || e.cache || MONSTRES[e.type].volant) continue;
+    const d = Math.hypot(e.x - h.x, e.y - h.y);
+    if (d <= f.rayon) autour.push({ e, d });
+  }
+  if (!autour.length) { h.recharge = 0; return; }
+  autour.sort((a, b) => a.d - b.d);
+  h.recharge = f.cadence;
+  h.attaque = 0.3;
+  h.angle = Math.atan2(autour[0].e.y - h.y, autour[0].e.x - h.x);
+  let xp = 0;
+  for (const { e } of autour.slice(0, f.monstresMax)) {
+    blesser(etat, e, f.degats);
+    if (e.pv <= 0) xp += MONSTRES[e.type].prime; // il gagne la prime de chaque monstre qu'il bat
+  }
+  etat.evenements.push({ type: 'frappe', x: h.x, y: h.y, rayon: f.rayon });
+  h.xp += xp;
+  while (h.niveau < HEROS.niveaux.length && h.xp >= HEROS.niveaux[h.niveau].xp) {
+    h.niveau++;
+    etat.evenements.push({ type: 'herosNiveau', x: h.x, y: h.y, niveau: h.niveau });
+  }
+}
+
 // ── La mise à jour (appelée ~60 fois par seconde) ────────────
 
 export function majPartie(etat, dt) {
@@ -178,6 +246,7 @@ export function majPartie(etat, dt) {
   deplacerEnnemis(etat, dt);
   if (etat.statut === 'perdu') return;
   cracherLeFeu(etat, dt);
+  if (etat.heros) majHeros(etat, dt);
   faireTirerLesTours(etat, dt);
   deplacerProjectiles(etat, dt);
   // On retire les monstres morts
@@ -245,7 +314,10 @@ function deplacerEnnemis(etat, dt) {
       e.reculTotal += pas;
     } else {
       // sous terre, la Taupe file plus vite (« vitesse » de sa fiche creuse)
-      const vitesse = e.cache ? fiche.vitesse * fiche.creuse.vitesse : fiche.vitesse;
+      let vitesse = e.cache ? fiche.vitesse * fiche.creuse.vitesse : fiche.vitesse;
+      // le héros, arrêté tout près, leur barre la route (pas à ceux qui volent ou creusent dessous)
+      const h = etat.heros;
+      if (h && !h.cible && !e.cache && !fiche.volant && Math.hypot(e.x - h.x, e.y - h.y) < HEROS.barrage.rayon) vitesse *= HEROS.barrage.facteur;
       e.d += vitesse * e.facteurRalenti * dt;
     }
 
@@ -520,7 +592,7 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true } = {}) {
     etat.battus++;
     const prime = Math.round(fiche.prime * (etat.bonus?.primes ?? 1)); // (la bénédiction « Butin »)
     etat.or += prime;
-    etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, quoi: ennemi.type, prime });
+    etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, d: ennemi.d, quoi: ennemi.type, prime });
     if (fiche.enfants) faireNaitre(etat, ennemi, fiche.enfants);
   }
 }

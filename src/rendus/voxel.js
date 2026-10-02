@@ -10,13 +10,13 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { GARDIENS, MONSTRES, POUVOIRS, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, HEROS, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
-import { ficheDe, socleActif } from '../jeu/benedictions.js';
+import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
@@ -1569,6 +1569,59 @@ export default class RenduVoxel {
     return groupe;
   }
 
+  // ── Le héros (le Grand Gardien) ────────────────────────────
+  // Fabriqué la première fois qu'on en a besoin, puis placé à chaque image. Un cercle doré à ses
+  // pieds (blanc quand on l'a choisi), et un petit drapeau là où il va.
+  majHeros(etat, ui) {
+    const h = etat.heros;
+    if (!h) {
+      if (this.vueHeros) this.vueHeros.racine.visible = this.anneauHeros.visible = this.marqueHeros.visible = false;
+      return;
+    }
+    if (!this.vueHeros) {
+      this.vueHeros = this.fabriquer(HEROS.apparence);
+      this.scene.add(this.vueHeros.racine);
+      this.anneauHeros = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffcf3a', transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false }));
+      this.scene.add(this.anneauHeros);
+      this.marqueHeros = new THREE.Group();
+      const or = new THREE.MeshBasicMaterial({ color: '#ffcf3a', toneMapped: false });
+      this.marqueHeros.add(new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffcf3a', transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false })));
+      const hampe = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6), or);
+      hampe.position.y = 0.3;
+      const drapeau = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.13, 0.02), or);
+      drapeau.position.set(0.11, 0.53, 0);
+      this.marqueHeros.add(hampe, drapeau);
+      this.scene.add(this.marqueHeros);
+    }
+    const vue = this.vueHeros;
+    vue.racine.visible = this.anneauHeros.visible = true;
+    const y = this.sol(h.x, h.y);
+    vue.racine.position.set(h.x, y, h.y);
+    // il se tourne vers où il va (ou vers le monstre qu'il frappe), mais sans jamais tourner le dos
+    // à la caméra (au plus de trois quarts) : de dos, on ne voyait que sa grande cape rouge
+    let vise = versRotationY(h.angle);
+    vise = Math.max(-1.1, Math.min(1.1, Math.atan2(Math.sin(vise), Math.cos(vise))));
+    let diff = vise - vue.racine.rotation.y;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    vue.racine.rotation.y += diff * 0.25;
+    vue.racine.scale.setScalar(TAILLE_GARDIEN * 0.82); // (sa taille 1,5 le rendait plus large qu'un socle)
+    // il respire ; il s'écrase quand il frappe ; il sautille quand il marche
+    const coup = h.attaque > 0 ? Math.sin((h.attaque / 0.3) * Math.PI) * 0.25 : 0;
+    const respire = Math.sin(this.temps * 3) * 0.04;
+    vue.corps.scale.set(vue.taille * (1 + coup * 0.5), vue.taille * (1 + respire - coup), vue.taille * (1 + coup * 0.5));
+    vue.corps.position.y = h.cible ? Math.abs(Math.sin(this.temps * 12)) * 0.12 : 0;
+    if (this.joie > 0) vue.racine.position.y += Math.abs(Math.sin((1 - this.joie) * Math.PI * 3)) * 0.3 * this.joie;
+    vue.attaque = h.attaque;
+    for (const animer of vue.animations) animer(this.temps, vue);
+    const cligne = this.temps % 3.7 < 0.12 ? 0.1 : 1;
+    vue.yeux.forEach((o) => (o.scale.y = cligne));
+    this.anneauHeros.position.set(h.x, y + 0.05, h.y);
+    this.anneauHeros.material.color.set(ui.herosChoisi ? '#ffffff' : '#ffcf3a');
+    const cible = ui.herosChoisi ? ui.viseeHeros : h.cible;
+    this.marqueHeros.visible = Boolean(cible);
+    if (cible) this.marqueHeros.position.set(cible.x, this.sol(cible.x, cible.y) + 0.03, cible.y);
+  }
+
   // Le cercle du Météore : là où il va tomber (sa couleur change dans dessiner())
   creerAnneauMeteore() {
     const groupe = new THREE.Group();
@@ -1995,6 +2048,13 @@ export default class RenduVoxel {
         case 'vente':
           this.gerbe(ev.x, y + 0.3, ev.y, 20, ['#e8d8b8', '#c8b898'], { force: 2, haut: 1.5, taille: 0.1, vie: 0.6 });
           break;
+        case 'frappe': // le héros frappe le sol : des blocs de poussière tout autour, et ça tremble un peu
+          this.gerbe(ev.x, y + 0.1, ev.y, 18, ['#d8c8b0', '#b8a890', '#fff4d0'], { force: 2.6, haut: 1.3, taille: 0.1, vie: 0.5 });
+          this.secousse = Math.max(this.secousse, 0.07);
+          break;
+        case 'herosNiveau': // le héros gagne un niveau : une fontaine d'étincelles dorées
+          this.gerbe(ev.x, y + 1, ev.y, 30, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.2, haut: 4.5, taille: 0.07, vie: 1.1, eclat: 2.2, gravite: -2 });
+          break;
         case 'nouveauSocle': // un nouveau socle sort de terre : des blocs de poussière et des étincelles dorées
           this.gerbe(ev.x, y + 0.2, ev.y, 24, ['#e8d8b8', '#c8b898', '#a08868'], { force: 2.2, haut: 2, taille: 0.12, vie: 0.7 });
           this.gerbe(ev.x, y + 0.5, ev.y, 24, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.3, haut: 4.2, taille: 0.07, vie: 1, eclat: 2, gravite: -2 });
@@ -2173,6 +2233,7 @@ export default class RenduVoxel {
     this.vuesEnnemis.appliquer(etat.ennemis);
     this.vuesEnnemis.majSortants(dtReel);
     this.vuesTirs.appliquer(etat.projectiles);
+    this.majHeros(etat, ui);
     this.particules.maj(dtJeu || 0);
     this.majEclairs(dtReel);
     this.majRayons(etat);
@@ -2213,6 +2274,14 @@ export default class RenduVoxel {
       this.anneau.scale.set(r, 1, r);
       this.anneau.position.set(tour.x, this.sol(tour.x, tour.y) + 0.05, tour.y);
     }
+    // le héros choisi : la portée de sa frappe
+    if (ui.herosChoisi && etat.heros) {
+      const rh = ficheDuHeros(etat).rayon, h = etat.heros;
+      this.anneau.visible = true;
+      this.anneau.scale.set(rh, 1, rh);
+      this.anneau.position.set(h.x, this.sol(h.x, h.y) + 0.06, h.y);
+    }
+
     // le cercle du Météore : pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
     const meteore = etat.projectiles.find((t) => t.type === 'meteore');
     const visee = ui.viseeMeteore || (meteore && { x: meteore.x, y: meteore.y, rayon: meteore.rayon });

@@ -117,6 +117,10 @@ export class Panneau {
       if (ev.target.checked) f.benedictions = true;
       else delete f.benedictions; // pas coché : pas de bénédictions, on n'écrit pas le champ
     }, true));
+    $('#heros').addEventListener('change', (ev) => this.modifier((f) => {
+      if (ev.target.checked) f.heros = true;
+      else delete f.heros; // pas coché : pas de héros, on n'écrit pas le champ
+    }, true));
 
     // Une liste de cases à cocher : leçons ou personnages
     const cases = (selecteur, elements) => {
@@ -274,6 +278,7 @@ export class Panneau {
     $('#survie').checked = Boolean(fiche.survie);
     $('#pouvoirs').checked = Boolean(fiche.pouvoirs);
     $('#benedictions').checked = Boolean(fiche.benedictions);
+    $('#heros').checked = Boolean(fiche.heros);
     $('#ligne-difficulte').hidden = Boolean(fiche.survie); // on ne gagne jamais une arène : pas de difficulté visée
     if (force || document.activeElement !== $('#arbres')) $('#arbres').value = fiche.decor?.arbres ?? 0.05;
     $('#valeur-arbres').textContent = `${Math.round((fiche.decor?.arbres ?? 0.05) * 100)} %`;

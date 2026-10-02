@@ -5,13 +5,13 @@
 // juste le Canvas 2D du navigateur. Une lumière de fin de journée est
 // posée par-dessus (dégradé chaud, vignette, rayons).
 // ─────────────────────────────────────────────────────────────
-import { GARDIENS, MONSTRES, POUVOIRS, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, HEROS, HAUTEUR_VOL, caracteristiques } from '../jeu/donnees.js';
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruit2D } from '../jeu/aleatoire.js';
 import { socleProche } from './outils3d.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import { Lumieres } from './lumieres.js';
-import { ficheDe, socleActif } from '../jeu/benedictions.js';
+import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
 
 const T = 16; // taille d'une case en pixels
 const CONTOUR = '#24161c';
@@ -141,6 +141,27 @@ const GABARITS_PIXEL = {
         else { p.rect(x, 10 + b, 2, 3, c.yeux); p.px(x, 10 + b, '#f4ecff'); } // yeux + reflet
       }
       return { haut: 8 + b, centre: 13, gauche: 6, droite: 19, ceinture: 14, bas: 18, attaque: image === 2 };
+    },
+    // le grand gardien (le héros) : redessiné plus grand, avec les mêmes points d'accroche :
+    // la cape, l'écharpe et la couronne se posent toutes seules dessus
+    grand: {
+      largeur: 36, hauteur: 27, marge: 5, images: 4, largeurBarre: 16,
+      dessiner(p, c, image) {
+        const b = image === 2 ? 1 : 0; // image 2 = frappe : le corps s'écrase d'un pixel
+        p.rect(8, 11 + b, 20, 11 - b, c.peau);   // corps
+        p.rect(8, 11 + b, 20, 1, c.clair);       // haut éclairé
+        p.rect(9, 12 + b, 1, 9 - b, c.clair);    // bord gauche éclairé
+        p.rect(27, 12 + b, 1, 10 - b, c.fonce);  // côté droit dans l'ombre
+        p.rect(8, 21, 20, 1, c.fonce);           // dessous
+        p.rect(3, 15, 5, 3, c.peau); p.rect(3, 15, 5, 1, c.clair); p.rect(3, 18, 5, 1, c.fonce);    // bras gauche
+        p.rect(28, 15, 5, 3, c.peau); p.rect(28, 15, 5, 1, c.clair); p.rect(28, 18, 5, 1, c.fonce); // bras droit
+        for (const x of [10, 14, 20, 24]) p.rect(x, 22, 3, 4, c.fonce); // quatre pattes
+        for (const x of [13, 21]) {
+          if (image === 3) p.rect(x, 17, 3, 1, c.yeux); // il cligne des yeux
+          else { p.rect(x, 14 + b, 3, 4, c.yeux); p.rect(x, 14 + b, 2, 1, '#f4ecff'); } // yeux + reflet
+        }
+        return { haut: 11 + b, centre: 18, gauche: 8, droite: 27, ceinture: 19, bas: 25, attaque: image === 2 };
+      },
     },
   },
   gelee: {
@@ -1097,6 +1118,13 @@ export default class RenduPixel {
         this.emettre(v.x, v.y, 10, ['#4a4048', '#7a6a70', '#ff8a2a'], 30, 60, 0.6, 10); // de la fumée sur le gardien
       }
       if (ev.type === 'construction' || ev.type === 'vente') this.emettre(p.x, p.y, 16, ['#e8dcc0', '#c8b898', '#ffd24a'], 45, 40, 0.5);
+      if (ev.type === 'frappe') {
+        // le héros frappe le sol : une onde dorée, de la poussière, et un petit tremblement
+        this.ondes.push({ x: p.x, y: p.y, rayon: ev.rayon * T, t: 0, couleurs: ['#fff4d0', '#ffcf3a'] });
+        this.emettre(p.x, p.y, 12, ['#d8c8b0', '#b8a890', '#fff4d0'], 50, 30, 0.45);
+        this.secousse = Math.max(this.secousse, 0.06);
+      }
+      if (ev.type === 'herosNiveau') this.emettre(p.x, p.y - 10, 30, ['#ffd24a', '#fff4b0', '#ffffff'], 30, 120, 1, 12);
       if (ev.type === 'nouveauSocle') {
         // un nouveau socle sort de terre : un nuage de poussière et des étincelles dorées
         this.poufs.push({ x: p.x, y: p.y + 4, haut: 0, t: 0, gros: false });
@@ -1189,6 +1217,7 @@ export default class RenduPixel {
       const p = this.versPixel(e.x, e.y);
       this.dessinerImage(i === ui.survol || i === ui.selection ? this.sprites.socleSurligne : this.sprites.socle, p.x, p.y + 7);
     });
+    if (etat.heros) this.dessinerSolHeros(etat, ui);
 
     // 2. Tout ce qui a de la hauteur : on fait la liste, chaque chose avec son dessin et son ombre
     const objets = [];
@@ -1245,6 +1274,18 @@ export default class RenduPixel {
         },
       });
     });
+    // le héros : il sautille quand il marche, s'écrase quand il frappe, cligne des yeux de temps en temps
+    if (etat.heros) {
+      const h = etat.heros;
+      const p = this.versPixel(h.x, h.y);
+      const sp = this.spritesDe(HEROS);
+      const versGauche = Math.cos(h.angle) < -0.2;
+      const marche = Boolean(h.cible);
+      const numero = h.attaque > 0 ? 2 : marche ? Math.floor(this.temps * 8) % 2 : (this.temps % 3.7 < 0.14 ? 3 : image);
+      const img = (versGauche ? sp.miroirs : sp.images)[numero];
+      const saut = marche ? Math.round(Math.abs(Math.sin(this.temps * 12)) * 2) : 0;
+      objets.push({ y: p.y + 2, ombre: { img, x: p.x, y: p.y + 1 }, dessin: () => this.dessinerImage(img, p.x, p.y + 1 - saut) });
+    }
     // les monstres
     for (const e of etat.ennemis) {
       const p = this.versPixel(e.x, e.y);
@@ -1422,8 +1463,9 @@ export default class RenduPixel {
     this.ondes = this.ondes.filter((o) => (o.t += dtReel) < 0.3);
     for (const o of this.ondes) {
       const k = o.t / 0.3;
-      this.cercle(o.x, o.y, o.rayon * (0.3 + k * 0.9), k < 0.5 ? '#fff4d0' : '#ff9a4a', true);
-      this.cercle(o.x, o.y, o.rayon * (0.3 + k * 0.9) - 1, k < 0.5 ? '#fff4d0' : '#ff9a4a', true);
+      const [debut, fin] = o.couleurs || ['#fff4d0', '#ff9a4a'];
+      this.cercle(o.x, o.y, o.rayon * (0.3 + k * 0.9), k < 0.5 ? debut : fin, true);
+      this.cercle(o.x, o.y, o.rayon * (0.3 + k * 0.9) - 1, k < 0.5 ? debut : fin, true);
     }
     // particules par-dessus
     for (const p of this.particules) {
@@ -1439,6 +1481,22 @@ export default class RenduPixel {
     const sx = this.secousse > 0 ? Math.round((Math.random() - 0.5) * this.secousse * 20) : 0;
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.drawImage(this.ecran, sx, 0, this.ecran.width * k, this.ecran.height * k);
+  }
+
+  // Au sol, sous le héros : un cercle doré (on le repère d'un coup d'œil) ; quand on l'a choisi, la
+  // portée de sa frappe ; et là où il va (la marque qui suit la souris, ou l'endroit où il marche)
+  dessinerSolHeros(etat, ui) {
+    const c = this.ectx, h = etat.heros;
+    const p = this.versPixel(h.x, h.y);
+    this.cercle(p.x, p.y + 1, 9, ui.herosChoisi ? '#ffffff' : '#ffcf3a', true);
+    if (ui.herosChoisi) this.cercle(p.x, p.y, ficheDuHeros(etat).rayon * T, '#fff4d0');
+    const cible = ui.herosChoisi ? ui.viseeHeros : h.cible;
+    if (!cible) return;
+    const q = this.versPixel(cible.x, cible.y);
+    this.cercle(q.x, q.y, 6, '#ffcf3a', true);
+    c.fillStyle = '#ffcf3a';
+    c.fillRect(q.x, q.y - 9, 1, 8);                      // un petit drapeau planté là
+    c.fillRect(q.x + 1, q.y - 9, 4, 3);
   }
 
   // Les éclairs d'Étincelle : un zigzag entre chaque point touché, refait à chaque

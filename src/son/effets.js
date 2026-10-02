@@ -110,6 +110,17 @@ export const RECETTES = {
     o.bruit({ duree: 0.8, volume: 0.14, type: 'bandpass', de: 1600, a: 400, q: 0.8 });
   },
 
+  // ── Le héros ──
+  // il frappe le sol : un « boum » sourd et un peu de poussière
+  frappe: (o) => {
+    o.coup({ volume: 0.3 });
+    o.bruit({ duree: 0.25, volume: 0.14, type: 'lowpass', de: 700, a: 150 });
+  },
+  // il gagne un niveau : une petite fanfare qui monte
+  herosNiveau: (o) => o.arpege([67, 72, 76, 79, 84], { ecart: 0.08, duree: 0.22, volume: 0.32 }),
+  // on l'envoie quelque part : un petit « hop »
+  herosEnvoye: (o) => o.bip(520, { duree: 0.07, volume: 0.15, de: 0.7 }),
+
   // ── Les bénédictions ──
   // une bénédiction choisie : un arpège magique qui monte, et un scintillement
   benediction: (o) => {
@@ -167,6 +178,8 @@ export const LIMITES = {
   recolte: { max: 4, ecart: 0.09 },
   meteore: { max: 1, ecart: 0.5 },
   benediction: { max: 1, ecart: 0.5 },
+  frappe: { max: 2, ecart: 0.2 },
+  herosNiveau: { max: 1, ecart: 0.5 },
   nouveauSocle: { max: 1, ecart: 0.5 },
   grandFroid: { max: 1, ecart: 0.5 },
 };

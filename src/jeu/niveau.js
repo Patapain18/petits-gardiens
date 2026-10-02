@@ -217,6 +217,8 @@ export function chargerNiveau(fiche) {
     pouvoirs: Boolean(fiche.pouvoirs),
     // les bénédictions : toutes les 5 vagues tenues, un bonus à choisir parmi 3 (voir benedictions.js)
     benedictions: Boolean(fiche.benedictions),
+    // le héros : un Grand Gardien que le joueur déplace sur la carte (voir HEROS dans donnees.js)
+    heros: Boolean(fiche.heros),
     // pour chaque gardien proposé, la vague à partir de laquelle on peut le poser
     // (si la fiche ne dit rien : tous les gardiens, dès la vague 1)
     gardiens: fiche.gardiens || Object.fromEntries(Object.keys(GARDIENS).map((type) => [type, 1])),
@@ -305,6 +307,9 @@ export function problemesFiche(fiche) {
   }
   if (fiche.benedictions !== undefined && typeof fiche.benedictions !== 'boolean') {
     erreurs.push('"benedictions" doit valoir true (toutes les 5 vagues, un bonus à choisir parmi 3) ou false');
+  }
+  if (fiche.heros !== undefined && typeof fiche.heros !== 'boolean') {
+    erreurs.push('"heros" doit valoir true (un Grand Gardien que le joueur déplace sur la carte) ou false');
   }
   if (fiche.difficulte !== undefined && !DIFFICULTES[fiche.difficulte]) {
     erreurs.push(`"difficulte" doit valoir ${liste(DIFFICULTES)}`);

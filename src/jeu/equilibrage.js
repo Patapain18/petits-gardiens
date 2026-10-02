@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 import {
   creerPartie, majPartie, lancerVague, construire, ameliorer, tourSur, prixAmelioration, estDisponible,
-  pouvoirPret, lancerMeteore, lancerGrandFroid,
+  pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros,
 } from './moteur.js';
 import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS } from './donnees.js';
 import { choisirBenediction, pouvoirDe } from './benedictions.js';
@@ -214,6 +214,32 @@ function sousLeFeu(etat, visibles) {
   return couverte >= total * 0.7;
 }
 
+// ── Le héros ─────────────────────────────────────────────────
+// Le bon joueur poste son héros là où les monstres passent ENCORE : il retient où ils sont tombés à
+// la vague d'avant, et se met vers le bout de cette zone (là où les plus solides arrivent). Au cœur
+// de la défense, il ne servait à rien : les monstres y mouraient avant d'arriver jusqu'à lui. Et il
+// le fait courir juste devant un monstre qui approche du château. Le maladroit ne le bouge jamais :
+// il reste devant le château.
+function posteDuHeros(etat, chutes) {
+  const { niveau } = etat;
+  if (!chutes.length) return niveau.pointSurChemin(niveau.longueurChemin - 2);
+  const triees = [...chutes].sort((a, b) => a - b);
+  const d = triees[Math.floor(triees.length * 0.9)]; // 9 monstres sur 10 tombent avant ce point
+  return niveau.pointSurChemin(Math.min(niveau.longueurChemin - 1, d + 0.5));
+}
+function utiliserHeros(etat, poste) {
+  const h = etat.heros;
+  if (h.cible) return; // il marche déjà
+  const visibles = etat.ennemis.filter((e) => e.pv > 0 && !e.cache);
+  const premier = visibles.length ? visibles.reduce((a, b) => (b.d > a.d ? b : a)) : null;
+  if (premier && etat.niveau.longueurChemin - premier.d < 5) {
+    const p = etat.niveau.pointSurChemin(Math.min(etat.niveau.longueurChemin - 0.3, premier.d + 1.2));
+    if (Math.hypot(p.x - h.x, p.y - h.y) > 0.6) envoyerHeros(etat, p.x, p.y);
+  } else if (poste && Math.hypot(poste.x - h.x, poste.y - h.y) > 0.5) {
+    envoyerHeros(etat, poste.x, poste.y);
+  }
+}
+
 // ── Les bénédictions ─────────────────────────────────────────
 // Le bon joueur prend celle qui va le mieux avec sa défense (une estimation : ce qu'elle
 // ajoute à sa puissance) ; le maladroit prend toujours la première proposée.
@@ -273,7 +299,8 @@ function essayer(etat, action) {
 // l'ordre de son plan (ce qui est trop cher attend la vague suivante), puis
 // lance la vague et regarde (et, si le niveau en a, se sert des pouvoirs du château).
 // pouvoirs : 'malin' (il vise), 'naif' (dès qu'ils sont prêts) ou 'aucun'.
-export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'malin') {
+// heros : 'malin' (il le déplace) ou autre chose (il ne le bouge jamais).
+export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'malin', heros = pouvoirs) {
   const etat = creerPartie(niveau, graine);
   const aFaire = plan.slice();
   const vues = new Map();
@@ -281,6 +308,7 @@ export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'mal
   const classement = classerSocles(niveau);
   const bons = new Set(classement.filter((c) => c.vue >= 0.5 * classement[0].vue).map((c) => c.socle));
   const vagues = [];
+  const chutes = []; // où les monstres sont tombés pendant la vague (distance sur le chemin)
   let marge = niveau.longueurChemin; // la plus petite distance entre un monstre et le château
 
   for (let v = 0; v < niveau.vagues.length; v++) {
@@ -296,16 +324,26 @@ export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'mal
         }
       }
     }
+    // le héros du bon joueur va se poster avant la vague (là où les monstres sont tombés le plus loin)
+    const poste = etat.heros && heros === 'malin' ? posteDuHeros(etat, chutes) : null;
+    if (poste) envoyerHeros(etat, poste.x, poste.y);
+    chutes.length = 0;
     lancerVague(etat);
     let duree = 0, tues = 0;
     let pas = 0;
     while (etat.statut === 'vague' && duree < DUREE_MAX_VAGUE) {
-      // il regarde s'il faut un pouvoir 5 fois par seconde (comme un joueur, pas à chaque image)
-      if (etat.pouvoirs && pouvoirs !== 'aucun' && pas++ % 12 === 0) utiliserPouvoirs(etat, pouvoirs === 'malin');
+      // il regarde s'il faut un pouvoir (ou bouger son héros) 5 fois par seconde, comme un joueur
+      const regarde = pas++ % 12 === 0;
+      if (etat.pouvoirs && pouvoirs !== 'aucun' && regarde) utiliserPouvoirs(etat, pouvoirs === 'malin');
+      if (poste && regarde) utiliserHeros(etat, poste);
       majPartie(etat, PAS);
       duree += PAS;
       for (const e of etat.ennemis) marge = Math.min(marge, niveau.longueurChemin - e.d);
-      for (const ev of etat.evenements) if (ev.type === 'mort') tues++;
+      for (const ev of etat.evenements) {
+        if (ev.type !== 'mort') continue;
+        tues++;
+        if (ev.d !== undefined) chutes.push(ev.d); // où il est tombé, sur le chemin (pour le héros)
+      }
       etat.evenements.length = 0; // dans le vrai jeu, c'est main.js qui vide cette liste
     }
     vagues.push({ numero: v + 1, statut: etat.statut, duree, tues, or: etat.or, gardiens: etat.tours.length });

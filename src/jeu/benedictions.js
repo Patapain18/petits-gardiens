@@ -13,7 +13,7 @@
 // le moteur les lit à travers ficheDe() pour les gardiens, et pouvoirDe()
 // pour les pouvoirs du château.
 // ─────────────────────────────────────────────────────────────
-import { GARDIENS, POUVOIRS, caracteristiques } from './donnees.js';
+import { GARDIENS, POUVOIRS, HEROS, caracteristiques } from './donnees.js';
 import { creerAleatoire } from './aleatoire.js';
 
 export const TOUTES_LES = 5; // une bénédiction toutes les 5 vagues tenues
@@ -48,7 +48,7 @@ export const BENEDICTIONS = {
   entrainement: {
     nom: 'Entraînement', sorte: 'gardiens',
     texte: 'Tous les gardiens font 15 % de dégâts en plus.',
-    effet: (b) => { for (const type in GARDIENS) b.degats[type] = (b.degats[type] ?? 1) * 1.15; },
+    effet: (b) => { for (const type of [...Object.keys(GARDIENS), 'heros']) b.degats[type] = (b.degats[type] ?? 1) * 1.15; },
   },
   furie: {
     nom: 'Furie', sorte: 'gardiens',
@@ -139,6 +139,19 @@ export function ficheDe(etat, type, niveau) {
   }
   etat.fiches.set(cle, f);
   return f;
+}
+
+// Les chiffres du héros en ce moment : ceux de son niveau, avec les bénédictions « tous les
+// gardiens » (Entraînement, Furie, Œil de lynx : c'est un gardien, lui aussi)
+export function ficheDuHeros(etat) {
+  const n = HEROS.niveaux[etat.heros.niveau - 1];
+  const b = etat.bonus;
+  return {
+    degats: n.degats * (b?.degats.heros ?? 1),
+    cadence: HEROS.cadence * (b?.cadence ?? 1),
+    rayon: HEROS.rayon + (b?.portee ?? 0),
+    monstresMax: HEROS.monstresMax,
+  };
 }
 
 // Les chiffres d'un pouvoir du château dans cette partie

@@ -144,6 +144,16 @@ button.principal {
 }
 #scene.visee { cursor: crosshair; } /* on vise le Météore */
 
+/* ── Le héros ── */
+.bouton-heros { position: relative; display: inline-flex; align-items: center; gap: 6px; padding-bottom: 9px; }
+.bouton-heros[hidden] { display: none; }
+.bouton-heros .niveau-heros { color: var(--texte-doux); font-size: 0.85em; }
+.bouton-heros .touche { font: inherit; font-size: 0.75em; padding: 0 5px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.7; }
+/* la barre d'expérience, en bas du bouton (--xp va de 0 à 1) */
+.bouton-heros .xp-heros { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; background: rgba(0, 0, 0, 0.35); }
+.bouton-heros .xp-heros::after { content: ''; position: absolute; inset: 0; width: calc(var(--xp, 0) * 100%); background: #ffcf3a; }
+#scene.deplacement { cursor: pointer; } /* on choisit où envoyer le héros */
+
 /* Le Grand froid : un voile de givre sur les bords de l'écran, le temps du gel */
 #givre {
   position: fixed;
@@ -348,7 +358,7 @@ body[data-style='pixel'] .carte p { line-height: 1.8; }
 .carte .surtitre { margin: 0 0 4px; color: var(--accent); font-size: 0.8em; font-weight: 700; }
 .carte .description-niveau { color: var(--texte); }
 .carte .mention-didacticiel { color: var(--accent); }
-.carte .mention-pouvoirs, .carte .mention-benedictions { color: var(--accent); }
+.carte .mention-pouvoirs, .carte .mention-benedictions, .carte .mention-heros { color: var(--accent); }
 
 /* ── Mode survie : le record, le pseudo et le classement ── */
 #ligne-record.battu b { color: var(--accent); }
