@@ -415,20 +415,29 @@ export const MONSTRES = {
 };
 
 // Les POUVOIRS DU CHÂTEAU : c'est le joueur qui les déclenche, pendant une vague, dans les
-// niveaux dont la fiche dit « pouvoirs: true » (pour l'instant, l'arène). Ensuite, chacun se
-// recharge pendant « recharge » secondes de vague (le temps entre deux vagues ne compte pas :
-// on ne peut pas attendre tranquillement qu'ils reviennent). C'est là que le joueur fait la
-// différence : viser au bon endroit, et garder le froid pour le moment où ça craque.
+// niveaux dont la fiche dit « pouvoirs: true » (pour l'instant, l'arène). C'est là que le joueur
+// fait la différence : viser au bon endroit, et garder le froid pour le moment où ça craque.
+// - le Météore revient au début de chaque vague (« parVague » : combien on en a pour la vague) ;
+// - le Grand froid se recharge pendant « recharge » secondes de vague (le temps entre deux
+//   vagues ne compte pas : on ne peut pas attendre tranquillement qu'il revienne).
 export const POUVOIRS = {
   meteore: {
     nom: 'Météore',
     touche: '1', // la touche du clavier qui le déclenche
-    description: 'Vise un endroit du chemin : un météore y tombe une seconde plus tard, et les monstres touchés perdent la moitié de la vie qui leur reste.',
-    recharge: 30,
+    description: 'Un par vague : vise un endroit du chemin, un météore y tombe une seconde plus tard, et les monstres touchés perdent la moitié de la vie qui leur reste (les trois quarts s’ils sont gelés).',
+    // Un seul par vague (réglé en octobre 2026, avec une partie enregistrée de 50 vagues). Avant, il
+    // revenait toutes les 30 secondes : plus une vague durait, plus on en lançait, et comme il enlève
+    // une PART de la vie, il suivait les monstres à l'infini. À la fin de cette partie, il faisait
+    // 95 à 100 % des dégâts : les gardiens ne servaient plus à rien, et la partie ne s'arrêtait que
+    // quand le joueur se fatiguait.
+    parVague: 1,
     chute: 0.9,  // le temps qu'il met à tomber : il faut viser là où les monstres SERONT
     hauteur: 7,  // d'où il tombe, en cases (il traverse l'écran avant d'arriver)
     rayon: 1.6,  // la taille de l'explosion, en cases
     part: 0.5,   // la part de la vie qui leur reste qu'il enlève (la même part à la vague 1 qu'à la vague 30)
+    // sur un monstre gelé par le Grand froid (donc fragile) : les trois quarts, pas plus. Avant, le
+    // « fragile » doublait la moitié : toute la vie, et le combo battait n'importe quel monstre d'un coup
+    partGele: 0.75,
   },
   froid: {
     nom: 'Grand froid',

@@ -45,9 +45,10 @@ export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
     battus: 0,                // monstres battus depuis le début (départage le classement de la survie)
     degatsPar: {},            // les dégâts faits par chacun (type de gardien, 'heros' ou 'meteore') : pour les statistiques des parties enregistrées
     prochainId: 1,
-    // les pouvoirs du château (si la fiche du niveau en donne) : le temps qu'il reste avant
-    // que chacun soit prêt (0 = prêt). Voir POUVOIRS dans donnees.js.
-    pouvoirs: niveau.pouvoirs ? { meteore: 0, froid: 0 } : null,
+    // les pouvoirs du château (si la fiche du niveau en donne) : meteore = combien il en reste
+    // pour cette vague ; froid = le temps qu'il reste avant qu'il soit prêt (0 = prêt). Voir
+    // POUVOIRS dans donnees.js.
+    pouvoirs: niveau.pouvoirs ? { meteore: POUVOIRS.meteore.parVague, froid: 0 } : null,
     // les bénédictions (voir benedictions.js) : les bonus de la partie, celles déjà choisies,
     // les 3 proposées en ce moment (null s'il n'y a rien à choisir), et les socles bonus débloqués
     bonus: niveau.benedictions ? bonusDeDepart() : null,
@@ -157,20 +158,27 @@ export function lancerVague(etat) {
   etat.aApparaitre.sort((a, b) => a.quand - b.quand);
   etat.vague++;
   etat.statut = 'vague';
+  // un Météore tout neuf pour cette vague (ou deux, avec la Pluie d'étoiles) ; ceux de la vague
+  // d'avant qu'on n'a pas lancés sont perdus
+  if (etat.pouvoirs) etat.pouvoirs.meteore = pouvoirDe(etat, 'meteore').parVague;
   return true;
 }
 
 // ── Les pouvoirs du château ──────────────────────────────────
-// Un pouvoir se déclenche seulement pendant une vague, et s'il est rechargé.
-export const pouvoirPret = (etat, nom) => Boolean(etat.pouvoirs) && etat.statut === 'vague' && etat.pouvoirs[nom] <= 0;
+// Un pouvoir se déclenche seulement pendant une vague : le Météore s'il en reste pour cette
+// vague, le Grand froid s'il est rechargé.
+export function pouvoirPret(etat, nom) {
+  if (!etat.pouvoirs || etat.statut !== 'vague') return false;
+  return nom === 'meteore' ? etat.pouvoirs.meteore > 0 : etat.pouvoirs[nom] <= 0;
+}
 
 // Le Météore : il tombe en (x, y) au bout de « chute » secondes (c'est un tir comme les
 // autres, rangé avec eux : les styles le dessinent pendant sa chute)
 export function lancerMeteore(etat, x, y) {
   if (!pouvoirPret(etat, 'meteore')) return false;
-  const { recharge, chute, hauteur, rayon, part } = pouvoirDe(etat, 'meteore'); // (avec les bénédictions)
-  etat.pouvoirs.meteore = recharge;
-  etat.projectiles.push({ id: etat.prochainId++, type: 'meteore', x, y, z: hauteur, reste: chute, chute, rayon, part });
+  const { chute, hauteur, rayon, part, partGele } = pouvoirDe(etat, 'meteore'); // (avec les bénédictions)
+  etat.pouvoirs.meteore--;
+  etat.projectiles.push({ id: etat.prochainId++, type: 'meteore', x, y, z: hauteur, reste: chute, chute, rayon, part, partGele });
   etat.evenements.push({ type: 'meteore', x, y });
   return true;
 }
@@ -247,10 +255,8 @@ export function majPartie(etat, dt) {
   if (etat.statut === 'perdu' || etat.statut === 'gagne') return;
   etat.pas++;
   etat.temps += dt;
-  // les pouvoirs se rechargent pendant les vagues seulement
-  if (etat.pouvoirs && etat.statut === 'vague') {
-    for (const nom in etat.pouvoirs) etat.pouvoirs[nom] = Math.max(0, etat.pouvoirs[nom] - dt);
-  }
+  // le Grand froid se recharge pendant les vagues seulement (le Météore, lui, revient à chaque vague)
+  if (etat.pouvoirs && etat.statut === 'vague') etat.pouvoirs.froid = Math.max(0, etat.pouvoirs.froid - dt);
   faireApparaitre(etat);
   deplacerEnnemis(etat, dt);
   if (etat.statut === 'perdu') return;
@@ -575,11 +581,14 @@ function exploser(etat, p, fiche) {
 // Météore reste utile jusqu'au bout. Mais une part de ce qui reste, jamais tout : seul, il
 // ne bat aucun monstre, il faut des gardiens pour finir le travail. (Essayé avec une part de
 // la vie maximale : deux Météores battaient n'importe quel monstre, et une défense de
-// Givrine seules tenait les 150 vagues de l'arène !)
+// Givrine seules tenait les 150 vagues de l'arène !) Un monstre gelé par le Grand froid perd
+// les trois quarts (partGele) : le « fragile » ne double pas la moitié, sinon ce serait tout.
 function meteoreTombe(etat, p) {
   let touches = 0;
   for (const e of etat.ennemis) {
-    if (e.pv > 0 && !e.cache && distance(e.x - p.x, e.y - p.y) <= p.rayon) { blesser(etat, e, e.pv * p.part, { perce: true, par: 'meteore' }); touches++; }
+    if (!(e.pv > 0 && !e.cache && distance(e.x - p.x, e.y - p.y) <= p.rayon)) continue;
+    blesser(etat, e, e.pv * (e.gele > 0 ? p.partGele : p.part), { perce: true, par: 'meteore', fragile: false });
+    touches++;
   }
   etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon: p.rayon, touches });
 }
@@ -590,7 +599,9 @@ function meteoreTombe(etat, p) {
 // etat.degatsPar, et l'événement « mort » le répète, avec gele (était-il gelé par le Grand
 // froid ?) : les statistiques des parties enregistrées s'en servent (qui fait le plus de
 // dégâts, qui donne le dernier coup, combien de combos…).
-function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null } = {}) {
+// fragile : un monstre gelé prend deux fois plus de dégâts (le Météore compte le gel à sa
+// façon : voir meteoreTombe).
+function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null, fragile = true } = {}) {
   if (ennemi.pv <= 0) return;
   const armure = MONSTRES[ennemi.type].armure;
   if (armure && !perce) {
@@ -598,7 +609,7 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null
     degats = Math.max(1, degats - armure);
     etat.evenements.push({ type: 'carapace', x: ennemi.x, y: ennemi.y, quoi: ennemi.type });
   }
-  if (ennemi.gele > 0) degats *= POUVOIRS.froid.fragile; // gelé par le Grand froid, il est fragile
+  if (fragile && ennemi.gele > 0) degats *= POUVOIRS.froid.fragile; // gelé par le Grand froid, il est fragile
   if (par) etat.degatsPar[par] = (etat.degatsPar[par] || 0) + Math.min(degats, ennemi.pv); // (ce qu'il lui enlève vraiment)
   ennemi.pv -= degats;
   if (flash) ennemi.touche = 0.12;

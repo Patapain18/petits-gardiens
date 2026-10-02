@@ -146,9 +146,9 @@ Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagu
 
 ![L'arène pixel, en pleine partie](docs/arene.jpg)
 
-**Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **25 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
+**Les vagues sans fin** (`src/jeu/survie.js`). L'arène commence par les vagues écrites dans sa fiche (5 dans L'arène pixel). Ensuite, elles sont fabriquées : on mesure la « menace » de la dernière vague écrite (les points de vie qui arrivent, multipliés par la vitesse des monstres), et chaque nouvelle vague en apporte **22 % de plus**. Les thèmes tournent : une marée de Gluants, une ruée de Filous, une colonne de Cuirassés, puis tout à la fois. Au-delà de 15 monstres par groupe, les monstres ne deviennent plus plus nombreux mais **renforcés** (`force` multiplie leurs points de vie) : l'écran reste lisible, et l'or gagné ne suit plus, ce qui finit toujours par faire tomber le château.
 
-**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château, les bénédictions et le héros : le bon joueur tient 25 à 29 vagues, des Braise seules 17, sans jamais améliorer 16 à 19, et les meilleures compositions bien jouées 27 à 29. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
+**L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel, avec les pouvoirs du château, les bénédictions et le héros (et le Météore à un par vague) : le bon joueur tient 26 vagues, des Braise seules 17 à 20, sans jamais améliorer 18 à 20, des Braise mal placées 12, et les meilleures compositions bien jouées 26 à 30. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
 
 **Le réglage d'octobre 2026.** L'arène était trop facile, surtout avec Givrine + Grondin. Les mesures (des parties simulées, et une recherche automatique de la meilleure composition, socle par socle) l'ont confirmé : ce mélange tenait 34 à 36 vagues, plus d'une demi-heure, contre 26 pour le bon joueur. La raison : les monstres gelés se tassent les uns contre les autres, et dans les dernières vagues un seul rocher en touchait 20 à 40 (jusqu'à 75 !). Autre problème : toute la défense était achetée dès la vague 13. Pendant plus de 20 vagues, il ne restait rien à décider, et l'or s'entassait (22 000 pièces à la fin). Trois changements :
 
@@ -170,22 +170,29 @@ Givrine + Grondin reste le meilleur mélange de l'arène (c'est le rôle du Gron
 
 **Créer une arène** : dans l'éditeur, coche « Mode survie » (et « Pouvoirs du château » pour donner le Météore et le Grand froid, « Bénédictions » pour les bonus toutes les 5 vagues, « Héros » pour le Grand Gardien). Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
 
-**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château, les bénédictions et un héros à déplacer (ci-dessous). Chacune rendait l'arène plus facile et les parties plus longues : à la fin, la montée des vagues est passée de 20 % à **25 %** (avec 20 %, un très bon joueur imaginaire repartait vers 35 vagues ; avec 28 %, tout le monde finissait pareil, et le savoir-faire ne comptait plus).
+**Le plafond, et les pouvoirs du château.** Après le réglage d'octobre 2026, un vrai joueur est arrivé à la vague 22… et a senti un plafond : la meilleure composition donne le meilleur score possible, et le savoir-faire ne sert plus à rien. C'était vrai : pendant une vague, il n'y avait rien à faire ; la défense atteint sa puissance maximale vers la vague 14 (12 socles au niveau 3) ; et tout le monde joue la même partie. D'où trois idées, une par étape : les pouvoirs du château, les bénédictions et un héros à déplacer (ci-dessous). Chacune rendait l'arène plus facile et les parties plus longues : à la fin, la montée des vagues est passée de 20 % à 25 % (avec 20 %, un très bon joueur imaginaire repartait vers 35 vagues ; avec 28 %, tout le monde finissait pareil, et le savoir-faire ne comptait plus). Puis à **22 %**, quand le Météore est passé à un par vague (voir « Le Météore, réglé avec une vraie partie »).
 
 ### Les pouvoirs du château
 
 Deux boutons à côté de « Lancer la vague », dans les niveaux dont la fiche dit `"pouvoirs": true` (pour l'instant, l'arène) :
 
-- **Météore** (touche 1) : on clique sur le bouton, puis sur le chemin ; un cercle orange montre où il tombera. Il met 0,9 seconde à tomber (il faut viser là où les monstres **seront**), puis les monstres touchés perdent **la moitié de la vie qui leur reste** (même ceux qui volent). Il se recharge en 30 secondes. Clic droit, Échap ou un nouveau clic sur le bouton : on annule.
-- **Grand froid** (touche 2) : tous les monstres gèlent sur place pendant 4 secondes (pris dans un glaçon), et sont **fragiles** : ils prennent deux fois plus de dégâts. Il se recharge en 60 secondes.
-
-Ils ne se rechargent que **pendant les vagues** : on ne peut pas attendre tranquillement qu'ils reviennent entre deux vagues. Chaque bouton se remplit pendant sa recharge. Les chiffres sont dans `POUVOIRS` (`src/jeu/donnees.js`), les règles dans le moteur (`lancerMeteore`, `lancerGrandFroid`) ; les trois styles dessinent le cercle de visée, la boule de feu qui tombe, son explosion et les glaçons.
+- **Météore** (touche 1) : **un par vague**. On clique sur le bouton, puis sur le chemin ; un cercle orange montre où il tombera. Il met 0,9 seconde à tomber (il faut viser là où les monstres **seront**), puis les monstres touchés perdent **la moitié de la vie qui leur reste** (même ceux qui volent), et **les trois quarts** s'ils sont gelés. Le bouton montre combien il en reste pour la vague (« 1/1 », puis « 0/1 ») ; un Météore pas lancé est perdu à la fin de la vague. Clic droit, Échap ou un nouveau clic sur le bouton : on annule.
+- **Grand froid** (touche 2) : tous les monstres gèlent sur place pendant 4 secondes (pris dans un glaçon), et sont **fragiles** : ils prennent deux fois plus de dégâts. Il se recharge en 60 secondes, **pendant les vagues** seulement (on ne peut pas attendre tranquillement qu'il revienne entre deux vagues) ; son bouton se remplit pendant la recharge. Les chiffres sont dans `POUVOIRS` (`src/jeu/donnees.js`), les règles dans le moteur (`lancerMeteore`, `lancerGrandFroid`) ; les trois styles dessinent le cercle de visée, la boule de feu qui tombe, son explosion et les glaçons.
 
 **Ce que les joueurs imaginaires ont trouvé** (ils se servent maintenant des pouvoirs : le bon joueur vise le plus gros paquet, là où il sera, et garde le froid pour le moment où le gros des monstres est sous le feu de ses gardiens ; le maladroit lance tout dès que c'est prêt) :
 
 - Au premier essai, le Météore enlevait la moitié de la vie **maximale** : deux Météores battaient n'importe quel monstre, même dans les vagues les plus solides, et une défense de **Givrine seules tenait les 150 vagues** ! Une part de la vie **qui reste**, c'est toujours utile (en survie, les monstres deviennent de plus en plus solides), mais seul, le Météore ne bat plus personne.
 - Le Grand froid ne servait presque à rien avec des Givrine : des monstres déjà ralentis, qu'on arrête tout à fait, n'avancent guère moins. D'où les monstres **fragiles** pendant le gel. Et un combo : un Météore sur des monstres gelés (deux fois la moitié) les bat tous. Ce n'est pas une astuce sans fin : garder le Météore pour ce combo fait tenir **moins** longtemps que de le lancer librement.
 - Avec Givrine + Grondin : 24,6 vagues sans pouvoirs, 25,9 avec un Météore lancé au hasard, 29,4 avec un Météore bien visé. **Bien viser compte**, et le meilleur score n'est plus fixé par la composition seule.
+
+**Le Météore, réglé avec une vraie partie.** Au début, le Météore se rechargeait en 30 secondes, et un combo « Grand froid puis Météore » enlevait toute la vie (la moitié, doublée par le « fragile »). Un vrai joueur a tenu 55 vagues, puis 50 dans une partie enregistrée (voir « Les parties enregistrées »), que `npm run parties` a racontée : 108 Météores touchant chacun 17,7 monstres en moyenne (le héros et les Givrine les tassent en paquet), 581 monstres battus par le combo, et surtout **95 à 100 % des dégâts faits par le Météore** de la vague 35 à la vague 50 ; les 12 gardiens ne servaient plus à rien. Et le joueur avait arrêté de jouer à la vague 51 : ce n'est pas le jeu qui l'avait battu. La raison : plus une vague dure, plus on lance de Météores, et comme chacun enlève une **part** de la vie, il suit les monstres à l'infini. Ce que les joueurs imaginaires n'avaient pas vu (ils visaient bien moins bien). Les changements :
+
+- **un Météore par vague**, au lieu d'un toutes les 30 secondes : une vague plus longue n'en donne plus davantage ;
+- **sur des monstres gelés, les trois quarts de la vie**, plus toute la vie : le combo reste le meilleur coup, mais il faut des gardiens pour finir ;
+- la **Pluie d'étoiles** donne un Météore de plus par vague (une fois), et la **Comète** le rend plus large, plus plus fort ;
+- la montée des vagues redescend de 25 % à **22 %** : avec un Météore moins fort, le bon joueur imaginaire ne tenait plus que 22 vagues (26 maintenant). Un « expert » imaginaire qui copie la technique de la partie de 50 vagues s'arrête vers 35 vagues, au lieu de pouvoir jouer à l'infini.
+
+Le classement a changé de **saison** en même temps (voir « Le classement en ligne »).
 
 ### Les bénédictions
 
@@ -201,8 +208,8 @@ Dans les arènes dont la fiche dit `"benedictions": true` : après les vagues 5,
 | Œil de lynx | tous les gardiens voient 0,5 case plus loin | tous les gardiens | 2 fois |
 | Entraînement | tous les gardiens font 15 % de dégâts en plus | tous les gardiens | à volonté |
 | Furie | tous les gardiens tirent 12 % plus vite | tous les gardiens | à volonté |
-| Pluie d'étoiles | le Météore se recharge 30 % plus vite | un pouvoir | 2 fois |
-| Comète | le Météore touche 0,4 case plus loin et enlève 10 % de vie en plus | un pouvoir | 2 fois |
+| Pluie d'étoiles | un Météore de plus à chaque vague | un pouvoir | 1 fois |
+| Comète | le Météore touche 0,4 case plus loin | un pouvoir | 2 fois |
 | Froid polaire | le Grand froid dure 1 s de plus et se recharge 10 s plus vite | un pouvoir | 2 fois |
 | Coffre au trésor | 400 pièces tout de suite (jusqu'à la vague 15) | l'or | à volonté |
 | Butin | les monstres rapportent 50 % d'or en plus (jusqu'à la vague 15) | l'or | 1 fois |
@@ -217,7 +224,7 @@ Les chiffres d'un gardien dans une partie viennent de `ficheDe(etat, type, nivea
 **Ce que les joueurs imaginaires ont mesuré** (le bon joueur choisit la bénédiction qui va le mieux avec sa défense ; le maladroit prend toujours la première) : avec les bénédictions, le bon joueur passe de 25 à 25-29 vagues. Pour juger chaque bénédiction, un banc d'essai l'a donnée **seule**, à la vague 5 (et 10), sans aucune autre :
 
 - **Pluie d'étoiles** (le Météore 40 % plus vite) prise deux fois faisait gagner 4 vagues à presque tout le monde, et **Froid polaire** (+2 s et 15 s de recharge en moins) jusqu'à 5 vagues à des Givrine : trop forts pour des bonus que tout le monde voudrait. Réglés à 30 %, et +1 s / −10 s.
-- **Comète** (un Météore plus gros) ne changeait presque rien : le Météore touche déjà les paquets. Il est maintenant aussi plus fort (10 % de vie en plus).
+- **Comète** (un Météore plus gros) ne changeait presque rien : le Météore touche déjà les paquets. Elle l'a rendu aussi plus fort (10 % de vie en plus)… jusqu'à la partie enregistrée de 50 vagues : depuis, Pluie d'étoiles et Comète ont changé avec le Météore (voir plus haut).
 - Les bonus de gardien (Feu de joie, Hiver éternel, Rochers géants) rapportent 2 à 4 vagues… mais seulement à une défense qui a ce gardien : c'est voulu.
 - L'or et le nouveau socle comptent peu pour un bon joueur, dont la défense est complète vers la vague 14 ; ils aident surtout au début.
 
@@ -256,7 +263,9 @@ patapain18.github.io                    serveur/api/scores.js
 
 **La base** : Upstash Redis, branchée au projet depuis le tableau de bord de Vercel (onglet Storage). Vercel donne alors à la fonction deux réglages secrets : `KV_REST_API_URL` (l'adresse de la base) et `KV_REST_API_TOKEN` (sa clé). Ils ne sont écrits nulle part dans le code. La fonction parle à la base par de simples requêtes web (l'« API REST » d'Upstash), sans bibliothèque à installer.
 
-Chaque arène est un **ensemble trié** de Redis (la clé `classement:arene-pixel`) : chaque score y est rangé avec une **note** qui le classe, `vagues × 1 000 000 + monstres battus`. Plus de vagues gagne toujours ; à égalité de vagues, plus de monstres. À égalité parfaite, le premier arrivé reste devant. On garde les 200 meilleurs de chaque arène.
+Chaque arène est un **ensemble trié** de Redis (la clé `classement:arene-pixel:saison2`) : chaque score y est rangé avec une **note** qui le classe, `vagues × 1 000 000 + monstres battus`. Plus de vagues gagne toujours ; à égalité de vagues, plus de monstres. À égalité parfaite, le premier arrivé reste devant. On garde les 200 meilleurs de chaque arène.
+
+**Les saisons.** Quand les règles changent beaucoup, les vieux scores ne se comparent plus aux nouveaux : le classement repart de zéro, c'est une nouvelle **saison**. Rien n'est effacé : chaque saison a sa clé dans la base (la saison 1 sous `classement:arene-pixel`, la saison 2 sous `classement:arene-pixel:saison2`). Le numéro est écrit à deux endroits, à changer ensemble : `SAISON` dans `serveur/api/scores.js` (où ranger les scores) et dans `src/classement.js` (ce que le jeu affiche, et les scores gardés sur l'ordinateur). La **saison 2** a commencé le 2 octobre 2026, quand le Météore est passé à un par vague (le record de la saison 1 : 55 vagues).
 
 **On ne fait confiance à personne** : n'importe qui peut appeler l'adresse du serveur, avec n'importe quoi dedans. Alors :
 - **chaque score est vérifié** : arène connue, pseudo nettoyé comme dans le jeu (de 1 à 16 caractères), nombres entiers et possibles (300 vagues au plus) ;
@@ -277,7 +286,7 @@ npx vercel deploy --prod
 
 `serveur/vercel.json` fait tourner la fonction à Paris (`cdg1`), près de la base (à Francfort) : chaque question à la base fait l'aller-retour en quelques millisecondes. Il renvoie aussi l'adresse du serveur toute seule (https://petits-gardiens-classement.vercel.app) vers le jeu : sans ça, quelqu'un qui l'ouvre tomberait sur une page « 404 », puisque le serveur n'a pas de page. Le dossier `serveur/.vercel` (le lien avec le projet) et les fichiers `.env*` ne vont jamais sur GitHub.
 
-**Modérer** (effacer un pseudo déplacé) : sur vercel.com, projet `petits-gardiens-classement`, onglet Storage, ouvrir la base dans la console d'Upstash (« Open in Upstash »), puis « Data Browser » : dans la clé `classement:arene-pixel`, supprimer la ligne. L'arène `essai` sert aux vérifications : le serveur l'accepte, mais le jeu ne l'affiche jamais.
+**Modérer** (effacer un pseudo déplacé) : sur vercel.com, projet `petits-gardiens-classement`, onglet Storage, ouvrir la base dans la console d'Upstash (« Open in Upstash »), puis « Data Browser » : dans la clé `classement:arene-pixel:saison2`, supprimer la ligne. L'arène `essai` sert aux vérifications : le serveur l'accepte, mais le jeu ne l'affiche jamais.
 
 ## Les parties enregistrées
 

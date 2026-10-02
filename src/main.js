@@ -19,7 +19,7 @@ import { VERSION, preparerEnvoi, garderEtEnvoyer, garderEnAttente, envoyerPartie
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
 import { noterVictoire } from './progression.js';
-import { meilleursScores, enregistrerScore, nettoyerPseudo, pseudoMemorise, memoriserPseudo, sourceDuClassement, LONGUEUR_PSEUDO } from './classement.js';
+import { meilleursScores, enregistrerScore, nettoyerPseudo, pseudoMemorise, memoriserPseudo, sourceDuClassement, LONGUEUR_PSEUDO, SAISON } from './classement.js';
 import { Didacticiel } from './didacticiel.js';
 import { creerSon } from './son/son.js';
 import { lireOptions, changerOptions, quandOptionsChangent } from './options.js';
@@ -442,16 +442,26 @@ function arreterVisee() {
   conteneur.classList.remove('visee');
 }
 
-// À chaque image : la recharge de chaque bouton (il se remplit), et « prêt » ou non
+// À chaque image : chaque bouton se remplit, et dit s'il est prêt. Le Météore montre combien il
+// en reste pour la vague (« 1/1 », puis « 0/1 » ; entre deux vagues, ceux de la vague suivante) ;
+// le Grand froid, les secondes avant d'être rechargé.
 function majPouvoirs() {
   for (const b of boutonsPouvoirs) {
-    const nom = b.dataset.pouvoir, reste = etat.pouvoirs[nom], pret = pouvoirPret(etat, nom);
+    const nom = b.dataset.pouvoir, pret = pouvoirPret(etat, nom);
     if (!pret && document.activeElement === b) b.blur(); // un bouton grisé ne garde pas le clavier
     b.disabled = !pret;
     b.classList.toggle('pret', pret);
-    b.style.setProperty('--charge', String(1 - reste / pouvoirDe(etat, nom).recharge));
-    ecrire(b.querySelector('.etat-pouvoir'), reste > 0 ? `${Math.ceil(reste)} s` : '');
-    if (nom === 'meteore') b.setAttribute('aria-pressed', String(ui.visee === 'meteore'));
+    if (nom === 'meteore') {
+      const { parVague } = pouvoirDe(etat, 'meteore');
+      const restants = etat.statut === 'vague' ? etat.pouvoirs.meteore : parVague;
+      b.style.setProperty('--charge', String(restants / parVague));
+      ecrire(b.querySelector('.etat-pouvoir'), `${restants}/${parVague}`);
+      b.setAttribute('aria-pressed', String(ui.visee === 'meteore'));
+    } else {
+      const reste = etat.pouvoirs[nom];
+      b.style.setProperty('--charge', String(1 - reste / pouvoirDe(etat, nom).recharge));
+      ecrire(b.querySelector('.etat-pouvoir'), reste > 0 ? `${Math.ceil(reste)} s` : '');
+    }
   }
   if (ui.visee && !pouvoirPret(etat, 'meteore')) arreterVisee(); // la vague est finie : on ne vise plus
 }
@@ -596,7 +606,7 @@ function afficherIntro() {
   }
   if (niveau.pouvoirs) {
     const { meteore, froid } = POUVOIRS;
-    carte.append(element('p', 'mention-pouvoirs', `Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`));
+    carte.append(element('p', 'mention-pouvoirs', `Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), un par vague, que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`));
   }
   // la partie est enregistrée (si le joueur ne l'a pas refusé dans les Options) : on le dit
   if (enregistrement && lireOptions().partage) {
@@ -609,7 +619,7 @@ function afficherIntro() {
     meilleursScores(niveau.id, 1).then(([premier]) => {
       record.textContent = premier
         ? `Le record de l’arène : ${pluriel(premier.vagues, 'vague')}, par ${premier.pseudo}.`
-        : 'Personne n’a encore joué ici : à toi l’honneur !';
+        : `Saison ${SAISON} : personne n’a encore joué ici, à toi l’honneur !`;
     });
   }
   carte.append(boutons([{ texte: 'Jouer', action: 'jouer' }, { texte: 'Carte des époques', lien: './' }]));
@@ -700,7 +710,7 @@ function afficherFinSurvie() {
     const rang = element('p', 'place-classement', `Tu prends la ${place === 1 ? '1re' : `${place}e`} place sur ${total}.`);
     const ou = element('p', 'note-classement', resultat.horsLigne
       ? 'Le classement en ligne ne répond pas : ton score est gardé sur cet ordinateur.'
-      : 'Classement en ligne, avec tous les joueurs.');
+      : `Classement en ligne de la saison ${SAISON}, avec tous les joueurs.`);
     formulaire.replaceWith(rang, ou, await tableauClassement(place));
     rejouer.classList.add('principal'); // le score est rangé : rejouer devient l'action principale
     rejouer.focus();

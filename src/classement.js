@@ -11,7 +11,11 @@
 // ─────────────────────────────────────────────────────────────
 const SERVEUR = 'https://petits-gardiens-classement.vercel.app/api/scores';
 const ATTENTE_MAX = 6000; // au-delà de 6 secondes sans réponse, on fait sans le serveur
-const CLE = 'petits-gardiens-classement';
+// La saison du classement : quand les règles changent beaucoup, tout le monde repart de zéro
+// (c'est le serveur qui range chaque saison à part : SAISON dans serveur/api/scores.js, à
+// changer en même temps). Saison 2 : le Météore ne revient qu'une fois par vague.
+export const SAISON = 2;
+const CLE = `petits-gardiens-classement-saison${SAISON}`; // les scores de cet ordinateur, pour cette saison
 const CLE_PSEUDO = 'petits-gardiens-pseudo';
 const GARDES = 50;     // sur cet ordinateur, on garde les 50 meilleurs scores de chaque arène
 export const LONGUEUR_PSEUDO = 16;

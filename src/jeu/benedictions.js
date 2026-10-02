@@ -55,15 +55,17 @@ export const BENEDICTIONS = {
     texte: 'Tous les gardiens tirent 12 % plus vite.',
     effet: (b) => { b.cadence *= 0.88; },
   },
+  // (le Météore ne revient qu'une fois par vague depuis octobre 2026 : la Pluie d'étoiles en donne un
+  // de plus, une seule fois ; la Comète ne le rend plus « plus fort », seulement plus large)
   etoiles: {
-    nom: 'Pluie d’étoiles', sorte: 'pouvoir', quand: (etat) => Boolean(etat.pouvoirs), max: 2,
-    texte: 'Le Météore se recharge 30 % plus vite.',
-    effet: (b) => { b.meteore.recharge *= 0.7; },
+    nom: 'Pluie d’étoiles', sorte: 'pouvoir', quand: (etat) => Boolean(etat.pouvoirs), max: 1,
+    texte: 'Un Météore de plus à chaque vague.',
+    effet: (b) => { b.meteore.parVague += 1; },
   },
   comete: {
     nom: 'Comète', sorte: 'pouvoir', quand: (etat) => Boolean(etat.pouvoirs), max: 2,
-    texte: 'Le Météore est plus gros et plus fort : il touche 0,4 case plus loin, et enlève 10 % de vie en plus.',
-    effet: (b) => { b.meteore.rayon += 0.4; b.meteore.part += 0.1; },
+    texte: 'Le Météore est plus gros : il touche 0,4 case plus loin.',
+    effet: (b) => { b.meteore.rayon += 0.4; },
   },
   polaire: {
     nom: 'Froid polaire', sorte: 'pouvoir', quand: (etat) => Boolean(etat.pouvoirs), max: 2,
@@ -102,7 +104,7 @@ export function bonusDeDepart() {
     portee: 0,                        // en cases, en plus
     gel: { duree: 0, facteur: 1 },    // le gel des Givrine : secondes en plus, et vitesse des gelés × facteur
     rochers: { monstres: 0, zone: 0 }, // les rochers des Grondin : monstres touchés en plus, rayon en plus
-    meteore: { recharge: 1, rayon: 0, part: 0 },
+    meteore: { parVague: 0, rayon: 0 },  // le Météore : combien en plus par vague, rayon en plus
     froid: { duree: 0, recharge: 0 },
     primes: 1,                        // l'or rapporté par chaque monstre battu
   };
@@ -159,7 +161,7 @@ export function pouvoirDe(etat, nom) {
   const base = POUVOIRS[nom];
   const b = etat.bonus?.[nom];
   if (!b) return base;
-  if (nom === 'meteore') return { ...base, recharge: base.recharge * b.recharge, rayon: base.rayon + b.rayon, part: base.part + b.part };
+  if (nom === 'meteore') return { ...base, parVague: base.parVague + b.parVague, rayon: base.rayon + b.rayon };
   return { ...base, duree: base.duree + b.duree, recharge: Math.max(10, base.recharge + b.recharge) };
 }
 

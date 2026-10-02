@@ -48,7 +48,13 @@ async function redis(...commandes) {
 // Chaque arène est un « ensemble trié » de Redis : chaque score y est rangé avec une
 // note qui sert à le classer. La note = vagues × 1 000 000 + monstres battus : plus
 // de vagues gagne toujours, et à égalité de vagues, plus de monstres battus.
-const cleArene = (arene) => `classement:${arene}`;
+// La SAISON : quand les règles changent beaucoup, le classement repart de zéro. Les scores
+// d'avant restent dans la base (rien n'est effacé), sous la clé de leur saison : la saison 1
+// sous « classement:arene-pixel », les suivantes sous « classement:arene-pixel:saison2 »…
+// Saison 2 : depuis le 2 octobre 2026, le Météore ne revient qu'une fois par vague.
+// (Le jeu affiche le numéro de la saison : SAISON dans src/classement.js, à changer en même temps.)
+const SAISON = 2;
+const cleArene = (arene) => (SAISON > 1 ? `classement:${arene}:saison${SAISON}` : `classement:${arene}`);
 const note = ({ vagues, battus }) => vagues * 1000000 + battus;
 
 // L'ordre exact du classement (comme dans le jeu) : vagues, puis monstres, puis le premier arrivé

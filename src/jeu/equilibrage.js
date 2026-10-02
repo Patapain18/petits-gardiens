@@ -163,11 +163,13 @@ export function planDe(strategie, classement) {
 }
 
 // ── Les pouvoirs du château ──────────────────────────────────
-// Le bon joueur vise : il lance le Météore sur le plus gros paquet (au moins 3 monstres), en
-// visant l'endroit où ils SERONT quand il tombera. Il lance le Grand froid quand le gros des
-// monstres est sous le feu de ses gardiens (ou quand un monstre arrive au château). Le
-// maladroit lance chaque pouvoir dès qu'il est prêt : le Météore sur le premier monstre, là
-// où il est (il tombera derrière lui), et le froid même si les monstres sont encore loin.
+// Le bon joueur vise : il n'a qu'un Météore par vague, alors il attend que tous les monstres de
+// la vague soient sortis, puis le lance sur le plus gros paquet (au moins 3 monstres, et au moins
+// un tiers de ceux qui sont là), en visant l'endroit où ils SERONT quand il tombera ; ou tout de
+// suite, si un monstre arrive au château. Il lance le Grand froid quand le gros des monstres est
+// sous le feu de ses gardiens (ou quand un monstre arrive au château). Le maladroit lance chaque
+// pouvoir dès qu'il est prêt : le Météore sur le premier monstre, là où il est (il tombera
+// derrière lui), et le froid même si les monstres sont encore loin.
 const URGENCE = 3; // « un monstre arrive au château » : à moins de 3 cases
 function utiliserPouvoirs(etat, malin) {
   const { niveau } = etat;
@@ -179,8 +181,10 @@ function utiliserPouvoirs(etat, malin) {
     lancerMeteore(etat, premier.x, premier.y);
     return;
   }
-  if (pouvoirPret(etat, 'froid') && (niveau.longueurChemin - premier.d < URGENCE || sousLeFeu(etat, visibles))) lancerGrandFroid(etat);
+  const urgence = niveau.longueurChemin - premier.d < URGENCE;
+  if (pouvoirPret(etat, 'froid') && (urgence || sousLeFeu(etat, visibles))) lancerGrandFroid(etat);
   if (!pouvoirPret(etat, 'meteore')) return;
+  if (!urgence && etat.aApparaitre.length) return; // des monstres sortent encore : il attend
   const { chute, rayon, part } = pouvoirDe(etat, 'meteore');
   // où sera chaque monstre quand le Météore tombera, et la vie qu'il lui enlèverait
   const futurs = visibles.map((e) => {
@@ -194,7 +198,7 @@ function utiliserPouvoirs(etat, malin) {
     for (const f of futurs) if (Math.hypot(f.x - centre.x, f.y - centre.y) <= rayon * 0.9) { v += f.vie; n++; }
     if (v > valeur) { valeur = v; meilleur = centre; combien = n; }
   }
-  if (meilleur && combien >= 3) lancerMeteore(etat, meilleur.x, meilleur.y);
+  if (meilleur && (urgence || combien >= Math.max(3, visibles.length / 3))) lancerMeteore(etat, meilleur.x, meilleur.y);
 }
 // Le gros des monstres est-il sous le feu ? (au moins 5 monstres, et 70 % de leur vie
 // à portée d'au moins 2 gardiens)
@@ -259,8 +263,8 @@ function valeurBenediction(etat, id) {
     case 'lynx': return 0.13;
     case 'entrainement': return 0.15;
     case 'furie': return 0.136;
-    case 'etoiles': return etat.pouvoirs ? 0.18 : 0;
-    case 'comete': return etat.pouvoirs ? 0.1 : 0;
+    case 'etoiles': return etat.pouvoirs ? 0.2 : 0;  // deux Météores par vague au lieu d'un
+    case 'comete': return etat.pouvoirs ? 0.06 : 0;   // plus large seulement
     case 'polaire': return etat.pouvoirs ? 0.07 : 0;
     case 'tresor': return 0.2 * debut;
     case 'butin': return 0.3 * debut;

@@ -8,7 +8,7 @@ import { MONDES, estDebloque, problemesCampagne } from './jeu/campagne.js';
 import { GARDIENS, MONSTRES, caracteristiques } from './jeu/donnees.js';
 import { DIFFICULTES } from './jeu/niveau.js';
 import { lireProgression, choisirToutDebloque, effacerProgression } from './progression.js';
-import { meilleursScores, sourceDuClassement } from './classement.js';
+import { meilleursScores, sourceDuClassement, SAISON } from './classement.js';
 import { envoyerPartiesEnAttente } from './parties.js';
 import { imagePersonnage } from './rendus/pixel.js';
 import { creerFenetreOptions } from './fenetre-options.js';
@@ -86,7 +86,7 @@ function carteArene(fiche) {
   // la carte s'affiche tout de suite, et son classement arrive quand le serveur répond
   // (s'il dormait, il lui faut une ou deux secondes pour se réveiller)
   const classement = el('div', 'arene-classement');
-  classement.append(el('h4', '', 'Classement'), el('p', 'classement-vide', 'Le classement arrive…'));
+  classement.append(el('h4', '', `Classement · saison ${SAISON}`), el('p', 'classement-vide', 'Le classement arrive…'));
   remplirClassement(classement, fiche.id); // sans « await » : on n'attend pas la réponse pour continuer
   carte.append(infos, classement);
   return carte;
@@ -94,9 +94,9 @@ function carteArene(fiche) {
 
 async function remplirClassement(classement, arene) {
   const scores = await meilleursScores(arene, 5);
-  const contenu = [el('h4', '', 'Classement')];
+  const contenu = [el('h4', '', `Classement · saison ${SAISON}`)];
   if (!scores.length) {
-    contenu.push(el('p', 'classement-vide', 'Personne n’a encore joué : à toi l’honneur !'));
+    contenu.push(el('p', 'classement-vide', 'Personne n’a encore joué cette saison : à toi l’honneur !'));
   } else {
     const liste = el('ol', 'podium');
     for (const score of scores) {

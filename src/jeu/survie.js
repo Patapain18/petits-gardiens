@@ -19,10 +19,14 @@
 // serrée pour les rochers ; avec 20 %, le danger arrive plus tôt.
 // Puis 25 %, quand l'arène a reçu les pouvoirs du château, les bénédictions
 // et le héros : avec 20 %, un très bon joueur repartait vers 35 vagues.
+// Puis 22 %, quand le Météore est passé à un par vague (une partie enregistrée
+// de 50 vagues montrait qu'il suivait les monstres à l'infini). Avec 25 %, le
+// bon joueur imaginaire ne tenait plus que 22 vagues ; avec 22 %, il en tient
+// 26, et un « expert » qui copie la technique de cette partie s'arrête vers 35.
 // ─────────────────────────────────────────────────────────────
 import { MONSTRES } from './donnees.js';
 
-export const CROISSANCE = 1.25;   // chaque vague fabriquée : 25 % de menace en plus
+export const CROISSANCE = 1.22;   // chaque vague fabriquée : 22 % de menace en plus
 const MAX_PAR_GROUPE = 15;        // au-delà, des monstres renforcés plutôt que plus nombreux
 const VAGUES_EN_TOUT = 150;       // bien plus que ce qu'on peut tenir
 
