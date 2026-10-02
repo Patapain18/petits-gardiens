@@ -8,6 +8,9 @@
 .qui-revoir .etiquette { color: var(--accent); font-size: 0.8em; }
 .qui-revoir b { color: var(--texte); line-height: 1.4; }
 .ressource b { white-space: nowrap; }
+/* les bénédictions choisies : dans ce panneau (et pas sous la barre, comme en jeu), pour ne
+   jamais passer par-dessus son texte quand la fenêtre est étroite */
+.qui-revoir .mes-benedictions { position: static; max-width: none; margin-top: 2px; }
 
 /* la lecture prend toute la largeur du bas de l'écran */
 .lecture { flex: 1; gap: 12px; }

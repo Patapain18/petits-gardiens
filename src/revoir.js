@@ -249,7 +249,9 @@ async function demarrer() {
   // ── La boucle : avancer la partie au rythme choisi, puis la dessiner ──
   let avant = performance.now(), reserve = 0;
   function boucle(maintenant) {
-    const dt = Math.min(0.05, (maintenant - avant) / 1000);
+    // (jamais négatif : l'heure donnée à la toute première image peut être un poil plus ancienne que
+    // « avant », et un temps négatif ferait choisir au style pixel une image d'animation qui n'existe pas)
+    const dt = Math.max(0, Math.min(0.05, (maintenant - avant) / 1000));
     avant = maintenant;
     if (!enPause && !lecteur.fini) {
       reserve += dt * vitesse;

@@ -155,8 +155,9 @@ async function choisirStyle(nom, { forcer = false } = {}) {
 let avant = performance.now();
 let reserve = 0;
 function boucle(maintenant) {
-  // dt = temps écoulé depuis l'image précédente (plafonné si l'onglet a dormi)
-  const dt = Math.min(0.05, (maintenant - avant) / 1000);
+  // dt = temps écoulé depuis l'image précédente (plafonné si l'onglet a dormi ; jamais négatif :
+  // l'heure donnée à la toute première image peut être un poil plus ancienne que « avant »)
+  const dt = Math.max(0, Math.min(0.05, (maintenant - avant) / 1000));
   avant = maintenant;
 
   // le jeu attend aussi pendant qu'une fiche du didacticiel est ouverte
