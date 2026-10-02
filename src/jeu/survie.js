@@ -23,10 +23,13 @@
 // de 50 vagues montrait qu'il suivait les monstres à l'infini). Avec 25 %, le
 // bon joueur imaginaire ne tenait plus que 22 vagues ; avec 22 %, il en tient
 // 26, et un « expert » qui copie la technique de cette partie s'arrête vers 35.
+// Puis 20 %, quand le héros a reçu sa vie, ses niveaux plus lents et ses
+// pouvoirs : il frappe moins fort au début, et avec 22 %, l'expert tombait à 30
+// vagues et le bon joueur à 22 ; avec 20 %, ils reviennent à 34 et 26.
 // ─────────────────────────────────────────────────────────────
 import { MONSTRES } from './donnees.js';
 
-export const CROISSANCE = 1.22;   // chaque vague fabriquée : 22 % de menace en plus
+export const CROISSANCE = 1.2;    // chaque vague fabriquée : 20 % de menace en plus
 const MAX_PAR_GROUPE = 15;        // au-delà, des monstres renforcés plutôt que plus nombreux
 const VAGUES_EN_TOUT = 150;       // bien plus que ce qu'on peut tenir
 

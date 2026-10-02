@@ -145,13 +145,22 @@ button.principal {
 #scene.visee { cursor: crosshair; } /* on vise le Météore */
 
 /* ── Le héros ── */
-.bouton-heros { position: relative; display: inline-flex; align-items: center; gap: 6px; padding-bottom: 9px; }
+.bouton-heros { position: relative; display: inline-flex; align-items: center; gap: 6px; padding-bottom: 13px; }
 .bouton-heros[hidden] { display: none; }
 .bouton-heros .niveau-heros { color: var(--texte-doux); font-size: 0.85em; }
 .bouton-heros .touche { font: inherit; font-size: 0.75em; padding: 0 5px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.7; }
 /* la barre d'expérience, en bas du bouton (--xp va de 0 à 1) */
 .bouton-heros .xp-heros { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; background: rgba(0, 0, 0, 0.35); }
 .bouton-heros .xp-heros::after { content: ''; position: absolute; inset: 0; width: calc(var(--xp, 0) * 100%); background: #ffcf3a; }
+/* sa vie, juste au-dessus (--vie va de 0 à 1) : verte, puis jaune quand il est blessé, rouge quand il est en danger */
+.bouton-heros .vie-heros { position: absolute; left: 6px; right: 6px; bottom: 7px; height: 3px; background: rgba(0, 0, 0, 0.35); }
+.bouton-heros .vie-heros::after { content: ''; position: absolute; inset: 0; width: calc(var(--vie, 1) * 100%); background: #7be04a; }
+.bouton-heros.blesse .vie-heros::after { background: #f2c230; }
+.bouton-heros.danger .vie-heros::after { background: #ec4a3a; }
+/* K.O. : le bouton s'éteint jusqu'à la vague suivante */
+.bouton-heros.ko .niveau-heros { color: #ff8a7a; }
+/* un pouvoir du héros pas encore débloqué : « niv. 4 » à la place de la recharge */
+.pouvoir.verrouille { opacity: 0.55; }
 #scene.deplacement { cursor: pointer; } /* on choisit où envoyer le héros */
 
 /* Le Grand froid : un voile de givre sur les bords de l'écran, le temps du gel */
@@ -307,6 +316,13 @@ body[data-style='pixel'] .fleche { font-family: system-ui, sans-serif; font-size
   from { opacity: 1; translate: 0 0; }
   to { opacity: 0; translate: 0 -38px; }
 }
+/* une bulle à lire (un nouveau pouvoir du héros, son K.O.) : elle reste plus longtemps */
+.bulle-longue { white-space: nowrap; animation: envol-lent 2.6s ease-out forwards; }
+@keyframes envol-lent {
+  0%, 70% { opacity: 1; }
+  to { opacity: 0; translate: 0 -30px; }
+}
+.bulle-ko { color: #ff8a7a; }
 
 /* ── Écran de message ── */
 /* Sur un petit écran (un portable sous Windows, avec la barre des tâches et celle du navigateur),

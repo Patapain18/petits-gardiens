@@ -10,10 +10,10 @@
 // ─────────────────────────────────────────────────────────────
 import {
   creerPartie, majPartie, lancerVague, construire, ameliorer, tourSur, prixAmelioration, estDisponible,
-  pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros, PAS,
+  pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros, ondeDeChoc, sauterHeros, PAS,
 } from './moteur.js';
-import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS } from './donnees.js';
-import { choisirBenediction, pouvoirDe } from './benedictions.js';
+import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS, HEROS } from './donnees.js';
+import { choisirBenediction, pouvoirDe, ficheDuHeros } from './benedictions.js';
 import { DIFFICULTES } from './niveau.js';
 
 // Le mélange du bon joueur. Les gardiens des mondes 2 (Étincelle, Bourrasque) et 3 (Prisme,
@@ -221,8 +221,10 @@ function sousLeFeu(etat, visibles) {
 // Le bon joueur poste son héros là où les monstres passent ENCORE : il retient où ils sont tombés à
 // la vague d'avant, et se met vers le bout de cette zone (là où les plus solides arrivent). Au cœur
 // de la défense, il ne servait à rien : les monstres y mouraient avant d'arriver jusqu'à lui. Et il
-// le fait courir juste devant un monstre qui approche du château. Le maladroit ne le bouge jamais :
-// il reste devant le château.
+// le fait courir juste devant un monstre qui approche du château (il y saute, s'il a le Bond). Blessé
+// (moins d'un tiers de sa vie), il va se soigner à l'écart, et revient une fois soigné. Il lance
+// l'Onde de choc dès que 3 monstres sont autour de lui. Le maladroit ne le bouge jamais : il reste
+// devant le château.
 function posteDuHeros(etat, chutes) {
   const { niveau } = etat;
   if (!chutes.length) return niveau.pointSurChemin(niveau.longueurChemin - 2);
@@ -230,17 +232,41 @@ function posteDuHeros(etat, chutes) {
   const d = triees[Math.floor(triees.length * 0.9)]; // 9 monstres sur 10 tombent avant ce point
   return niveau.pointSurChemin(Math.min(niveau.longueurChemin - 1, d + 0.5));
 }
-function utiliserHeros(etat, poste) {
+// Un coin calme près du château, le plus loin possible du chemin : là où le héros blessé se soigne
+function refugeDuHeros(niveau) {
+  let refuge = null, loin = -1;
+  for (let a = 0; a < 16; a++) {
+    for (const r of [2.5, 3.5, 4.5]) {
+      const x = niveau.chateau.x + Math.cos((a * Math.PI) / 8) * r, y = niveau.chateau.y + Math.sin((a * Math.PI) / 8) * r;
+      if (x < 0.5 || y < 0.5 || x > niveau.largeur - 0.5 || y > niveau.hauteur - 0.5 || niveau.distanceEtang(x, y) < 0.5) continue;
+      const d = niveau.distanceAuChemin(x, y);
+      if (d > loin) { loin = d; refuge = { x, y }; }
+    }
+  }
+  return refuge;
+}
+function utiliserHeros(etat, poste, refuge) {
   const h = etat.heros;
-  if (h.cible) return; // il marche déjà
+  if (h.ko || h.saut) return;
+  const { niveau } = etat;
   const visibles = etat.ennemis.filter((e) => e.pv > 0 && !e.cache);
   const premier = visibles.length ? visibles.reduce((a, b) => (b.d > a.d ? b : a)) : null;
-  if (premier && etat.niveau.longueurChemin - premier.d < 5) {
-    const p = etat.niveau.pointSurChemin(Math.min(etat.niveau.longueurChemin - 0.3, premier.d + 1.2));
-    if (Math.hypot(p.x - h.x, p.y - h.y) > 0.6) envoyerHeros(etat, p.x, p.y);
-  } else if (poste && Math.hypot(poste.x - h.x, poste.y - h.y) > 0.5) {
-    envoyerHeros(etat, poste.x, poste.y);
+  const loinDe = (p) => Math.hypot(p.x - h.x, p.y - h.y);
+  if (visibles.filter((e) => loinDe(e) <= HEROS.pouvoirs.onde.rayon).length >= 3) ondeDeChoc(etat);
+  if (premier && niveau.longueurChemin - premier.d < 5) {
+    const p = niveau.pointSurChemin(Math.min(niveau.longueurChemin - 0.3, premier.d + 1.2));
+    if (loinDe(p) > 3 && sauterHeros(etat, p.x, p.y)) return;
+    if (loinDe(p) > 0.6 && !(h.cible && Math.hypot(h.cible.x - p.x, h.cible.y - p.y) < 0.6)) envoyerHeros(etat, p.x, p.y);
+    return;
   }
+  const vieMax = ficheDuHeros(etat).vie;
+  if (refuge && h.vie < vieMax * 0.3) {
+    if (loinDe(refuge) > 0.5 && !h.cible) envoyerHeros(etat, refuge.x, refuge.y);
+    return;
+  }
+  if (h.cible) return; // il marche déjà
+  if (refuge && loinDe(refuge) < 0.6 && h.vie < vieMax * 0.85) return; // il finit de se soigner
+  if (poste && loinDe(poste) > 0.5) envoyerHeros(etat, poste.x, poste.y);
 }
 
 // ── Les bénédictions ─────────────────────────────────────────
@@ -303,7 +329,9 @@ function essayer(etat, action) {
 // lance la vague et regarde (et, si le niveau en a, se sert des pouvoirs du château).
 // pouvoirs : 'malin' (il vise), 'naif' (dès qu'ils sont prêts) ou 'aucun'.
 // heros : 'malin' (il le déplace) ou autre chose (il ne le bouge jamais).
-export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'malin', heros = pouvoirs) {
+// observateur(etat) : si on le donne, appelé à chaque pas, avant que les événements soient effacés
+// (pour mesurer autre chose que les vagues tenues : la part du héros, ses K.O.…)
+export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'malin', heros = pouvoirs, observateur = null) {
   const etat = creerPartie(niveau, graine);
   const aFaire = plan.slice();
   const vues = new Map();
@@ -329,6 +357,7 @@ export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'mal
     }
     // le héros du bon joueur va se poster avant la vague (là où les monstres sont tombés le plus loin)
     const poste = etat.heros && heros === 'malin' ? posteDuHeros(etat, chutes) : null;
+    const refuge = etat.heros ? refugeDuHeros(niveau) : null;
     if (poste) envoyerHeros(etat, poste.x, poste.y);
     chutes.length = 0;
     lancerVague(etat);
@@ -338,9 +367,10 @@ export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'mal
       // il regarde s'il faut un pouvoir (ou bouger son héros) 5 fois par seconde, comme un joueur
       const regarde = pas++ % 12 === 0;
       if (etat.pouvoirs && pouvoirs !== 'aucun' && regarde) utiliserPouvoirs(etat, pouvoirs === 'malin');
-      if (poste && regarde) utiliserHeros(etat, poste);
+      if (poste && regarde) utiliserHeros(etat, poste, refuge);
       majPartie(etat, PAS);
       duree += PAS;
+      observateur?.(etat);
       for (const e of etat.ennemis) marge = Math.min(marge, niveau.longueurChemin - e.d);
       for (const ev of etat.evenements) {
         if (ev.type !== 'mort') continue;

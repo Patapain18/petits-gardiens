@@ -27,12 +27,12 @@ const VERSION_VALIDE = /^[a-z0-9]{3,40}$/;
 const STATUTS = ['perdu', 'gagne', 'abandon'];
 const NAVIGATEURS = ['safari', 'chrome', 'firefox', 'edge', 'autre'];
 
-// Les décisions qu'on peut trouver dans une partie, et ce qui les accompagne :
-// 'n' = un nombre, 'e' = un nombre entier (positif), 't' = un petit texte
-const ACTIONS = {
-  construire: ['e', 't'], ameliorer: ['e'], vendre: ['e'], lancerVague: [],
-  lancerMeteore: ['n', 'n'], lancerGrandFroid: [], envoyerHeros: ['n', 'n'], choisirBenediction: ['t'],
-};
+// Une décision : son nom (« construire », « lancerMeteore »… voir ACTIONS dans
+// src/jeu/enregistrement.js), puis au plus 4 valeurs : des nombres possibles ou de petits textes.
+// Le serveur ne garde pas la liste des noms : quand le jeu gagne une nouvelle décision (l'Onde de
+// choc, le Bond…), il n'y a rien à changer ici. Un rejeu ignore une décision qu'il ne connaît pas.
+const NOM_ACTION = /^[a-z][a-zA-Z]{1,29}$/;
+const VALEURS_MAX = 4;
 
 const BASE = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const CLE = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -67,14 +67,9 @@ const entier = (v, max = 1e9) => Number.isInteger(v) && v >= 0 && v <= max;
 
 function actionValide(action, pasAvant) {
   if (!Array.isArray(action) || !entier(action[0], 1e8) || action[0] < pasAvant) return false;
-  const attendu = ACTIONS[action[1]];
-  if (!attendu || action.length !== attendu.length + 2) return false;
-  return attendu.every((sorte, k) => {
-    const v = action[k + 2];
-    if (sorte === 'e') return entier(v, 1000);
-    if (sorte === 'n') return typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1000;
-    return typeof v === 'string' && /^[a-z0-9-]{1,30}$/i.test(v);
-  });
+  if (typeof action[1] !== 'string' || !NOM_ACTION.test(action[1]) || action.length > VALEURS_MAX + 2) return false;
+  return action.slice(2).every((v) => (typeof v === 'number' ? Number.isFinite(v) && Math.abs(v) < 1000
+    : typeof v === 'string' && /^[a-z0-9-]{1,30}$/i.test(v)));
 }
 
 function lirePartie(corps) {

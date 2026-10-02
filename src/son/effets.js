@@ -120,6 +120,27 @@ export const RECETTES = {
   herosNiveau: (o) => o.arpege([67, 72, 76, 79, 84], { ecart: 0.08, duree: 0.22, volume: 0.32 }),
   // on l'envoie quelque part : un petit « hop »
   herosEnvoye: (o) => o.bip(520, { duree: 0.07, volume: 0.15, de: 0.7 }),
+  // l'Onde de choc : un énorme « boum », la terre qui gronde, et un sifflement qui retombe
+  ondeDeChoc: (o) => {
+    o.coup({ volume: 0.75 });
+    o.grave(52, { duree: 0.6, volume: 0.55, de: 2 });
+    o.bruit({ duree: 0.7, volume: 0.32, type: 'lowpass', de: 1200, a: 90 });
+    o.bip(880, { duree: 0.3, volume: 0.08, de: 0.5, retard: 0.05 });
+  },
+  // le Bond : un « whoosh » qui monte (il décolle)…
+  bond: (o) => {
+    o.bruit({ duree: 0.35, volume: 0.22, type: 'bandpass', de: 400, a: 2200, q: 1.2 });
+    o.bip(300, { duree: 0.3, volume: 0.12, de: 0.5 });
+  },
+  // … et il retombe : un gros « boum » sourd
+  atterrissage: (o) => {
+    o.coup({ volume: 0.55 });
+    o.bruit({ duree: 0.35, volume: 0.2, type: 'lowpass', de: 900, a: 120 });
+  },
+  // il tombe K.O. : trois notes qui descendent, tristes
+  herosKO: (o) => o.arpege([67, 63, 60, 55], { ecart: 0.13, duree: 0.3, volume: 0.3 }),
+  // il se relève (au début de la vague suivante) : trois notes qui remontent
+  herosDebout: (o) => o.arpege([60, 64, 67, 72], { ecart: 0.09, duree: 0.22, volume: 0.26 }),
 
   // ── Les bénédictions ──
   // une bénédiction choisie : un arpège magique qui monte, et un scintillement
@@ -179,6 +200,9 @@ export const LIMITES = {
   meteore: { max: 1, ecart: 0.5 },
   benediction: { max: 1, ecart: 0.5 },
   frappe: { max: 2, ecart: 0.2 },
+  ondeDeChoc: { max: 1, ecart: 0.5 },
+  atterrissage: { max: 1, ecart: 0.3 },
+  herosKO: { max: 1, ecart: 1 },
   herosNiveau: { max: 1, ecart: 0.5 },
   nouveauSocle: { max: 1, ecart: 0.5 },
   grandFroid: { max: 1, ecart: 0.5 },

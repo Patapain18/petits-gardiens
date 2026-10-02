@@ -108,6 +108,7 @@ async function analyser(p) {
   let v = null;                       // la vague en cours
   const par = {};                     // monstres battus, par qui
   let combos = 0, meteores = 0, froids = 0, ordres = 0, frappes = 0, chemin = 0, arretEnVague = 0, enVague = 0, touches = 0, chutes = 0;
+  let ko = 0, ondes = 0, bonds = 0;
   const niveauxHeros = [];            // [niveau, vague]
   const offres = [];                  // [vague, [3 propositions]]
   let fuite = null;
@@ -132,6 +133,9 @@ async function analyser(p) {
       if (ev.type === 'herosEnvoye') { ordres++; if (v) v.ordres++; }
       if (ev.type === 'frappe') frappes++;
       if (ev.type === 'herosNiveau') niveauxHeros.push([ev.niveau, e.vague]);
+      if (ev.type === 'herosKO') ko++;
+      if (ev.type === 'ondeDeChoc') ondes++;
+      if (ev.type === 'bond') bonds++;
       if (ev.type === 'fuite') fuite = { quoi: ev.quoi, vague: e.vague };
     }
     e.evenements.length = 0;
@@ -148,7 +152,7 @@ async function analyser(p) {
     }
   }
   return {
-    p, m, niveau, e, ecarts: lecteur.ecarts, vagues, par, combos, meteores, froids, ordres, frappes, chemin, touches, chutes,
+    p, m, niveau, e, ecarts: lecteur.ecarts, vagues, par, combos, meteores, froids, ordres, frappes, chemin, touches, chutes, ko, ondes, bonds,
     arretEnVague: enVague ? arretEnVague / enVague : 0, niveauxHeros, offres, fuite,
   };
 }
@@ -210,6 +214,8 @@ function raconter(a, rang) {
   if (e.heros) {
     const n6 = a.niveauxHeros.map(([n, vague]) => `niv. ${n} v${vague}`).join(', ');
     lignes.push(`   Héros : niveau ${e.heros.niveau} (${n6 || 'jamais monté'}) · ${pluriel(a.ordres, 'ordre')} · ${virgule(a.chemin, 0)} cases parcourues · arrêté ${pourcent(a.arretEnVague, 1)} du temps des vagues · ${a.par.heros || 0} battus`);
+    // (sa vie et ses pouvoirs : depuis octobre 2026)
+    if (e.heros.vie !== undefined) lignes.push(`          ${a.ko} K.O. · ${a.ondes} Onde${a.ondes > 1 ? 's' : ''} de choc · ${pluriel(a.bonds, 'Bond')}`);
   }
   if (e.degatsPar) lignes.push(`   Qui fait les dégâts : ${parts(e.degatsPar) || '—'}`);
   lignes.push(`   Qui donne le dernier coup : ${parts(a.par) || '—'}`);

@@ -626,6 +626,10 @@ export default class RenduVoxel {
     this.eclairs = []; // les éclairs d'Étincelle encore visibles
     this.anneau = this.creerAnneauPortee();
     this.anneauMeteore = this.creerAnneauMeteore();
+    // le cercle du Bond du héros : là où il va atterrir (doré)
+    this.anneauBond = this.creerAnneauMeteore();
+    this.anneauBond.userData.trait.material.color.set('#ffcf3a');
+    this.anneauBond.children[1].material.color.set('#ffd860');
 
     // Synchronisation avec l'état du jeu
     // (clé « id:niveau » : un gardien amélioré est refabriqué avec sa nouvelle apparence)
@@ -1579,7 +1583,11 @@ export default class RenduVoxel {
       return;
     }
     if (!this.vueHeros) {
-      this.vueHeros = this.fabriquer(HEROS.apparence);
+      // (ses matériaux sont à lui : il s'éclaire en rouge quand il prend des coups)
+      this.vueHeros = this.fabriquer(HEROS.apparence, true);
+      this.vueHeros.barre = creerBarreDeVie(this.vueHeros.largeurBarre);
+      this.vueHeros.barre.position.y = this.vueHeros.hauteurBarre + 0.15;
+      this.vueHeros.racine.add(this.vueHeros.barre);
       this.scene.add(this.vueHeros.racine);
       this.anneauHeros = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.58, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffcf3a', transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false }));
       this.scene.add(this.anneauHeros);
@@ -1596,7 +1604,7 @@ export default class RenduVoxel {
     const vue = this.vueHeros;
     vue.racine.visible = this.anneauHeros.visible = true;
     const y = this.sol(h.x, h.y);
-    vue.racine.position.set(h.x, y, h.y);
+    vue.racine.position.set(h.x, y + h.z, h.y); // (h.z : en l'air, pendant un Bond)
     // il se tourne vers où il va (ou vers le monstre qu'il frappe), mais sans jamais tourner le dos
     // à la caméra (au plus de trois quarts) : de dos, on ne voyait que sa grande cape rouge
     let vise = versRotationY(h.angle);
@@ -1610,13 +1618,33 @@ export default class RenduVoxel {
     const respire = Math.sin(this.temps * 3) * 0.04;
     vue.corps.scale.set(vue.taille * (1 + coup * 0.5), vue.taille * (1 + respire - coup), vue.taille * (1 + coup * 0.5));
     vue.corps.position.y = h.cible ? Math.abs(Math.sin(this.temps * 12)) * 0.12 : 0;
+    // K.O. : couché sur le côté, les yeux fermés, et trois étoiles qui tournent au-dessus de lui
+    vue.corps.rotation.z = h.ko ? 1.35 : 0;
     if (this.joie > 0) vue.racine.position.y += Math.abs(Math.sin((1 - this.joie) * Math.PI * 3)) * 0.3 * this.joie;
     vue.attaque = h.attaque;
     for (const animer of vue.animations) animer(this.temps, vue);
-    const cligne = this.temps % 3.7 < 0.12 ? 0.1 : 1;
+    const cligne = h.ko || this.temps % 3.7 < 0.12 ? 0.1 : 1;
     vue.yeux.forEach((o) => (o.scale.y = cligne));
+    if (h.ko && !vue.etoiles) {
+      vue.etoiles = new THREE.Group();
+      for (let k = 0; k < 3; k++) this.boite(vue.etoiles, 0.07, 0.07, 0.07, Math.cos((k * Math.PI * 2) / 3) * 0.22, 0, Math.sin((k * Math.PI * 2) / 3) * 0.22, this.matBrillant('#ffe14a', 2.4)).castShadow = false;
+      vue.racine.add(vue.etoiles);
+    }
+    if (vue.etoiles) {
+      vue.etoiles.visible = h.ko;
+      vue.etoiles.position.set(-0.45, 0.45, 0); // au-dessus de sa tête, couchée
+      vue.etoiles.rotation.y = this.temps * 5;
+    }
+    // il prend des coups : il clignote en rouge
+    const rouge = h.touche > 0 && !h.ko && Math.floor(this.temps * 8) % 2 === 0;
+    for (const mat of vue.materiaux) {
+      mat.emissive.set('#ff4a3a');
+      mat.emissiveIntensity = rouge ? 0.4 : 0;
+    }
+    // sa barre de vie, quand il est blessé (rien quand il est K.O. : il est couché)
+    majBarreDeVie(vue.barre, h.ko ? 1 : h.vie / ficheDuHeros(etat).vie, this.camera);
     this.anneauHeros.position.set(h.x, y + 0.05, h.y);
-    this.anneauHeros.material.color.set(ui.herosChoisi ? '#ffffff' : '#ffcf3a');
+    this.anneauHeros.material.color.set(h.ko ? '#8a8a96' : ui.herosChoisi ? '#ffffff' : '#ffcf3a');
     const cible = ui.herosChoisi ? ui.viseeHeros : h.cible;
     this.marqueHeros.visible = Boolean(cible);
     if (cible) this.marqueHeros.position.set(cible.x, this.sol(cible.x, cible.y) + 0.03, cible.y);
@@ -1782,13 +1810,25 @@ export default class RenduVoxel {
     }
     const lent = e.facteurRalenti < 1 ? 0.5 : 1; // un monstre gelé bouge au ralenti
     // pris dans la glace du Grand froid : son animation s'arrête net (on garde l'instant où il a gelé)
-    if (e.gele > 0) vue.gel ??= { t, lent }; else vue.gel = null;
+    if (e.gele > 0 || e.assomme > 0) vue.gel ??= { t, lent }; else vue.gel = null; // (assommé par le héros aussi)
     vue.corps.position.y = 0;
     GABARITS_VOXEL[vue.gabarit].animer(vue, vue.gel?.t ?? t, vue.gel?.lent ?? lent);
     // en l'air : la hauteur de vol, et le bond d'un petit qui vient de naître
     vue.corps.position.y += vue.vol + Math.sin(e.bond * Math.PI) * 0.3;
     // soufflé par le vent : il bascule en arrière, et des filets de vent passent autour de lui
     vue.corps.rotation.x = e.recul > 0 ? -0.45 : 0;
+    // assommé par le héros : il vacille, et trois étoiles tournent au-dessus de sa tête
+    vue.corps.rotation.z = e.assomme > 0 ? Math.sin(this.temps * 9 + e.id) * 0.15 : 0;
+    if (e.assomme > 0 && !vue.etoiles) {
+      vue.etoiles = new THREE.Group();
+      for (let k = 0; k < 3; k++) this.boite(vue.etoiles, 0.06, 0.06, 0.06, Math.cos((k * Math.PI * 2) / 3) * 0.2, 0, Math.sin((k * Math.PI * 2) / 3) * 0.2, this.matBrillant('#ffe14a', 2.4)).castShadow = false;
+      vue.racine.add(vue.etoiles);
+    }
+    if (vue.etoiles) {
+      vue.etoiles.visible = e.assomme > 0;
+      vue.etoiles.position.y = vue.hauteurBarre + 0.12 + vue.vol;
+      vue.etoiles.rotation.y = this.temps * 5;
+    }
     if (e.recul > 0 && Math.random() < 0.6) {
       this.particules.emettre({ x: e.x + (Math.random() - 0.5) * 0.4, y: y + 0.3 + vue.vol * TAILLE_MONSTRE, z: e.y + (Math.random() - 0.5) * 0.4, vx: -e.dx * 3, vz: -e.dy * 3, couleur: '#ffffff', taille: 0.05, vie: 0.3, gravite: 0, eclat: 1.4 });
     }
@@ -2055,6 +2095,23 @@ export default class RenduVoxel {
         case 'herosNiveau': // le héros gagne un niveau : une fontaine d'étincelles dorées
           this.gerbe(ev.x, y + 1, ev.y, 30, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.2, haut: 4.5, taille: 0.07, vie: 1.1, eclat: 2.2, gravite: -2 });
           break;
+        case 'ondeDeChoc': // l'Onde de choc : un grand cercle de blocs de poussière, et ça tremble fort
+          this.gerbe(ev.x, y + 0.1, ev.y, 40, ['#d8c8b0', '#b8a890', '#fff4d0', '#ffcf3a'], { force: 4.6, haut: 1.6, taille: 0.11, vie: 0.7 });
+          this.secousse = Math.max(this.secousse, 0.2);
+          break;
+        case 'bond': // le héros saute : de la poussière là où il décolle
+          this.gerbe(ev.depart.x, this.sol(ev.depart.x, ev.depart.y) + 0.1, ev.depart.y, 12, ['#d8c8b0', '#b8a890'], { force: 1.8, haut: 1.2, taille: 0.09, vie: 0.5 });
+          break;
+        case 'atterrissage': // il retombe : des blocs de poussière tout autour, et ça tremble
+          this.gerbe(ev.x, y + 0.1, ev.y, 26, ['#d8c8b0', '#b8a890', '#fff4d0'], { force: 3.4, haut: 1.5, taille: 0.1, vie: 0.6 });
+          this.secousse = Math.max(this.secousse, 0.14);
+          break;
+        case 'herosKO': // le héros tombe K.O. : un petit nuage gris et des étoiles
+          this.gerbe(ev.x, y + 0.8, ev.y, 18, ['#9a9aa8', '#d8d8e0', '#ffe14a'], { force: 1.4, haut: 2.4, taille: 0.07, vie: 0.8 });
+          break;
+        case 'herosDebout': // il se relève : des étincelles dorées
+          this.gerbe(ev.x, y + 1, ev.y, 24, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.2, haut: 4, taille: 0.07, vie: 1, eclat: 2.2, gravite: -2 });
+          break;
         case 'nouveauSocle': // un nouveau socle sort de terre : des blocs de poussière et des étincelles dorées
           this.gerbe(ev.x, y + 0.2, ev.y, 24, ['#e8d8b8', '#c8b898', '#a08868'], { force: 2.2, haut: 2, taille: 0.12, vie: 0.7 });
           this.gerbe(ev.x, y + 0.5, ev.y, 24, ['#ffd24a', '#fff4c0', '#ffffff'], { force: 1.3, haut: 4.2, taille: 0.07, vie: 1, eclat: 2, gravite: -2 });
@@ -2290,6 +2347,12 @@ export default class RenduVoxel {
       this.anneauMeteore.scale.set(visee.rayon, 1, visee.rayon);
       this.anneauMeteore.position.set(visee.x, this.sol(visee.x, visee.y) + 0.07, visee.y);
       this.anneauMeteore.userData.trait.material.color.set(meteore ? '#ff5a3a' : '#ffb46a');
+    }
+    // le cercle du Bond du héros, pendant qu'on vise (doré)
+    this.anneauBond.visible = Boolean(ui.viseeBond);
+    if (ui.viseeBond) {
+      this.anneauBond.scale.set(ui.viseeBond.rayon, 1, ui.viseeBond.rayon);
+      this.anneauBond.position.set(ui.viseeBond.x, this.sol(ui.viseeBond.x, ui.viseeBond.y) + 0.07, ui.viseeBond.y);
     }
 
 

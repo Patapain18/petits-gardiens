@@ -10,10 +10,10 @@
 // - enregistre la partie (jeu/enregistrement.js) et l'envoie à la fin (parties.js)
 // ─────────────────────────────────────────────────────────────
 import {
-  creerPartie, majPartie, tourSur, prixAmelioration, prixRevente, estDisponible, vaguesTerminees, pouvoirPret, PAS,
+  creerPartie, majPartie, tourSur, prixAmelioration, prixRevente, estDisponible, vaguesTerminees, pouvoirPret, pouvoirHerosPret, PAS,
 } from './jeu/moteur.js';
 import { NIVEAU_MAX, POUVOIRS, HEROS, caracteristiques } from './jeu/donnees.js';
-import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe } from './jeu/benedictions.js';
+import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe, ficheDuHeros } from './jeu/benedictions.js';
 import { nouvelEnregistrement, agir as agirEtNoter, noterControle } from './jeu/enregistrement.js';
 import { VERSION, preparerEnvoi, garderEtEnvoyer, garderEnAttente, envoyerPartiesEnAttente } from './parties.js';
 import { chargerNiveau } from './jeu/niveau.js';
@@ -120,9 +120,10 @@ const optionsDeDepart = lireOptions(); // les options du joueur (voir src/option
 let vitesse = optionsDeDepart.vitesse;
 let enPause = true;            // en pause tant qu'on n'a pas cliqué sur « Jouer »
 // socle survolé / sélectionné ; apercuPortee = la portée à montrer pendant qu'on survole « Améliorer » ;
-// visee = 'meteore' pendant qu'on vise le Météore, viseeMeteore = l'endroit visé ({ x, y, rayon }) ;
+// visee = 'meteore' pendant qu'on vise le Météore (viseeMeteore = l'endroit visé : { x, y, rayon }), ou
+// 'bond' pendant qu'on vise le Bond du héros (viseeBond) ;
 // herosChoisi : on a cliqué sur le héros, le prochain clic sur la carte l'envoie (viseeHeros : où)
-const ui = { survol: -1, selection: -1, apercuPortee: null, visee: null, viseeMeteore: null, herosChoisi: false, viseeHeros: null };
+const ui = { survol: -1, selection: -1, apercuPortee: null, visee: null, viseeMeteore: null, viseeBond: null, herosChoisi: false, viseeHeros: null };
 
 // Réglages d'affichage, gardés si on change de style puis qu'on revient : l'ambiance de départ vient
 // de la fiche du niveau, la caméra (voxel) et la qualité viennent des options du joueur.
@@ -210,7 +211,7 @@ function bulle(texte, x, y, hauteur, classe = '') {
   b.style.left = p.x + 'px';
   b.style.top = p.y + 'px';
   $('#bulles').append(b);
-  setTimeout(() => b.remove(), 950);
+  setTimeout(() => b.remove(), classe.includes('bulle-longue') ? 2700 : 950); // (le temps de son animation)
 }
 
 function traiterEvenements() {
@@ -221,7 +222,13 @@ function traiterEvenements() {
     if (ev.type === 'amelioration') bulle(`Niveau ${ev.niveau}`, ev.x, ev.y, 1.4, 'bulle-niveau');
     if (ev.type === 'recolte') bulle('+' + ev.or, ev.x, ev.y, 1.4); // la Pépite rapporte sa récolte
     if (ev.type === 'grandFroid') montrerGivre();
-    if (ev.type === 'herosNiveau') bulle(`${HEROS.nom} : niveau ${ev.niveau} !`, ev.x, ev.y, 1.9, 'bulle-niveau');
+    if (ev.type === 'herosNiveau') {
+      bulle(`${HEROS.nom} : niveau ${ev.niveau} !`, ev.x, ev.y, 1.9, 'bulle-niveau');
+      // ce niveau lui donne un pouvoir : on le dit, plus longtemps (le temps de lire)
+      const pouvoir = Object.values(HEROS.pouvoirs).find((p) => p.niveau === ev.niveau);
+      if (pouvoir) bulle(`Nouveau pouvoir : ${pouvoir.nom}${pouvoir.touche ? ` (touche ${pouvoir.touche.toUpperCase()})` : ''} !`, ev.x, ev.y, 2.6, 'bulle-niveau bulle-longue');
+    }
+    if (ev.type === 'herosKO') bulle('K.O. ! Il revient à la vague suivante', ev.x, ev.y, 1.9, 'bulle-ko bulle-longue');
   }
   etat.evenements.length = 0;
   if (etat.statut === 'perdu' && !$('#message').dataset.fin) afficherFin(false);
@@ -259,7 +266,7 @@ function majInterface() {
   }
   if (etat.pouvoirs) majPouvoirs();
   if (niveau.benedictions) majBenedictions();
-  if (etat.heros) majBoutonHeros();
+  if (etat.heros) { majBoutonHeros(); majPouvoirsHeros(); }
   // Le menu ouvert se met à jour si l'or change, ou si un gardien arrive (boutons grisés ou non)
   if (!menu.hidden) {
     menu.querySelectorAll('[data-prix]').forEach((b) => {
@@ -429,16 +436,23 @@ for (const b of boutonsPouvoirs) {
 function utiliserPouvoir(nom) {
   if (!pouvoirPret(etat, nom)) return;
   if (nom === 'froid') { agir('lancerGrandFroid'); return; }
-  if (ui.visee) { arreterVisee(); return; }
+  if (ui.visee === 'meteore') { arreterVisee(); return; }
+  commencerVisee('meteore');
+}
+
+// Viser un endroit de la carte : pour le Météore, ou pour le Bond du héros
+function commencerVisee(quoi) {
+  arreterVisee();
   lacherHeros();
-  ui.visee = 'meteore';
   fermerMenu();
+  ui.visee = quoi;
   conteneur.classList.add('visee');
 }
 
 function arreterVisee() {
   ui.visee = null;
   ui.viseeMeteore = null;
+  ui.viseeBond = null;
   conteneur.classList.remove('visee');
 }
 
@@ -463,7 +477,7 @@ function majPouvoirs() {
       ecrire(b.querySelector('.etat-pouvoir'), reste > 0 ? `${Math.ceil(reste)} s` : '');
     }
   }
-  if (ui.visee && !pouvoirPret(etat, 'meteore')) arreterVisee(); // la vague est finie : on ne vise plus
+  if (ui.visee === 'meteore' && !pouvoirPret(etat, 'meteore')) arreterVisee(); // la vague est finie : on ne vise plus
 }
 
 // ── Le héros ─────────────────────────────────────────────────
@@ -474,7 +488,7 @@ boutonHeros.title = `${HEROS.description} (touche H)`;
 boutonHeros.addEventListener('click', () => { basculerHeros(); boutonHeros.blur(); });
 
 function basculerHeros() {
-  if (!etat.heros) return;
+  if (!etat.heros || etat.heros.ko) return; // K.O. : il ne peut rien faire avant la vague suivante
   if (ui.herosChoisi) { lacherHeros(); return; }
   arreterVisee();
   fermerMenu();
@@ -492,7 +506,7 @@ function lacherHeros() {
 // tout près d'un socle, c'est le plus proche de la souris qui gagne : on peut toujours ouvrir le socle.
 function herosSous(px, py) {
   const h = etat.heros;
-  if (!h || !rendu) return false;
+  if (!h || h.ko || !rendu) return false; // (K.O., on ne peut pas le choisir : un clic va au socle d'à côté)
   const pied = rendu.versEcran(h.x, h.y, 0), corps = rendu.versEcran(h.x, h.y, 0.5), cote = rendu.versEcran(h.x + 0.7, h.y, 0);
   const rayon = Math.max(22, Math.hypot(cote.x - pied.x, cote.y - pied.y));
   const dHeros = Math.hypot(px - corps.x, py - corps.y);
@@ -503,13 +517,53 @@ function herosSous(px, py) {
   return dHeros < Math.hypot(px - ps.x, py - ps.y);
 }
 
-// Son bouton : son niveau, et la barre de son expérience vers le niveau suivant
+// Son bouton : son niveau (ou « K.O. »), sa vie, et la barre de son expérience vers le niveau suivant
 function majBoutonHeros() {
   const h = etat.heros;
-  ecrire(boutonHeros.querySelector('.niveau-heros'), `niv. ${h.niveau}`);
+  ecrire(boutonHeros.querySelector('.niveau-heros'), h.ko ? 'K.O.' : `niv. ${h.niveau}`);
   const actuel = HEROS.niveaux[h.niveau - 1].xp, suivant = HEROS.niveaux[h.niveau]?.xp;
   boutonHeros.style.setProperty('--xp', String(suivant ? (h.xp - actuel) / (suivant - actuel) : 1));
+  const vie = h.vie / ficheDuHeros(etat).vie;
+  boutonHeros.style.setProperty('--vie', String(vie));
+  boutonHeros.classList.toggle('ko', h.ko);
+  boutonHeros.classList.toggle('blesse', !h.ko && vie <= 0.5);
+  boutonHeros.classList.toggle('danger', !h.ko && vie <= 0.25);
+  if (h.ko && ui.herosChoisi) lacherHeros(); // il vient de tomber pendant qu'on le déplaçait
   boutonHeros.setAttribute('aria-pressed', String(ui.herosChoisi));
+}
+
+// ── Les pouvoirs du héros ────────────────────────────────────
+// Deux boutons à côté du sien (et les touches O et B) : l'Onde de choc part tout de suite ; le Bond
+// se vise, comme le Météore (on clique sur le bouton, puis là où il doit atterrir). Avant le niveau
+// qui les débloque, ils montrent « niv. 4 » ou « niv. 6 ».
+const boutonsPouvoirsHeros = [...document.querySelectorAll('[data-pouvoir-heros]')];
+for (const b of boutonsPouvoirsHeros) {
+  const { nom, texte, touche, niveau: niveauRequis } = HEROS.pouvoirs[b.dataset.pouvoirHeros];
+  b.title = `${nom} : ${texte} À partir du niveau ${niveauRequis} du héros. (touche ${touche.toUpperCase()})`;
+  b.addEventListener('click', () => { utiliserPouvoirHeros(b.dataset.pouvoirHeros); b.blur(); });
+}
+
+function utiliserPouvoirHeros(nom) {
+  if (!pouvoirHerosPret(etat, nom)) return;
+  if (nom === 'onde') { agir('ondeDeChoc'); return; }
+  if (ui.visee === 'bond') { arreterVisee(); return; }
+  commencerVisee('bond');
+}
+
+function majPouvoirsHeros() {
+  const h = etat.heros;
+  for (const b of boutonsPouvoirsHeros) {
+    const nom = b.dataset.pouvoirHeros, pouvoir = HEROS.pouvoirs[nom];
+    const debloque = h.niveau >= pouvoir.niveau, pret = pouvoirHerosPret(etat, nom);
+    if (!pret && document.activeElement === b) b.blur();
+    b.disabled = !pret;
+    b.classList.toggle('pret', pret);
+    b.classList.toggle('verrouille', !debloque);
+    b.style.setProperty('--charge', String(debloque ? 1 - h[nom] / pouvoir.recharge : 0));
+    ecrire(b.querySelector('.etat-pouvoir'), !debloque ? `niv. ${pouvoir.niveau}` : h.ko ? 'K.O.' : h[nom] > 0 ? `${Math.ceil(h[nom])} s` : '');
+    if (nom === 'bond') b.setAttribute('aria-pressed', String(ui.visee === 'bond'));
+  }
+  if (ui.visee === 'bond' && !pouvoirHerosPret(etat, 'bond')) arreterVisee();
 }
 
 // Le voile de givre du Grand froid (une animation CSS, relancée à chaque fois)
@@ -599,7 +653,7 @@ function afficherIntro() {
   regle.append(element('strong', '', niveau.survie ? 'Un seul monstre dans le château, et la partie s’arrête.' : 'si un seul entre, c’est perdu.'));
   carte.append(regle);
   if (niveau.heros) {
-    carte.append(element('p', 'mention-heros', `Le ${HEROS.nom} t’aide : clique sur lui, puis sur la carte pour le déplacer (touche H). Il frappe les monstres autour de lui, et leur barre la route.`));
+    carte.append(element('p', 'mention-heros', `Le ${HEROS.nom} t’aide : clique sur lui, puis sur la carte (touche H). Il frappe et barre la route… mais les monstres le frappent aussi : K.O., il revient à la vague suivante. Ses niveaux lui donnent des pouvoirs.`));
   }
   if (niveau.benedictions) {
     carte.append(element('p', 'mention-benedictions', `Toutes les ${TOUTES_LES} vagues tenues, une bénédiction : un bonus à choisir parmi 3, pour le reste de la partie.`));
@@ -819,9 +873,10 @@ document.querySelectorAll('[data-camera]').forEach((b) =>
 conteneur.addEventListener('pointermove', (e) => {
   if (!rendu) return;
   if (ui.visee) {
-    // on vise le Météore : le cercle suit la souris
+    // on vise le Météore (ou le Bond du héros) : le cercle suit la souris
     const p = rendu.versSol(e.clientX, e.clientY);
-    ui.viseeMeteore = p && { ...p, rayon: pouvoirDe(etat, 'meteore').rayon };
+    if (ui.visee === 'meteore') ui.viseeMeteore = p && { ...p, rayon: pouvoirDe(etat, 'meteore').rayon };
+    else ui.viseeBond = p && { ...p, rayon: HEROS.pouvoirs.bond.rayon };
     ui.survol = -1;
     return;
   }
@@ -843,7 +898,7 @@ conteneur.addEventListener('click', (e) => {
   if (!rendu) return;
   if (ui.visee) {
     const p = rendu.versSol(e.clientX, e.clientY);
-    if (p && agir('lancerMeteore', p.x, p.y)) arreterVisee();
+    if (p && agir(ui.visee === 'meteore' ? 'lancerMeteore' : 'sauterHeros', p.x, p.y)) arreterVisee();
     return;
   }
   if (ui.herosChoisi) {
@@ -866,8 +921,10 @@ conteneur.addEventListener('contextmenu', (e) => {
 });
 addEventListener('keydown', (e) => {
   // la carte des bénédictions est ouverte : 1, 2 et 3 choisissent (et rien d'autre ne réagit)
+  // (sur un clavier français, la touche 1 donne « & » sans Maj : on regarde aussi la touche elle-même, e.code)
+  const chiffre = /^(Digit|Numpad)[1-9]$/.test(e.code) ? e.code.slice(-1) : e.key;
   if (!$('#benediction').hidden) {
-    const id = etat.offre?.[Number(e.key) - 1];
+    const id = etat.offre?.[Number(chiffre) - 1];
     if (id) { e.preventDefault(); prendreBenediction(id); }
     return;
   }
@@ -877,11 +934,17 @@ addEventListener('keydown', (e) => {
   // les pouvoirs du château : touches 1 et 2 (pas pendant qu'on écrit son pseudo)
   const dansUnChamp = e.target instanceof Element && e.target.closest('input, textarea');
   if (etat.pouvoirs && !dansUnChamp) {
-    const nom = Object.keys(POUVOIRS).find((n) => POUVOIRS[n].touche === e.key);
+    const nom = Object.keys(POUVOIRS).find((n) => POUVOIRS[n].touche === chiffre);
     if (nom) utiliserPouvoir(nom);
   }
   // le héros : touche H
-  if (etat.heros && !dansUnChamp && e.key.toLowerCase() === HEROS.touche) basculerHeros();
+  if (etat.heros && !dansUnChamp) {
+    const touche = e.key.toLowerCase();
+    if (touche === HEROS.touche) basculerHeros();
+    // ses pouvoirs : O (l'Onde de choc) et B (le Bond)
+    const pouvoir = Object.keys(HEROS.pouvoirs).find((n) => HEROS.pouvoirs[n].touche === touche);
+    if (pouvoir) utiliserPouvoirHeros(pouvoir);
+  }
 });
 addEventListener('resize', () => rendu?.redimensionner());
 
@@ -958,6 +1021,7 @@ document.title = `${niveau.nom} — Petits Gardiens`;
 $('#ligne-record').hidden = !niveau.survie;
 $('#pouvoirs').hidden = !niveau.pouvoirs;
 boutonHeros.hidden = !niveau.heros;
+$('#pouvoirs-heros').hidden = !niveau.heros;
 lireRecord();
 if (depuisEditeur) {
   // On vient de l'éditeur : pas besoin de la carte de début, on joue directement

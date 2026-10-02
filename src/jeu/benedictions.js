@@ -153,6 +153,7 @@ export function ficheDuHeros(etat) {
     cadence: HEROS.cadence * (b?.cadence ?? 1),
     rayon: HEROS.rayon + (b?.portee ?? 0),
     monstresMax: HEROS.monstresMax,
+    vie: n.vie,                       // sa vie quand elle est pleine
   };
 }
 

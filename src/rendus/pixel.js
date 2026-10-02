@@ -647,6 +647,7 @@ const PALETTES_FROID = {
 const RECOLORER = {
   flash: (r, v, b) => [r * 2.2, v * 2.2, b * 2.2],               // touché : il s'éclaire un instant
   assomme: (r, v, b, l) => [r, v, b].map((c) => (c + l * 255) * 0.5 * 0.65), // moitié gris, plus sombre
+  blesse: (r, v, b) => [r * 1.1 + 45, v * 0.72, b * 0.72],        // le héros prend des coups : il rougit un instant
 };
 for (const [sorte, [sombre, milieu, clair]] of Object.entries(PALETTES_FROID)) {
   RECOLORER[sorte] = (r, v, b, l) => {
@@ -1125,6 +1126,24 @@ export default class RenduPixel {
         this.secousse = Math.max(this.secousse, 0.06);
       }
       if (ev.type === 'herosNiveau') this.emettre(p.x, p.y - 10, 30, ['#ffd24a', '#fff4b0', '#ffffff'], 30, 120, 1, 12);
+      if (ev.type === 'ondeDeChoc') {
+        // l'Onde de choc : une grande onde dorée, beaucoup de poussière, et ça tremble fort
+        this.ondes.push({ x: p.x, y: p.y, rayon: ev.rayon * T, t: 0, couleurs: ['#ffffff', '#ffcf3a'] });
+        this.emettre(p.x, p.y, 28, ['#d8c8b0', '#b8a890', '#fff4d0', '#ffcf3a'], 95, 40, 0.6);
+        this.secousse = Math.max(this.secousse, 0.18);
+      }
+      if (ev.type === 'bond') {
+        const d = this.versPixel(ev.depart.x, ev.depart.y); // de la poussière là où il décolle
+        this.emettre(d.x, d.y, 10, ['#d8c8b0', '#b8a890'], 40, 50, 0.4);
+      }
+      if (ev.type === 'atterrissage') {
+        // il retombe : une onde, de la poussière, et ça tremble
+        this.ondes.push({ x: p.x, y: p.y, rayon: ev.rayon * T, t: 0, couleurs: ['#fff4d0', '#ffcf3a'] });
+        this.emettre(p.x, p.y, 18, ['#d8c8b0', '#b8a890', '#fff4d0'], 60, 35, 0.5);
+        this.secousse = Math.max(this.secousse, 0.12);
+      }
+      if (ev.type === 'herosKO') this.emettre(p.x, p.y - 8, 16, ['#9a9aa8', '#d8d8e0', '#ffe14a'], 40, 70, 0.7); // un petit nuage gris
+      if (ev.type === 'herosDebout') this.emettre(p.x, p.y - 8, 24, ['#ffd24a', '#fff4b0', '#ffffff'], 25, 110, 0.8, 10); // il se relève
       if (ev.type === 'nouveauSocle') {
         // un nouveau socle sort de terre : un nuage de poussière et des étincelles dorées
         this.poufs.push({ x: p.x, y: p.y + 4, haut: 0, t: 0, gros: false });
@@ -1274,17 +1293,47 @@ export default class RenduPixel {
         },
       });
     });
-    // le héros : il sautille quand il marche, s'écrase quand il frappe, cligne des yeux de temps en temps
+    // le héros : il sautille quand il marche, s'écrase quand il frappe, cligne des yeux de temps en temps ;
+    // en l'air pendant un Bond (son ombre reste par terre) ; K.O. : gris, les yeux fermés, des étoiles
+    // au-dessus de la tête ; il s'éclaire quand il prend des coups ; sa barre de vie quand il est blessé
     if (etat.heros) {
       const h = etat.heros;
       const p = this.versPixel(h.x, h.y);
       const sp = this.spritesDe(HEROS);
       const versGauche = Math.cos(h.angle) < -0.2;
       const marche = Boolean(h.cible);
-      const numero = h.attaque > 0 ? 2 : marche ? Math.floor(this.temps * 8) % 2 : (this.temps % 3.7 < 0.14 ? 3 : image);
+      const numero = h.ko ? 3 : h.attaque > 0 ? 2 : marche ? Math.floor(this.temps * 8) % 2 : (this.temps % 3.7 < 0.14 ? 3 : image);
       const img = (versGauche ? sp.miroirs : sp.images)[numero];
       const saut = marche ? Math.round(Math.abs(Math.sin(this.temps * 12)) * 2) : 0;
-      objets.push({ y: p.y + 2, ombre: { img, x: p.x, y: p.y + 1 }, dessin: () => this.dessinerImage(img, p.x, p.y + 1 - saut) });
+      const enAir = Math.round(h.z * T);
+      // (tant qu'il prend des coups, il clignote en rouge)
+      const sorte = h.ko ? 'assomme' : h.touche > 0 && Math.floor(this.temps * 8) % 2 === 0 ? 'blesse' : '';
+      objets.push({
+        y: p.y + 2,
+        ombre: { img, x: p.x + enAir * a.ombre.dx, y: p.y + 1 + enAir * a.ombre.dy },
+        dessin: () => {
+          const y = p.y + 1 - saut - enAir + (h.ko ? 1 : 0);
+          this.dessinerImage(sorte ? teinte(img, sorte) : img, p.x, y);
+          const haut = y - img.height + img.hautVisible; // le haut de sa tête
+          if (h.ko) {
+            c.fillStyle = '#ffe14a';
+            for (let k = 0; k < 3; k++) {
+              const angle = this.temps * 5 + (k * Math.PI * 2) / 3;
+              const sx = Math.round(p.x + Math.cos(angle) * 9), sy = Math.round(haut - 3 + Math.sin(angle) * 2);
+              c.fillRect(sx - 1, sy, 3, 1);
+              c.fillRect(sx, sy - 1, 1, 3);
+            }
+            return;
+          }
+          const vieMax = ficheDuHeros(etat).vie;
+          if (h.vie < vieMax) {
+            const lb = 18, r = h.vie / vieMax;
+            c.fillStyle = CONTOUR; c.fillRect(p.x - lb / 2 - 1, haut - 5, lb + 2, 4);
+            c.fillStyle = r > 0.5 ? '#7be04a' : r > 0.25 ? '#f2c230' : '#ec4a3a';
+            c.fillRect(p.x - lb / 2, haut - 4, Math.max(1, Math.round(lb * r)), 2);
+          }
+        },
+      });
     }
     // les monstres
     for (const e of etat.ennemis) {
@@ -1300,7 +1349,7 @@ export default class RenduPixel {
         continue;
       }
       // ralenti par une Givrine : il s'anime au ralenti ; gelé par le Grand froid : il ne bouge plus du tout
-      const vite = e.gele > 0 ? 0 : e.facteurRalenti < 1 ? Math.floor(this.temps * 3) % 2 : image;
+      const vite = e.gele > 0 || e.assomme > 0 ? 0 : e.facteurRalenti < 1 ? Math.floor(this.temps * 3) % 2 : image;
       const img = (sp.profil && e.dx < -0.1 ? sp.miroirs : sp.images)[(vite + e.id) % sp.images.length];
       // à quelle hauteur le dessiner : un volant vole (en montant et descendant un peu),
       // un petit qui vient de naître fait un bond
@@ -1339,6 +1388,16 @@ export default class RenduPixel {
           for (const k of [-3, 3]) {
             const x = p.x + Math.round(e.dx * 9) + (horizontal ? 0 : k), yy = y - 8 + Math.round(e.dy * 6) + (horizontal ? k : 0);
             if (horizontal) c.fillRect(x - 1, yy, 4, 1); else c.fillRect(x, yy - 1, 1, 4);
+          }
+        }
+        if (e.assomme > 0) {
+          // assommé par le héros : trois étoiles (de petites croix jaunes) qui tournent au-dessus de sa tête
+          c.fillStyle = '#ffe14a';
+          for (let k = 0; k < 3; k++) {
+            const angle = this.temps * 5 + e.id + (k * Math.PI * 2) / 3;
+            const sx = Math.round(p.x + Math.cos(angle) * 6), sy = Math.round(y - img.height + img.hautVisible - 6 + Math.sin(angle) * 2);
+            c.fillRect(sx - 1, sy, 3, 1);
+            c.fillRect(sx, sy - 1, 1, 3);
           }
         }
         // barre de vie
@@ -1459,6 +1518,19 @@ export default class RenduPixel {
       c.fillRect(p.x - 2, p.y, 5, 1);
       c.fillRect(p.x, p.y - 2, 1, 5);
     }
+    // le Bond du héros : là où il va atterrir, pendant qu'on vise (doré)
+    if (ui.viseeBond) {
+      const p = this.versPixel(ui.viseeBond.x, ui.viseeBond.y);
+      c.fillStyle = 'rgba(255,207,58,0.2)';
+      c.beginPath();
+      c.ellipse(p.x, p.y, ui.viseeBond.rayon * T, ui.viseeBond.rayon * T * 0.85, 0, 0, Math.PI * 2);
+      c.fill();
+      this.cercle(p.x, p.y, ui.viseeBond.rayon * T, '#ffcf3a');
+      this.cercle(p.x, p.y, ui.viseeBond.rayon * T - 1, '#ffcf3a');
+      c.fillStyle = '#ffcf3a';
+      c.fillRect(p.x - 2, p.y, 5, 1);
+      c.fillRect(p.x, p.y - 2, 1, 5);
+    }
     // les ondes de choc du Météore : un cercle qui s'agrandit en 0,3 seconde, du blanc à l'orange
     this.ondes = this.ondes.filter((o) => (o.t += dtReel) < 0.3);
     for (const o of this.ondes) {
@@ -1488,7 +1560,7 @@ export default class RenduPixel {
   dessinerSolHeros(etat, ui) {
     const c = this.ectx, h = etat.heros;
     const p = this.versPixel(h.x, h.y);
-    this.cercle(p.x, p.y + 1, 9, ui.herosChoisi ? '#ffffff' : '#ffcf3a', true);
+    this.cercle(p.x, p.y + 1, 9, h.ko ? '#8a8a96' : ui.herosChoisi ? '#ffffff' : '#ffcf3a', true);
     if (ui.herosChoisi) this.cercle(p.x, p.y, ficheDuHeros(etat).rayon * T, '#fff4d0');
     const cible = ui.herosChoisi ? ui.viseeHeros : h.cible;
     if (!cible) return;

@@ -29,6 +29,8 @@ const BRUITAGES = [
   ]],
   ['Le héros', [
     ['frappe', 'Il frappe le sol'], ['herosNiveau', 'Il gagne un niveau'], ['herosEnvoye', 'On l’envoie quelque part'],
+    ['ondeDeChoc', 'L’Onde de choc'], ['bond', 'Le Bond : il décolle'], ['atterrissage', 'Le Bond : il retombe'],
+    ['herosKO', 'Il tombe K.O.'], ['herosDebout', 'Il se relève'],
   ]],
   ['Les bénédictions', [
     ['benediction', 'Bénédiction choisie'], ['nouveauSocle', 'Un nouveau socle'],

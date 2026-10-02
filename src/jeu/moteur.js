@@ -65,10 +65,17 @@ function creerHeros(niveau) {
   const p = niveau.pointSurChemin(niveau.longueurChemin - 2);
   return {
     x: p.x, y: p.y,
+    z: 0,             // sa hauteur au-dessus du sol (pendant un Bond)
     cible: null,      // là où le joueur l'envoie (null : il est arrêté)
     niveau: 1, xp: 0, // il gagne des niveaux en battant des monstres
+    vie: HEROS.niveaux[0].vie,
+    ko: false,        // K.O. : il attend la vague suivante
+    calme: 0,         // depuis combien de temps aucun monstre n'est près de lui (au bout de soin.attente, il se soigne)
+    touche: 0,        // flash quand il prend des coups (pour les styles)
     recharge: 0.5,    // le temps avant sa prochaine frappe
     attaque: 0,       // compte à rebours de l'animation de frappe
+    onde: 0, bond: 0, // le temps avant que l'Onde de choc et le Bond soient prêts (0 = prêts)
+    saut: null,       // le Bond en cours : { departX, departY, x, y, t, duree }
     angle: Math.PI,   // il regarde vers le début du chemin (à gauche)
   };
 }
@@ -161,6 +168,13 @@ export function lancerVague(etat) {
   // un Météore tout neuf pour cette vague (ou deux, avec la Pluie d'étoiles) ; ceux de la vague
   // d'avant qu'on n'a pas lancés sont perdus
   if (etat.pouvoirs) etat.pouvoirs.meteore = pouvoirDe(etat, 'meteore').parVague;
+  // le héros K.O. se relève, avec toute sa vie
+  const h = etat.heros;
+  if (h?.ko) {
+    h.ko = false;
+    h.vie = ficheDuHeros(etat).vie;
+    etat.evenements.push({ type: 'herosDebout', x: h.x, y: h.y });
+  }
   return true;
 }
 
@@ -196,23 +210,145 @@ export function lancerGrandFroid(etat) {
 }
 
 // ── Le héros ─────────────────────────────────────────────────
-// Le joueur l'envoie en (x, y) : il y marche (sans sortir de la carte, ni entrer dans un étang)
-export function envoyerHeros(etat, x, y) {
-  const h = etat.heros;
-  if (!h || partieFinie(etat)) return false;
+// Un endroit où le héros peut aller : dans la carte (on l'y ramène), pas dans un étang (null)
+function placeDuHeros(etat, x, y) {
   const { largeur, hauteur } = etat.niveau;
   x = Math.max(0.4, Math.min(largeur - 0.4, x));
   y = Math.max(0.4, Math.min(hauteur - 0.4, y));
-  if (etat.niveau.distanceEtang(x, y) < 0.3) return false;
-  h.cible = { x, y };
-  etat.evenements.push({ type: 'herosEnvoye', x, y });
+  return etat.niveau.distanceEtang(x, y) < 0.3 ? null : { x, y };
+}
+// Peut-il recevoir un ordre ? (pas K.O., pas en plein Bond, et la partie continue)
+const herosLibre = (etat) => Boolean(etat.heros) && !etat.heros.ko && !etat.heros.saut && !partieFinie(etat);
+
+// Le joueur l'envoie en (x, y) : il y marche
+export function envoyerHeros(etat, x, y) {
+  const h = etat.heros;
+  const p = herosLibre(etat) && placeDuHeros(etat, x, y);
+  if (!p) return false;
+  h.cible = p;
+  etat.evenements.push({ type: 'herosEnvoye', x: p.x, y: p.y });
   return true;
 }
 
-// Il marche vers l'endroit choisi ; arrêté, il frappe le sol quand des monstres sont à portée
+// Un pouvoir du héros (« onde » ou « bond ») est-il prêt ? Pendant une vague seulement, quand il
+// a le niveau qu'il faut, qu'il est libre, et que le pouvoir est rechargé.
+export function pouvoirHerosPret(etat, nom) {
+  const h = etat.heros;
+  return herosLibre(etat) && etat.statut === 'vague' && h.niveau >= HEROS.pouvoirs[nom].niveau && h[nom] <= 0;
+}
+// La Peau de pierre est-elle là ? (un pouvoir automatique : il suffit du niveau)
+const aLaPeau = (h) => h.niveau >= HEROS.pouvoirs.peau.niveau;
+
+// L'Onde de choc : il frappe le sol de toutes ses forces, les monstres autour de lui sont assommés
+// (ils ne bougent plus) et prennent plusieurs frappes d'un coup
+export function ondeDeChoc(etat) {
+  if (!pouvoirHerosPret(etat, 'onde')) return false;
+  const h = etat.heros;
+  const { recharge, rayon, duree, degats } = HEROS.pouvoirs.onde;
+  h.onde = recharge;
+  h.cible = null; // s'il marchait, il s'arrête pour frapper
+  h.attaque = 0.4;
+  const touches = [];
+  for (const e of etat.ennemis) {
+    if (e.pv <= 0 || e.cache || MONSTRES[e.type].volant || distance(e.x - h.x, e.y - h.y) > rayon) continue;
+    e.assomme = Math.max(e.assomme, duree * (MONSTRES[e.type].gel ?? 1));
+    touches.push(e);
+  }
+  frapperMonstres(etat, touches, ficheDuHeros(etat).degats * degats);
+  etat.evenements.push({ type: 'ondeDeChoc', x: h.x, y: h.y, rayon });
+  return true;
+}
+
+// Le Bond : il saute en (x, y), et assomme les monstres autour de l'endroit où il atterrit
+export function sauterHeros(etat, x, y) {
+  if (!pouvoirHerosPret(etat, 'bond')) return false;
+  const h = etat.heros;
+  const p = placeDuHeros(etat, x, y);
+  if (!p) return false;
+  const { recharge, duree } = HEROS.pouvoirs.bond;
+  h.bond = recharge;
+  h.cible = null;
+  h.saut = { departX: h.x, departY: h.y, x: p.x, y: p.y, t: 0, duree };
+  h.angle = Math.atan2(p.y - h.y, p.x - h.x);
+  etat.evenements.push({ type: 'bond', x: p.x, y: p.y, depart: { x: h.x, y: h.y } });
+  return true;
+}
+
+// Le héros frappe ces monstres (sa frappe, ou l'Onde de choc) : il gagne la prime de ceux qu'il bat
+function frapperMonstres(etat, monstres, degats) {
+  const h = etat.heros;
+  for (const e of monstres) {
+    blesser(etat, e, degats, { par: 'heros' });
+    if (e.pv <= 0) h.xp += MONSTRES[e.type].prime;
+  }
+  while (h.niveau < HEROS.niveaux.length && h.xp >= HEROS.niveaux[h.niveau].xp) {
+    const vieAvant = ficheDuHeros(etat).vie;
+    h.niveau++;
+    h.vie += ficheDuHeros(etat).vie - vieAvant; // sa vie grandit avec lui
+    etat.evenements.push({ type: 'herosNiveau', x: h.x, y: h.y, niveau: h.niveau });
+  }
+}
+
+// Les monstres qu'il bloque le frappent ; loin des combats, il se soigne. À zéro : K.O.
+function encaisser(etat, h, dt) {
+  const vieMax = ficheDuHeros(etat).vie;
+  let coups = 0, proche = false;
+  for (const e of etat.ennemis) {
+    if (e.pv <= 0 || e.cache || MONSTRES[e.type].volant) continue;
+    const d = distance(e.x - h.x, e.y - h.y);
+    if (d < 2) proche = true;
+    // seulement s'il est arrêté (il leur barre la route), et pas par un monstre gelé ou assommé
+    if (!h.cible && d < HEROS.barrage.rayon && !(e.gele > 0) && !(e.assomme > 0)) {
+      coups += (MONSTRES[e.type].coup ?? HEROS.coupParDefaut) * Math.sqrt(Math.sqrt(e.force));
+    }
+  }
+  h.calme = proche ? 0 : h.calme + dt;
+  if (coups > 0) {
+    h.vie -= coups * dt * (aLaPeau(h) ? HEROS.pouvoirs.peau.coups : 1);
+    h.touche = 0.15;
+    if (h.vie <= 0) {
+      h.vie = 0;
+      h.ko = true;
+      h.cible = null;
+      etat.evenements.push({ type: 'herosKO', x: h.x, y: h.y });
+    }
+  } else if (h.calme >= HEROS.soin.attente && h.vie < vieMax) {
+    h.vie = Math.min(vieMax, h.vie + vieMax * HEROS.soin.part * (aLaPeau(h) ? HEROS.pouvoirs.peau.soin : 1) * dt);
+  }
+}
+
+// Il marche vers l'endroit choisi (ou saute, pendant un Bond) ; arrêté, il frappe le sol quand
+// des monstres sont à portée
 function majHeros(etat, dt) {
   const h = etat.heros;
   h.attaque = Math.max(0, h.attaque - dt);
+  h.touche = Math.max(0, h.touche - dt);
+  // ses pouvoirs se rechargent pendant les vagues seulement
+  if (etat.statut === 'vague') { h.onde = Math.max(0, h.onde - dt); h.bond = Math.max(0, h.bond - dt); }
+  if (h.ko) return; // K.O. : il attend la vague suivante
+  if (h.saut) {
+    // le Bond : il file en ligne droite, et monte puis redescend (une parabole)
+    const s = h.saut;
+    s.t += dt;
+    const k = Math.min(1, s.t / s.duree);
+    h.x = s.departX + (s.x - s.departX) * k;
+    h.y = s.departY + (s.y - s.departY) * k;
+    h.z = 4 * k * (1 - k) * 1.6;
+    if (k < 1) return;
+    h.saut = null;
+    h.z = 0;
+    h.recharge = Math.max(h.recharge, 0.2);
+    const { rayon, assomme } = HEROS.pouvoirs.bond;
+    for (const e of etat.ennemis) {
+      if (e.pv > 0 && !e.cache && !MONSTRES[e.type].volant && distance(e.x - h.x, e.y - h.y) <= rayon) {
+        e.assomme = Math.max(e.assomme, assomme * (MONSTRES[e.type].gel ?? 1));
+      }
+    }
+    etat.evenements.push({ type: 'atterrissage', x: h.x, y: h.y, rayon });
+    return;
+  }
+  encaisser(etat, h, dt);
+  if (h.ko) return;
   if (h.cible) {
     const dx = h.cible.x - h.x, dy = h.cible.y - h.y, d = distance(dx, dy);
     const pas = HEROS.vitesse * dt;
@@ -236,17 +372,8 @@ function majHeros(etat, dt) {
   h.recharge = f.cadence;
   h.attaque = 0.3;
   h.angle = Math.atan2(autour[0].e.y - h.y, autour[0].e.x - h.x);
-  let xp = 0;
-  for (const { e } of autour.slice(0, f.monstresMax)) {
-    blesser(etat, e, f.degats, { par: 'heros' });
-    if (e.pv <= 0) xp += MONSTRES[e.type].prime; // il gagne la prime de chaque monstre qu'il bat
-  }
+  frapperMonstres(etat, autour.slice(0, f.monstresMax).map(({ e }) => e), f.degats);
   etat.evenements.push({ type: 'frappe', x: h.x, y: h.y, rayon: f.rayon });
-  h.xp += xp;
-  while (h.niveau < HEROS.niveaux.length && h.xp >= HEROS.niveaux[h.niveau].xp) {
-    h.niveau++;
-    etat.evenements.push({ type: 'herosNiveau', x: h.x, y: h.y, niveau: h.niveau });
-  }
 }
 
 // ── La mise à jour (appelée ~60 fois par seconde) ────────────
@@ -286,6 +413,7 @@ function faireApparaitre(etat) {
       ralenti: 0,                            // temps restant de ralentissement
       facteurRalenti: 1,
       gele: 0,                               // temps restant où il est gelé sur place (le Grand froid)
+      assomme: 0,                            // temps restant où il est assommé par le héros (Onde de choc, Bond)
       touche: 0,                             // flash quand il prend un coup
       recul: 0,                              // ce qu'il doit encore reculer, poussé par le vent
       reculTotal: 0,                         // tout ce que le vent l'a fait reculer (les rochers en vol s'en servent)
@@ -312,6 +440,11 @@ function deplacerEnnemis(etat, dt) {
       e.gele = Math.max(0, e.gele - dt);
       continue;
     }
+    if (e.assomme > 0) {
+      // assommé par le héros : il reste sur place, le temps de reprendre ses esprits
+      e.assomme = Math.max(0, e.assomme - dt);
+      continue;
+    }
     if (fiche.creuse) {
       // la Taupe plonge sous terre, puis ressort, et ainsi de suite
       e.creuse -= dt;
@@ -332,7 +465,7 @@ function deplacerEnnemis(etat, dt) {
       let vitesse = e.cache ? fiche.vitesse * fiche.creuse.vitesse : fiche.vitesse;
       // le héros, arrêté tout près, leur barre la route (pas à ceux qui volent ou creusent dessous)
       const h = etat.heros;
-      if (h && !h.cible && !e.cache && !fiche.volant && distance(e.x - h.x, e.y - h.y) < HEROS.barrage.rayon) vitesse *= HEROS.barrage.facteur;
+      if (h && !h.cible && !h.ko && !h.saut && !e.cache && !fiche.volant && distance(e.x - h.x, e.y - h.y) < HEROS.barrage.rayon) vitesse *= HEROS.barrage.facteur;
       e.d += vitesse * e.facteurRalenti * dt;
     }
 
@@ -414,7 +547,7 @@ function tirerRayon(etat, tour, fiche, cible, dt) {
 function cracherLeFeu(etat, dt) {
   for (const e of etat.ennemis) {
     const feu = MONSTRES[e.type].feu;
-    if (!feu || e.pv <= 0 || e.gele > 0) continue; // gelé, il ne crache plus
+    if (!feu || e.pv <= 0 || e.gele > 0 || e.assomme > 0) continue; // gelé ou assommé, il ne crache plus
     e.feu -= dt;
     if (e.feu > 0) continue;
     let cible = null, plusPres = feu.portee;
@@ -639,6 +772,8 @@ function verifierFinDeVague(etat) {
   if (etat.aApparaitre.length || etat.ennemis.length) return;
   etat.statut = etat.vague >= etat.niveau.vagues.length ? 'gagne' : 'preparation';
   if (etat.statut !== 'preparation') return;
+  // entre deux vagues, le héros se repose : toute sa vie (s'il est K.O., il se relèvera à la vague suivante)
+  if (etat.heros && !etat.heros.ko) etat.heros.vie = ficheDuHeros(etat).vie;
   etat.or += 20 + etat.vague * 10; // bonus de fin de vague
   // les gardiens qui creusent (la Pépite) rapportent leur récolte
   for (const tour of etat.tours) {

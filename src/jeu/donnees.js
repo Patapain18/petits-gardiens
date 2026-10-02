@@ -319,22 +319,24 @@ export function caracteristiques(type, niveau = 1) {
 //   « dessus » secondes dehors ; sous terre, il va « vitesse » fois plus vite ;
 // - feu : toutes les « toutesLes » secondes, il crache sur le gardien le plus proche
 //   (à moins de « portee » cases), qui reste assommé « duree » secondes ;
+// - coup : les points de vie qu'il enlève chaque seconde au héros, quand le héros le bloque
+//   (sans « coup » : HEROS.coupParDefaut) ;
 // - boss : c'est un chef, présenté comme tel par le didacticiel.
 export const MONSTRES = {
   gluant: {
-    nom: 'Gluant', pv: 44, vitesse: 1.15, prime: 6,
+    nom: 'Gluant', pv: 44, vitesse: 1.15, prime: 6, coup: 5,
     description: 'Une gelée qui avance en sautillant. Ni rapide, ni très solide : c’est le monstre de base.',
     conseil: 'Une ou deux Braise suffisent pour arrêter un petit groupe de Gluants.',
     apparence: { gabarit: 'gelee', couleurs: { clair: '#b4f498', peau: '#5ed048', fonce: '#3a9a30' } },
   },
   filou: {
-    nom: 'Filou', pv: 26, vitesse: 2.1, prime: 5,
+    nom: 'Filou', pv: 26, vitesse: 2.1, prime: 5, coup: 4,
     description: 'Petit et fragile… mais très rapide ! Il fonce vers le château en profitant de la moindre faille.',
     conseil: 'Une Givrine le ralentit : tes autres gardiens auront le temps de l’attraper.',
     apparence: { gabarit: 'rongeur', couleurs: { clair: '#e8d0b0', peau: '#a87a56', fonce: '#6e4a30' } },
   },
   cuirasse: {
-    nom: 'Cuirassé', pv: 260, vitesse: 0.68, prime: 22,
+    nom: 'Cuirassé', pv: 260, vitesse: 0.68, prime: 22, coup: 12,
     vent: 0.5, // lourd : le vent le fait deux fois moins reculer
     description: 'Un golem de pierre couvert de mousse. Il marche lentement, mais il encaisse énormément de coups.',
     conseil: 'Il faut beaucoup de dégâts : les rochers du Grondin et les gardiens améliorés en viennent à bout.',
@@ -454,12 +456,18 @@ export const POUVOIRS = {
 // LE HÉROS : un Grand Gardien que le joueur déplace lui-même sur la carte (dans les niveaux dont la
 // fiche dit « heros: true »). On clique sur lui, puis sur la carte : il y marche. Arrêté, il frappe
 // le sol et touche les monstres tout autour de lui ; posé sur le chemin, il leur barre la route (ils
-// passent au ralenti). Il gagne des niveaux en battant des monstres. Pendant qu'il marche, il ne
-// frappe pas et ne barre rien : le déplacer au bon moment, c'est tout l'art.
+// passent au ralenti). Pendant qu'il marche, il ne frappe pas et ne barre rien : le déplacer au bon
+// moment, c'est tout l'art.
+// Il a de la VIE : les monstres qu'il bloque le frappent (« coup » dans leur fiche, plus fort pour un
+// monstre renforcé) ; loin des combats, il se soigne ; entre deux vagues, il se repose (toute sa vie).
+// À zéro, il est K.O. jusqu'à la vague suivante. Il gagne des niveaux en battant des monstres, et
+// certains niveaux lui donnent un POUVOIR.
+// (Réglé en octobre 2026 avec deux parties enregistrées : avant, sans vie, il faisait 62 à 99 % des
+// dégâts des vagues 2 à 15, et il était au niveau 6 dès la vague 7.)
 export const HEROS = {
   nom: 'Grand Gardien',
   touche: 'h',
-  description: 'Clique sur lui, puis sur la carte : il y marche. Il frappe le sol et touche les monstres autour de lui ; sur le chemin, il leur barre la route.',
+  description: 'Clique sur lui, puis sur la carte : il y marche. Il frappe le sol et touche les monstres autour de lui ; sur le chemin, il leur barre la route. Les monstres qu’il bloque le frappent : à zéro, il est K.O. jusqu’à la vague suivante.',
   apparence: {
     gabarit: 'gardien', taille: 1.5, // une fois et demie un gardien (en pixel art : le grand gardien, redessiné)
     couleurs: { clair: '#ffffff', peau: '#dfe6f2', fonce: '#8e9ab0' },
@@ -469,17 +477,46 @@ export const HEROS = {
   rayon: 1.3,        // jusqu'où porte sa frappe, tout autour de lui
   monstresMax: 6,    // une frappe touche au plus 6 monstres, les plus proches
   cadence: 1.1,      // une frappe toutes les 1,1 seconde
-  barrage: { rayon: 0.8, facteur: 0.5 }, // les monstres tout près de lui avancent deux fois moins vite
-  // ses niveaux : les dégâts d'une frappe, et l'expérience qu'il faut pour y arriver
+  barrage: { rayon: 0.8, facteur: 0.5 }, // les monstres tout près de lui avancent deux fois moins vite… et le frappent
+  coupParDefaut: 6,  // les points de vie par seconde que lui enlève un monstre sans « coup » dans sa fiche
+  // Un monstre renforcé (mode survie) frappe plus fort : son coup × la racine quatrième de sa force
+  // (force 16 : × 2 ; force 1 296 : × 6). Une racine quatrième, c'est deux racines carrées :
+  // Math.sqrt donne le même résultat dans tous les navigateurs (voir calcul.js), Math.pow non.
+  soin: { attente: 2, part: 0.08 }, // 2 secondes sans monstre à moins de 2 cases : il reprend 8 % de sa vie par seconde
+  // ses niveaux : les dégâts d'une frappe, sa vie, et l'expérience qu'il faut pour y arriver
   // (il gagne la prime de chaque monstre qu'il bat lui-même)
   niveaux: [
-    { degats: 28, xp: 0 },
-    { degats: 38, xp: 40 },
-    { degats: 52, xp: 120 },
-    { degats: 70, xp: 260 },
-    { degats: 94, xp: 480 },
-    { degats: 126, xp: 800 },
+    { degats: 14, vie: 120, xp: 0 },
+    { degats: 20, vie: 160, xp: 100 },
+    { degats: 28, vie: 210, xp: 350 },
+    { degats: 38, vie: 270, xp: 800 },
+    { degats: 52, vie: 340, xp: 1400 },
+    { degats: 70, vie: 420, xp: 2100 },
   ],
+  // les pouvoirs que lui donnent ses niveaux
+  pouvoirs: {
+    peau: {
+      nom: 'Peau de pierre', niveau: 2,
+      texte: 'Il encaisse deux fois moins de coups, et se soigne deux fois plus vite.',
+      coups: 0.5, soin: 2,
+    },
+    onde: {
+      nom: 'Onde de choc', niveau: 4, touche: 'o',
+      texte: 'Il frappe le sol de toutes ses forces : les monstres autour de lui sont assommés 2 secondes.',
+      recharge: 20, // secondes de vague (le temps entre deux vagues ne compte pas)
+      rayon: 2.2,
+      duree: 2,     // assommés : ils ne bougent plus (un chef « gel: 0,5 », moitié moins longtemps)
+      degats: 2,    // et ils prennent deux frappes d'un coup
+    },
+    bond: {
+      nom: 'Bond', niveau: 6, touche: 'b',
+      texte: 'Il saute d’un coup là où tu cliques, et assomme les monstres où il atterrit.',
+      recharge: 25,
+      duree: 0.5,   // le temps du saut
+      rayon: 1.3,   // à l'atterrissage, les monstres autour sont assommés…
+      assomme: 1,   // … pendant 1 seconde
+    },
+  },
 };
 
 export const PART_REVENTE = 0.6; // on récupère 60 % de ce qu'on a dépensé (achat + améliorations)

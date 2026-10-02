@@ -21,14 +21,17 @@
 // commande npm run parties (scripts/parties.js) pour rejouer.
 // ─────────────────────────────────────────────────────────────
 import {
-  creerPartie, majPartie, construire, ameliorer, vendre, lancerVague, lancerMeteore, lancerGrandFroid, envoyerHeros, PAS,
+  creerPartie, majPartie, construire, ameliorer, vendre, lancerVague, lancerMeteore, lancerGrandFroid, envoyerHeros,
+  ondeDeChoc, sauterHeros, PAS,
 } from './moteur.js';
 import { choisirBenediction } from './benedictions.js';
 
 export const FORMAT = 1; // la façon de noter (si elle change un jour, les vieux enregistrements le diront)
 
 // Les décisions du joueur qu'on note : leur nom → la fonction du moteur qui les fait
-export const ACTIONS = { construire, ameliorer, vendre, lancerVague, lancerMeteore, lancerGrandFroid, envoyerHeros, choisirBenediction };
+export const ACTIONS = {
+  construire, ameliorer, vendre, lancerVague, lancerMeteore, lancerGrandFroid, envoyerHeros, ondeDeChoc, sauterHeros, choisirBenediction,
+};
 
 // Un enregistrement tout neuf, pour la partie qui commence.
 // version : la version du jeu (le commit), pour rejouer avec les mêmes règles.
