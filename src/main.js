@@ -194,25 +194,33 @@ function traiterEvenements() {
 }
 
 // ── Interface ────────────────────────────────────────────────
+// Change le texte d'un élément, seulement s'il a changé. majInterface() tourne à chaque image :
+// réécrire le même texte remplaçait 60 fois par seconde le « nœud de texte » des boutons, et
+// dans Safari, un clic commencé sur ce texte était perdu s'il était remplacé avant qu'on relâche
+// la souris (il fallait parfois cliquer plusieurs fois sur « Lancer la vague »).
+function ecrire(el, texte) {
+  if (el.textContent !== texte) el.textContent = texte;
+}
+
 function majInterface() {
-  $('#or').textContent = etat.or;
+  ecrire($('#or'), String(etat.or));
   // en mode survie, les vagues ne s'arrêtent jamais : pas de total, mais le record à battre
-  $('#vague').textContent = niveau.survie ? String(etat.vague) : `${etat.vague} / ${niveau.vagues.length}`;
+  ecrire($('#vague'), niveau.survie ? String(etat.vague) : `${etat.vague} / ${niveau.vagues.length}`);
   if (niveau.survie) {
     const tenues = vaguesTerminees(etat);
-    $('#record').textContent = Math.max(recordAvant, tenues);
+    ecrire($('#record'), String(Math.max(recordAvant, tenues)));
     $('#ligne-record').classList.toggle('battu', tenues > recordAvant); // on est en train de battre le record
   }
   const bouton = $('#lancer');
   if (etat.statut === 'preparation' && etat.offre) {
     bouton.disabled = true; // une bénédiction attend d'être choisie
-    bouton.textContent = 'Choisis une bénédiction';
+    ecrire(bouton, 'Choisis une bénédiction');
   } else if (etat.statut === 'preparation') {
     bouton.disabled = false;
-    bouton.textContent = `Lancer la vague ${etat.vague + 1}`;
+    ecrire(bouton, `Lancer la vague ${etat.vague + 1}`);
   } else {
     bouton.disabled = true;
-    bouton.textContent = etat.statut === 'vague' ? 'Vague en cours…' : 'Partie terminée';
+    ecrire(bouton, etat.statut === 'vague' ? 'Vague en cours…' : 'Partie terminée');
   }
   if (etat.pouvoirs) majPouvoirs();
   if (niveau.benedictions) majBenedictions();
@@ -223,8 +231,8 @@ function majInterface() {
       const pasArrive = type !== undefined && !estDisponible(etat, type);
       const manque = Number(b.dataset.prix) - etat.or;
       b.disabled = pasArrive || manque > 0;
-      b.querySelector('.manque').textContent = pasArrive ? `Arrive à la vague ${niveau.gardiens[type]}`
-        : manque > 0 ? `Il te manque ${manque} pièces` : '';
+      ecrire(b.querySelector('.manque'), pasArrive ? `Arrive à la vague ${niveau.gardiens[type]}`
+        : manque > 0 ? `Il te manque ${manque} pièces` : '');
     });
     // Suivre le socle si la caméra bouge (style cinéma)
     placerMenu(ui.selection);
@@ -405,7 +413,7 @@ function majPouvoirs() {
     b.disabled = !pret;
     b.classList.toggle('pret', pret);
     b.style.setProperty('--charge', String(1 - reste / pouvoirDe(etat, nom).recharge));
-    b.querySelector('.etat-pouvoir').textContent = reste > 0 ? `${Math.ceil(reste)} s` : '';
+    ecrire(b.querySelector('.etat-pouvoir'), reste > 0 ? `${Math.ceil(reste)} s` : '');
     if (nom === 'meteore') b.setAttribute('aria-pressed', String(ui.visee === 'meteore'));
   }
   if (ui.visee && !pouvoirPret(etat, 'meteore')) arreterVisee(); // la vague est finie : on ne vise plus
