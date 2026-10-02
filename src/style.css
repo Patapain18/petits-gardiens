@@ -309,22 +309,49 @@ body[data-style='pixel'] .fleche { font-family: system-ui, sans-serif; font-size
 }
 
 /* ── Écran de message ── */
+/* Sur un petit écran (un portable sous Windows, avec la barre des tâches et celle du navigateur),
+   une carte peut être plus haute que la fenêtre. Le voile défile alors (overflow-y), et la carte
+   commence en haut : centrée avec « margin-block: auto » plutôt qu'avec « place-items: center »,
+   qui la faisait déborder en bas, hors d'atteinte (le bouton « Jouer » de l'arène était caché). */
 .voile {
   position: fixed;
   inset: 0;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
+  overflow-y: auto;
   background: rgba(20, 12, 24, 0.35);
   z-index: 20;
   padding: 16px;
 }
 .voile[hidden] { display: none; }
+.voile > * { margin-block: auto; }
 .carte {
   flex-direction: column;
   align-items: flex-start;
-  max-width: 460px;
+  max-width: 540px;
   padding: 22px 24px;
   gap: 4px;
+}
+/* ses boutons restent toujours visibles en bas de l'écran, même quand le texte défile dessous ;
+   une carte trop haute pour la fenêtre (le voile a alors la classe « deborde », voir main.js) :
+   la bande des boutons prend un fond, pour que le texte qui passe dessous ne la brouille pas */
+.carte > .boutons-carte { position: sticky; bottom: -16px; }
+.voile.deborde .carte > .boutons-carte {
+  align-self: stretch;
+  margin: 6px -24px -22px;
+  padding: 10px 24px 18px;
+  background: var(--fond-panneau);
+  border-radius: 0 0 var(--rayon) var(--rayon);
+}
+/* une fenêtre peu haute : une carte plus serrée */
+@media (max-height: 760px) {
+  .carte { padding: 16px 20px; }
+  .carte p { margin-bottom: 6px; }
+  body[data-style='pixel'] .carte p { line-height: 1.6; }
+  .carte h1 { font-size: 1.6em; }
+  body[data-style='pixel'] .carte h1 { font-size: 1.3em; }
+  .voile.deborde .carte > .boutons-carte { margin: 4px -20px -16px; padding: 8px 20px 14px; }
 }
 .carte h1 { margin: 0 0 6px; font-size: 1.9em; line-height: 1.1; text-wrap: balance; }
 body[data-style='pixel'] .carte h1 { font-size: 1.5em; }

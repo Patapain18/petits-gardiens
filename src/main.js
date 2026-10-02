@@ -885,6 +885,20 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('resize', () => rendu?.redimensionner());
 
+// Une carte plus haute que la fenêtre (un petit écran) : son voile défile, et on lui met la classe
+// « deborde » : la bande des boutons prend alors un fond (voir style.css). On surveille la taille
+// des voiles (la fenêtre change) et celle de leurs cartes (leur texte change).
+const surveillerVoiles = new ResizeObserver((changements) => {
+  for (const { target } of changements) {
+    const voile = target.closest('.voile');
+    voile.classList.toggle('deborde', voile.scrollHeight > voile.clientHeight + 1);
+  }
+});
+for (const voile of document.querySelectorAll('.voile')) {
+  surveillerVoiles.observe(voile);
+  for (const carte of voile.children) surveillerVoiles.observe(carte);
+}
+
 // ── Le son ───────────────────────────────────────────────────
 // Les navigateurs n'acceptent de faire du bruit qu'après un geste du joueur :
 // le premier clic (ou la première touche) réveille le son.
