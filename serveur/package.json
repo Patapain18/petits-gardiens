@@ -1,0 +1,6 @@
+{
+  "name": "petits-gardiens-classement",
+  "private": true,
+  "description": "Le serveur du classement en ligne de Petits Gardiens (une fonction Vercel)",
+  "type": "module"
+}

@@ -2,7 +2,7 @@
 
 Un tower defense vu de dessus. De petits monstres gentils, les **gardiens**, protègent leur château. Des monstres méchants suivent le chemin et, **si un seul entre dans le château, la partie est perdue**.
 
-> Où on en est (octobre 2026) : une **campagne complète** avec une carte des époques et trois mondes de 4 niveaux : le monde 1 en pixel art, le monde 2 en cartoon, le monde 3 en voxel (chacun commence par un **didacticiel**, le monde 2 finit par le Colosse et le monde 3 par le Dragon) ; un **mode survie** avec son classement ; un petit moteur maison (fiches de niveau, éditeur, équilibrage, fiches personnages) ; des **gardiens qui s'améliorent** jusqu'au niveau 3 ; trois styles graphiques, un par époque, chacun avec 4 ambiances ; **la musique et les bruitages**, fabriqués par le code : un même thème joué par trois orchestres, un par époque, et un thème pour les chefs ; et un **écran d'options**.
+> Où on en est (octobre 2026) : une **campagne complète** avec une carte des époques et trois mondes de 4 niveaux : le monde 1 en pixel art, le monde 2 en cartoon, le monde 3 en voxel (chacun commence par un **didacticiel**, le monde 2 finit par le Colosse et le monde 3 par le Dragon) ; un **mode survie** avec son **classement en ligne** ; un petit moteur maison (fiches de niveau, éditeur, équilibrage, fiches personnages) ; des **gardiens qui s'améliorent** jusqu'au niveau 3 ; trois styles graphiques, un par époque, chacun avec 4 ambiances ; **la musique et les bruitages**, fabriqués par le code : un même thème joué par trois orchestres, un par époque, et un thème pour les chefs ; et un **écran d'options**.
 
 **Jouer en ligne : https://patapain18.github.io/petits-gardiens/**
 
@@ -24,7 +24,8 @@ Le jeu est publié sur **GitHub Pages**, à l'adresse https://patapain18.github.
 Ce qui change en ligne :
 - **Le site vit dans un sous-dossier** (`…github.io/petits-gardiens/`) : `vite.config.js` fabrique donc des adresses relatives (`base: './'`).
 - **Les outils de développement n'existent pas en ligne** : pas d'« Ouvrir tous les niveaux (test) », pas de captures d'écran ni de sons enregistrés. Dans l'éditeur, on peut ouvrir les niveaux du jeu (ils sont rangés dans le site), les modifier, les tester et télécharger leur fiche, mais pas les enregistrer dans le projet : ça demande `npm run dev`.
-- **La progression, les options et le classement du mode survie sont gardés par chaque navigateur** : chacun a les siens, sur son ordinateur. Pour comparer les scores entre amis, il faudra un classement en ligne (avec un petit serveur).
+- **La progression et les options sont gardées par chaque navigateur** : chacun a les siennes, sur son ordinateur.
+- **Le classement du mode survie, lui, est en ligne**, sur un petit serveur à part. Il ne part pas avec le site : il se met en ligne sur Vercel (voir « Le classement en ligne »).
 
 ## Comment on joue
 
@@ -136,8 +137,8 @@ L'ordre des mondes et des niveaux est rangé dans `src/jeu/campagne.js` (les rè
 
 Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagues ne s'arrêtent jamais, et chacune est plus dure que la précédente. Un seul monstre dans le château, et la partie s'arrête. Le score, c'est le nombre de vagues tenues ; à égalité, celui qui a battu le plus de monstres passe devant.
 
-- En haut de l'écran : « Vague 12 » (sans total) et le **record** de l'arène, qui passe en orange quand on est en train de le battre.
-- À la fin : le score, « Nouveau record de l'arène ! » s'il le faut, puis un **pseudo libre** (16 caractères au plus) pour entrer dans le classement. Le jeu se souvient du pseudo pour la fois suivante. Ensuite : la place obtenue et les 10 meilleurs, sa ligne en orange.
+- En haut de l'écran : « Vague 12 » (sans total) et le **record** de l'arène, le meilleur score de tous les joueurs, qui passe en orange quand on est en train de le battre.
+- À la fin : le score, « Nouveau record de l'arène ! » s'il le faut, puis un **pseudo libre** (16 caractères au plus) pour entrer dans le classement. Il sera visible par tous : un surnom, pas son vrai nom. Le jeu se souvient du pseudo pour la fois suivante. Ensuite : la place obtenue et les 10 meilleurs, sa ligne en orange.
 - **Tout le monde joue la même partie** : la graine du hasard est fixe dans une arène, pour que les scores se comparent vraiment.
 
 ![L'arène pixel, en pleine partie](docs/arene.jpg)
@@ -146,9 +147,53 @@ Un défi à part, en bas de la carte des époques : **L'arène pixel**. Les vagu
 
 **L'équilibrage** joue aussi les arènes : au lieu de « gagne / perd », il dit jusqu'où tient chaque joueur imaginaire. Pour L'arène pixel : le bon joueur tient 26 à 30 vagues, des Braise seules 16, et sans jamais améliorer 17. Il conseille si un bon joueur tombe trop tôt, tient trop longtemps, ou si l'écart avec un joueur maladroit est trop faible pour que le classement départage.
 
-**Le classement** (`src/classement.js`) est pour l'instant **gardé sur l'ordinateur** (les 50 meilleurs scores de chaque arène). Toutes ses fonctions répondent « plus tard » (`async`), comme le ferait un serveur : le jour où il passe en ligne, pour comparer les scores entre amis, seul ce fichier change. Les pseudos sont toujours affichés tels quels (`textContent`), jamais interprétés comme du HTML.
+**Le classement** (`src/classement.js`) est **en ligne** : tous les joueurs se comparent (voir la partie suivante). Ses fonctions répondaient déjà « plus tard » (`async`) quand les scores étaient gardés sur l'ordinateur : pour passer en ligne, ce fichier a changé, et le reste du jeu presque pas. Les pseudos sont toujours affichés tels quels (`textContent`), jamais interprétés comme du HTML.
 
 **Créer une arène** : dans l'éditeur, coche « Mode survie ». Les vagues écrites deviennent le début de l'arène, la suite est fabriquée toute seule, et l'arène apparaît d'elle-même dans le « Défi » de la carte des époques.
+
+## Le classement en ligne
+
+Les scores du mode survie sont rangés **sur un petit serveur**, pour que tous les joueurs se comparent. Le jeu, lui, reste un site sans serveur sur GitHub Pages : il pose ses questions à une autre adresse, https://petits-gardiens-classement.vercel.app/api/scores.
+
+**Pourquoi un serveur ?** Un site sur GitHub Pages n'est fait que de fichiers : il ne peut rien enregistrer pour tout le monde. Et le jeu ne peut pas écrire lui-même dans une base de données : il faudrait lui donner la clé de la base, et n'importe qui la lirait dans le code du site (puis effacerait tout). Le serveur garde la clé secrète, vérifie chaque score, et lui seul parle à la base.
+
+```
+le jeu (navigateur)  ── GET / POST ──▶  la fonction Vercel        ──▶  la base Upstash Redis
+patapain18.github.io                    serveur/api/scores.js
+                                        à Paris, avec la clé secrète
+```
+
+**Le serveur** (`serveur/api/scores.js`) est une **fonction Vercel** : Vercel la réveille à chaque question, puis elle se rendort. Il n'y a pas d'ordinateur allumé en permanence, et c'est gratuit à cette taille. Après un moment sans joueur, le premier appel prend une ou deux secondes : le temps du réveil. C'est pourquoi la carte de l'arène s'affiche tout de suite, avec « Le classement arrive… ».
+
+| Question | Réponse |
+|---|---|
+| `GET /api/scores?arene=arene-pixel&combien=10` | `{ scores: [{ pseudo, vagues, battus, date }, …], total }` : les meilleurs, dans l'ordre |
+| `POST /api/scores` avec `{ arene, pseudo, vagues, battus }` | `{ place, total, score }` ; ou `{ erreur }`, avec le statut 400 (score refusé), 403 (un autre site) ou 429 (trop d'envois) |
+
+**La base** : Upstash Redis, branchée au projet depuis le tableau de bord de Vercel (onglet Storage). Vercel donne alors à la fonction deux réglages secrets : `KV_REST_API_URL` (l'adresse de la base) et `KV_REST_API_TOKEN` (sa clé). Ils ne sont écrits nulle part dans le code. La fonction parle à la base par de simples requêtes web (l'« API REST » d'Upstash), sans bibliothèque à installer.
+
+Chaque arène est un **ensemble trié** de Redis (la clé `classement:arene-pixel`) : chaque score y est rangé avec une **note** qui le classe, `vagues × 1 000 000 + monstres battus`. Plus de vagues gagne toujours ; à égalité de vagues, plus de monstres. À égalité parfaite, le premier arrivé reste devant. On garde les 200 meilleurs de chaque arène.
+
+**On ne fait confiance à personne** : n'importe qui peut appeler l'adresse du serveur, avec n'importe quoi dedans. Alors :
+- **chaque score est vérifié** : arène connue, pseudo nettoyé comme dans le jeu (de 1 à 16 caractères), nombres entiers et possibles (300 vagues au plus) ;
+- **6 envois par minute au plus** depuis une même adresse Internet. Le serveur ne garde pas cette adresse : seulement son empreinte (un « hachage » SHA-256, impossible à retourner), et pendant une minute ;
+- **seul le jeu a la permission « CORS »**. Un navigateur ne laisse une page lire les réponses d'un autre site que si celui-ci l'autorise. Le serveur n'autorise que `patapain18.github.io` et le jeu en développement (`localhost:5180` et `localhost:4173`) ; les pages des autres sites sont refusées (403). Mais CORS est une règle des navigateurs : un programme comme `curl` passe outre. C'est pour ça que tout le reste est vérifié quand même ;
+- dans le jeu, les pseudos sont affichés avec `textContent`, jamais comme du HTML, et le joueur est prévenu que son pseudo sera visible par tous.
+
+Un joueur peut-il tricher ? Oui, en envoyant un faux score à la main : le serveur ne rejoue pas la partie. Pour un jeu entre amis, c'est accepté, et un score déplacé s'efface à la main (voir « Modérer »).
+
+**Si le serveur ne répond pas** (pas d'Internet, serveur en panne, plus de 6 secondes d'attente), le jeu continue comme avant : le score est gardé dans le navigateur (les 50 meilleurs de chaque arène), et le classement montre les scores de cet ordinateur, avec la mention « Hors ligne ». Si le serveur répond mais refuse le score, le jeu affiche son message et on peut réessayer.
+
+**Mettre le serveur en ligne.** Il a son propre projet Vercel, `petits-gardiens-classement`, et se publie à la main (il change rarement) :
+
+```bash
+cd serveur
+npx vercel deploy --prod
+```
+
+`serveur/vercel.json` fait tourner la fonction à Paris (`cdg1`), près de la base (à Francfort) : chaque question à la base fait l'aller-retour en quelques millisecondes. Le dossier `serveur/.vercel` (le lien avec le projet) et les fichiers `.env*` ne vont jamais sur GitHub.
+
+**Modérer** (effacer un pseudo déplacé) : sur vercel.com, projet `petits-gardiens-classement`, onglet Storage, ouvrir la base dans la console d'Upstash (« Open in Upstash »), puis « Data Browser » : dans la clé `classement:arene-pixel`, supprimer la ligne. L'arène `essai` sert aux vérifications : le serveur l'accepte, mais le jeu ne l'affiche jamais.
 
 ## Le didacticiel
 
@@ -370,7 +415,7 @@ src/
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
 ├── options.js         les options du joueur (son, vitesse, affichage…), et qui doit être prévenu quand elles changent
 ├── fenetre-options.js la fenêtre des options, fabriquée à partir d'une liste (+ options.css)
-├── classement.js      le classement du mode survie (sur l'ordinateur, prêt à passer en ligne)
+├── classement.js      le classement du mode survie : il demande au serveur, ou garde le score sur l'ordinateur
 ├── style.css          l'interface du jeu (elle change de look selon le style choisi)
 ├── niveaux/           LES FICHES DE NIVEAU (des données pures, sans code)
 │   ├── monde1-1.json … monde1-4.json   les quatre niveaux du monde 1
@@ -405,6 +450,10 @@ src/
     ├── pixel.js       style 3 : vrai pixel art 16 bits, dessiné en Canvas 2D
     ├── apparence.js   le vocabulaire des apparences (gabarits, accessoires, couleurs)
     └── outils3d.js    morceaux partagés par les deux styles 3D
+serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir « Le classement en ligne »)
+├── api/scores.js      la fonction : vérifie, range et lit les scores
+├── vercel.json        la fonction tourne à Paris, près de la base
+└── package.json
 ```
 
 ### Du fichier à la partie
@@ -648,7 +697,8 @@ Dans la console du navigateur (F12) :
 - `__planche('nom')` (dans la galerie des personnages) : assemble les personnages affichés en une seule image, une ligne par personnage et une colonne par style, dans `captures/nom.jpg` ;
 - `__editeur.etat.fiche` (dans la console de l'éditeur) : la fiche en cours de modification ;
 - `__jeu.son.effet('recolte')` (dans le jeu) ou `__son.effet('recolte')` (dans la salle des sons) : joue un bruitage ; `__jeu.son.reglages` : les volumes ; `__jeu.son.enCours` : quel thème joue, avec quel mixage, à quelle mesure ;
-- l'adresse `/__son` du serveur de développement enregistre un son calculé hors ligne dans `captures/nom.wav` (c'est ainsi qu'on a vérifié la musique).
+- l'adresse `/__son` du serveur de développement enregistre un son calculé hors ligne dans `captures/nom.wav` (c'est ainsi qu'on a vérifié la musique) ;
+- pour essayer le serveur du classement sans salir le vrai : l'arène `essai`, par exemple `curl 'https://petits-gardiens-classement.vercel.app/api/scores?arene=essai'`. Les erreurs de la fonction s'affichent sur vercel.com, projet `petits-gardiens-classement`, onglet « Logs ».
 
 ## Décisions prises
 
@@ -666,9 +716,9 @@ Dans la console du navigateur (F12) :
    - ~~une fiche personnage pour trois rendus~~ (fait : l'apparence dans `donnees.js`, le vocabulaire dans `rendus/apparence.js`).
 2. ~~Améliorer les gardiens : niveaux 2 et 3, un « skin » par amélioration~~ (fait : cape au niveau 2, couronne au niveau 3).
 3. ~~Les premiers vrais niveaux du monde 1 (pixel art), avec une carte des époques~~ (fait : 4 niveaux, dont un didacticiel ; la progression est gardée).
-4. ~~Un mode défi avec un classement~~ (fait : le mode survie, classement sur l'ordinateur).
+4. ~~Un mode défi avec un classement~~ (fait : le mode survie et son classement).
 5. ~~Le monde 2 (l'époque cartoon)~~ (fait : 5 nouveaux personnages, 4 niveaux dont un didacticiel et le combat contre le Colosse, et les ambiances du cartoon).
 6. ~~Le monde 3 (l'époque voxel, aujourd'hui)~~ (fait : 5 nouveaux personnages, puis 4 niveaux dont un didacticiel et le combat contre le Dragon, avec leurs chiffres réglés par l'équilibrage).
 7. ~~Sons et musique, écran d'options~~ (fait : un thème joué par trois orchestres, qui suit la partie, et les bruitages de chaque événement ; un second thème pour les combats de chef ; puis la fenêtre des options : son, vitesse, fiches, qualité graphique, taille de l'interface, caméra, progression).
 8. ~~Mettre le jeu en ligne~~ (fait : GitHub Pages, publié tout seul à chaque envoi sur `main`).
-9. Plus tard : le classement en ligne, pour comparer les scores entre amis (il faudra un petit serveur ; seul `src/classement.js` changera).
+9. ~~Le classement en ligne, pour comparer les scores entre amis~~ (fait : une fonction Vercel et une base Upstash Redis ; si le serveur ne répond pas, le score est gardé sur l'ordinateur).

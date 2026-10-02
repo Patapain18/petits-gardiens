@@ -16,7 +16,7 @@ import { NIVEAU_MAX, caracteristiques } from './jeu/donnees.js';
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
 import { noterVictoire } from './progression.js';
-import { meilleursScores, enregistrerScore, nettoyerPseudo, pseudoMemorise, memoriserPseudo, LONGUEUR_PSEUDO } from './classement.js';
+import { meilleursScores, enregistrerScore, nettoyerPseudo, pseudoMemorise, memoriserPseudo, sourceDuClassement, LONGUEUR_PSEUDO } from './classement.js';
 import { Didacticiel } from './didacticiel.js';
 import { creerSon } from './son/son.js';
 import { lireOptions, changerOptions, quandOptionsChangent } from './options.js';
@@ -437,7 +437,9 @@ function afficherFinSurvie() {
   const envoyer = element('button', 'principal', 'Enregistrer mon score');
   envoyer.type = 'submit';
   const erreur = element('p', 'erreur-pseudo', '');
-  formulaire.append(etiquette, envoyer, erreur);
+  // le classement est en ligne : tout le monde verra le pseudo
+  const prudence = element('p', 'note-classement', 'Ton pseudo sera visible par tous les joueurs : choisis un surnom, pas ton vrai nom.');
+  formulaire.append(etiquette, envoyer, erreur, prudence);
   champ.addEventListener('input', () => { erreur.textContent = ''; });
   formulaire.addEventListener('submit', async (ev) => {
     ev.preventDefault(); // un formulaire rechargerait la page : on s'en occupe nous-mêmes
@@ -449,9 +451,21 @@ function afficherFinSurvie() {
     }
     memoriserPseudo(pseudo);
     envoyer.disabled = true;
-    const { place, total } = await enregistrerScore(niveau.id, { pseudo, vagues, battus });
+    envoyer.textContent = 'Envoi…';
+    const resultat = await enregistrerScore(niveau.id, { pseudo, vagues, battus });
+    if (resultat.erreur) {
+      // le serveur a refusé (un pseudo bizarre, trop d'envois d'un coup…) : on le dit, et on peut réessayer
+      erreur.textContent = resultat.erreur;
+      envoyer.disabled = false;
+      envoyer.textContent = 'Enregistrer mon score';
+      return;
+    }
+    const { place, total } = resultat;
     const rang = element('p', 'place-classement', `Tu prends la ${place === 1 ? '1re' : `${place}e`} place sur ${total}.`);
-    formulaire.replaceWith(rang, await tableauClassement(place));
+    const ou = element('p', 'note-classement', resultat.horsLigne
+      ? 'Le classement en ligne ne répond pas : ton score est gardé sur cet ordinateur.'
+      : 'Classement en ligne, avec tous les joueurs.');
+    formulaire.replaceWith(rang, ou, await tableauClassement(place));
     rejouer.classList.add('principal'); // le score est rangé : rejouer devient l'action principale
     rejouer.focus();
   });

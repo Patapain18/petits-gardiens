@@ -8,7 +8,7 @@ import { MONDES, estDebloque, problemesCampagne } from './jeu/campagne.js';
 import { GARDIENS, MONSTRES, caracteristiques } from './jeu/donnees.js';
 import { DIFFICULTES } from './jeu/niveau.js';
 import { lireProgression, choisirToutDebloque, effacerProgression } from './progression.js';
-import { meilleursScores } from './classement.js';
+import { meilleursScores, sourceDuClassement } from './classement.js';
 import { imagePersonnage } from './rendus/pixel.js';
 import { creerFenetreOptions } from './fenetre-options.js';
 
@@ -74,7 +74,7 @@ function dessinerFrise() {
 // ── Le défi : une carte par arène de survie, avec son classement ──
 const vagues = (n) => `${n} vague${n > 1 ? 's' : ''}`;
 
-async function carteArene(fiche) {
+function carteArene(fiche) {
   const carte = el('article', 'arene');
   carte.dataset.epoque = fiche.style; // l'arène prend le style de son époque
   const infos = el('div', 'arene-infos');
@@ -82,11 +82,20 @@ async function carteArene(fiche) {
   jouer.href = `./jeu.html?niveau=${encodeURIComponent(fiche.id)}`;
   infos.append(el('h3', '', fiche.nom), el('p', 'description-arene', fiche.description || ''), jouer);
 
+  // la carte s'affiche tout de suite, et son classement arrive quand le serveur répond
+  // (s'il dormait, il lui faut une ou deux secondes pour se réveiller)
   const classement = el('div', 'arene-classement');
-  classement.append(el('h4', '', 'Classement'));
-  const scores = await meilleursScores(fiche.id, 5);
+  classement.append(el('h4', '', 'Classement'), el('p', 'classement-vide', 'Le classement arrive…'));
+  remplirClassement(classement, fiche.id); // sans « await » : on n'attend pas la réponse pour continuer
+  carte.append(infos, classement);
+  return carte;
+}
+
+async function remplirClassement(classement, arene) {
+  const scores = await meilleursScores(arene, 5);
+  const contenu = [el('h4', '', 'Classement')];
   if (!scores.length) {
-    classement.append(el('p', 'classement-vide', 'Personne n’a encore joué : à toi l’honneur !'));
+    contenu.push(el('p', 'classement-vide', 'Personne n’a encore joué : à toi l’honneur !'));
   } else {
     const liste = el('ol', 'podium');
     for (const score of scores) {
@@ -95,17 +104,19 @@ async function carteArene(fiche) {
       li.append(el('span', 'pseudo', score.pseudo), el('span', 'vagues-score', vagues(score.vagues)));
       liste.append(li);
     }
-    classement.append(liste);
+    contenu.push(liste);
   }
-  classement.append(el('p', 'note-classement', 'Scores gardés sur cet ordinateur'));
-  carte.append(infos, classement);
-  return carte;
+  // d'où viennent ces scores : du classement en ligne, ou de cet ordinateur si le serveur ne répond pas
+  contenu.push(el('p', 'note-classement', sourceDuClassement() === 'en-ligne'
+    ? 'Classement en ligne, avec tous les joueurs'
+    : 'Hors ligne : les scores de cet ordinateur'));
+  classement.replaceChildren(...contenu);
 }
 
-async function dessinerDefis() {
+function dessinerDefis() {
   const arenes = Object.values(FICHES).filter((fiche) => fiche.survie).sort((a, b) => a.id.localeCompare(b.id));
   $('#defi').hidden = arenes.length === 0;
-  $('#arenes').replaceChildren(...await Promise.all(arenes.map(carteArene)));
+  $('#arenes').replaceChildren(...arenes.map(carteArene));
 }
 
 // ── Le défilé des personnages, en haut de la page ──
