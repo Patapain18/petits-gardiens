@@ -372,7 +372,9 @@ for (const b of boutonsPouvoirs) {
   const { description, touche } = POUVOIRS[b.dataset.pouvoir];
   b.title = `${description} (touche ${touche})`;
   b.querySelector('.touche').textContent = touche;
-  b.addEventListener('click', () => utiliserPouvoir(b.dataset.pouvoir));
+  // après un clic, le bouton rend le clavier : sinon il le garderait, et la touche Espace (qui lance
+  // la vague) appuierait sur lui à la place
+  b.addEventListener('click', () => { utiliserPouvoir(b.dataset.pouvoir); b.blur(); });
 }
 
 function utiliserPouvoir(nom) {
@@ -394,6 +396,7 @@ function arreterVisee() {
 function majPouvoirs() {
   for (const b of boutonsPouvoirs) {
     const nom = b.dataset.pouvoir, reste = etat.pouvoirs[nom], pret = pouvoirPret(etat, nom);
+    if (!pret && document.activeElement === b) b.blur(); // un bouton grisé ne garde pas le clavier
     b.disabled = !pret;
     b.classList.toggle('pret', pret);
     b.style.setProperty('--charge', String(1 - reste / POUVOIRS[nom].recharge));
@@ -649,7 +652,8 @@ conteneur.addEventListener('contextmenu', (e) => {
 });
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); }
-  if (e.key === ' ' && e.target === document.body) { e.preventDefault(); $('#lancer').click(); }
+  // Espace lance la vague, sauf si un bouton actif a le clavier (Espace appuie alors sur lui)
+  if (e.key === ' ' && (e.target === document.body || e.target.disabled)) { e.preventDefault(); $('#lancer').click(); }
   // les pouvoirs du château : touches 1 et 2 (pas pendant qu'on écrit son pseudo)
   const dansUnChamp = e.target instanceof Element && e.target.closest('input, textarea');
   if (etat.pouvoirs && !dansUnChamp) {

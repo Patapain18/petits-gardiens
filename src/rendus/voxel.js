@@ -1756,7 +1756,8 @@ export default class RenduVoxel {
     const k = MONSTRES[e.type].boss ? 0.35 : 1;
     const flash = e.touche > 0 ? 0.35 * k : 0;
     for (const mat of vue.materiaux) {
-      if (flash) mat.emissive.set('#fff2dc');
+      // touché : un flash blanc, ou bleu clair s'il est gelé (pour qu'on voie toujours qu'il l'est)
+      if (flash) mat.emissive.set(e.gele > 0 || lent < 1 ? '#bfe6ff' : '#fff2dc');
       else if (e.gele > 0) mat.emissive.set('#d8f4ff'); // pris dans la glace
       else if (lent < 1) mat.emissive.set('#3aa8ff');
       mat.emissiveIntensity = flash || (e.gele > 0 ? 0.35 * k : lent < 1 ? 0.45 * k : 0);

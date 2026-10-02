@@ -1363,7 +1363,8 @@ export default class RenduCartoon {
     // touché sans arrêt par tous les gardiens, il serait tout blanc)
     const k = MONSTRES[e.type].boss ? 0.35 : 1;
     for (const mat of vue.materiaux) {
-      if (e.touche > 0) { mat.emissive.set('#ffffff'); mat.emissiveIntensity = 0.5 * k; }
+      // touché : un flash blanc, ou bleu clair s'il est gelé (pour qu'on voie toujours qu'il l'est)
+      if (e.touche > 0) { mat.emissive.set(e.gele > 0 || lent < 1 ? '#bfe6ff' : '#ffffff'); mat.emissiveIntensity = 0.5 * k; }
       else if (e.gele > 0) { mat.emissive.set('#d8f4ff'); mat.emissiveIntensity = 0.45 * k; } // pris dans la glace
       else if (lent < 1) { mat.emissive.set('#3aa0ff'); mat.emissiveIntensity = 0.35 * k; }
       else mat.emissiveIntensity = 0;

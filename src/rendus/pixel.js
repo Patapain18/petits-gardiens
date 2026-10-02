@@ -609,6 +609,54 @@ function silhouette(img) {
   return s;
 }
 
+// ── Les images recolorées ──
+// Un monstre ralenti devient bleu, un monstre gelé presque blanc, un monstre touché s'éclaire, un
+// gardien assommé s'assombrit. On ne passe pas par les « filtres » du canvas (ctx.filter) : Safari
+// ne les connaît pas (les monstres gelés y restaient de leur vraie couleur !), et ils sont lents.
+// On prépare plutôt, une fois pour toutes, une copie recolorée de chaque image, pixel par pixel.
+// Pour le bleu, chaque pixel prend une couleur de la palette selon sa clarté : les pixels sombres
+// restent sombres (le contour reste net), les clairs deviennent presque blancs.
+const PALETTES_FROID = {
+  gel: [[12, 28, 52], [64, 146, 214], [214, 242, 255]],         // ralenti par une Givrine
+  glace: [[34, 64, 92], [150, 208, 238], [242, 252, 255]],      // gelé par le Grand froid
+  flashGel: [[44, 86, 124], [164, 218, 250], [255, 255, 255]],  // touché pendant qu'il est ralenti
+  flashGlace: [[70, 110, 140], [200, 236, 255], [255, 255, 255]], // touché pendant qu'il est gelé
+};
+const RECOLORER = {
+  flash: (r, v, b) => [r * 2.2, v * 2.2, b * 2.2],               // touché : il s'éclaire un instant
+  assomme: (r, v, b, l) => [r, v, b].map((c) => (c + l * 255) * 0.5 * 0.65), // moitié gris, plus sombre
+};
+for (const [sorte, [sombre, milieu, clair]] of Object.entries(PALETTES_FROID)) {
+  RECOLORER[sorte] = (r, v, b, l) => {
+    const [de, a, t] = l < 0.5 ? [sombre, milieu, l * 2] : [milieu, clair, (l - 0.5) * 2];
+    return de.map((c, i) => c + (a[i] - c) * t);
+  };
+}
+const teintes = new WeakMap();
+function teinte(img, sorte) {
+  let copies = teintes.get(img);
+  if (!copies) teintes.set(img, (copies = new Map()));
+  let copie = copies.get(sorte);
+  if (!copie) {
+    copie = document.createElement('canvas');
+    copie.width = img.width;
+    copie.height = img.height;
+    const ctx = copie.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const image = ctx.getImageData(0, 0, copie.width, copie.height), d = image.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3]) continue; // pixel transparent
+      const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; // sa clarté, de 0 à 1
+      const [r, v, b] = RECOLORER[sorte](d[i], d[i + 1], d[i + 2], l);
+      d[i] = Math.min(255, r); d[i + 1] = Math.min(255, v); d[i + 2] = Math.min(255, b);
+    }
+    ctx.putImageData(image, 0, 0);
+    copie.hautVisible = img.hautVisible;
+    copies.set(sorte, copie);
+  }
+  return copie;
+}
+
 // Un « bruit » doux qui se répète sans couture tous les « periode » pixels (pour les nuages) :
 // des valeurs au hasard aux coins d'une grille, mélangées en douceur entre les coins,
 // à trois tailles de grille (64, 32 et 16 pixels) additionnées.
@@ -1157,9 +1205,8 @@ export default class RenduPixel {
         y: p.y + 4,
         ombre: { img, x: p.x + recul, y: p.y + 3 },
         dessin: () => {
-          if (tour.assomme > 0) c.filter = 'brightness(0.65) saturate(0.5)'; // assommé par le feu du Dragon
-          this.dessinerImage(img, p.x + recul, p.y + 3 - saut); // les pattes posées au milieu du socle
-          c.filter = 'none';
+          // (assommé par le feu du Dragon : plus sombre et un peu gris)
+          this.dessinerImage(tour.assomme > 0 ? teinte(img, 'assomme') : img, p.x + recul, p.y + 3 - saut); // les pattes posées au milieu du socle
           if (tour.assomme > 0) {
             // trois petites étoiles qui tournent au-dessus de sa tête
             c.fillStyle = '#ffe14a';
@@ -1196,14 +1243,13 @@ export default class RenduPixel {
       const enAir = vol + bond;
       const ombre = { img, x: p.x + enAir * a.ombre.dx, y: p.y + 2 + enAir * a.ombre.dy };
       const dessin = () => {
-        if (e.touche > 0) c.filter = 'brightness(2.2)';
-        // pris dans la glace du Grand froid : bleu très clair (et un glaçon autour, plus bas)
-        else if (e.gele > 0) c.filter = 'sepia(1) hue-rotate(165deg) saturate(1.5) brightness(1.25)';
-        // gelé : un voile bleu glacé (on passe d'abord en sépia, pour que tous les monstres bleuissent pareil,
-        // même un rouge : tourner ses couleurs l'aurait rendu vert)
-        else if (e.facteurRalenti < 1) c.filter = 'sepia(1) hue-rotate(165deg) saturate(1.7) brightness(1.1)';
-        this.dessinerImage(img, p.x, y);
-        c.filter = 'none';
+        // ralenti par une Givrine : bleu ; pris dans la glace du Grand froid : presque blanc (et un
+        // glaçon autour, plus bas) ; touché : il s'éclaire un instant. S'il est gelé, il s'éclaire EN
+        // BLEU : sinon, une Blizzard qui le frappe sans arrêt le ferait clignoter de sa vraie couleur,
+        // et on ne verrait plus qu'il est gelé
+        const froid = e.gele > 0 ? 'Glace' : e.facteurRalenti < 1 ? 'Gel' : '';
+        const sorte = e.touche > 0 ? (froid ? 'flash' + froid : 'flash') : froid.toLowerCase();
+        this.dessinerImage(sorte ? teinte(img, sorte) : img, p.x, y);
         if (e.gele > 0) {
           // un glaçon autour de lui : un bloc transparent, éclairé en haut à gauche, plus sombre en bas à droite
           const haut = Math.round(y - img.height + (img.hautVisible || 0) - 2), l = img.width - 2;
