@@ -40,8 +40,9 @@ body {
 .bouton-options:hover { filter: brightness(1.08); }
 .bouton-options:active { translate: 0 2px; box-shadow: 0 1px 0 #6a3a14; }
 .bouton-options:focus-visible { outline: 3px solid #fff4e0; outline-offset: 2px; }
-/* sur un petit écran, le bouton passe au-dessus du défilé des personnages */
-@media (max-width: 640px) {
+/* quand l'écran n'est pas assez large pour le défilé (780 px) et le bouton côte à côte,
+   on laisse de la place au-dessus du défilé pour le bouton */
+@media (max-width: 1040px) {
   .titre-jeu { padding-top: 60px; }
 }
 .titre-jeu h1 {
