@@ -19,6 +19,7 @@ export const OPTIONS_DE_BASE = {
   qualite: 'complete',   // 'complete', ou 'econome' pour les ordinateurs plus lents
   interface: 'normale',  // la taille des boutons et des textes du jeu : 'normale' ou 'grande'
   camera: 'haute',       // la caméra du voxel : 'haute' (la vue de jeu) ou 'cinema'
+  partage: true,         // envoyer ses parties enregistrées (pour les revoir, et régler le jeu) : voir parties.js
 };
 
 // Les valeurs permises : une valeur inconnue (une vieille version, un fichier modifié
@@ -32,7 +33,7 @@ const VALEURS = {
 };
 const valide = (cle, valeur) => {
   if (cle === 'musique' || cle === 'effets') return typeof valeur === 'number' && valeur >= 0 && valeur <= 1;
-  if (cle === 'coupe') return typeof valeur === 'boolean';
+  if (cle === 'coupe' || cle === 'partage') return typeof valeur === 'boolean';
   return VALEURS[cle]?.includes(valeur);
 };
 

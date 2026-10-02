@@ -7,13 +7,15 @@
 // - charge le style graphique choisi et permet d'en changer à chaud
 // - fait jouer la musique et les bruitages (src/son/)
 // - applique les options du joueur (src/options.js) et ouvre leur fenêtre
+// - enregistre la partie (jeu/enregistrement.js) et l'envoie à la fin (parties.js)
 // ─────────────────────────────────────────────────────────────
 import {
-  creerPartie, majPartie, construire, vendre, lancerVague, tourSur, ameliorer, prixAmelioration, prixRevente, estDisponible,
-  vaguesTerminees, pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros,
+  creerPartie, majPartie, tourSur, prixAmelioration, prixRevente, estDisponible, vaguesTerminees, pouvoirPret, PAS,
 } from './jeu/moteur.js';
 import { NIVEAU_MAX, POUVOIRS, HEROS, caracteristiques } from './jeu/donnees.js';
-import { BENEDICTIONS, TOUTES_LES, choisirBenediction, ficheDe, pouvoirDe } from './jeu/benedictions.js';
+import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe } from './jeu/benedictions.js';
+import { nouvelEnregistrement, agir as agirEtNoter, noterControle } from './jeu/enregistrement.js';
+import { VERSION, preparerEnvoi, garderEtEnvoyer, garderEnAttente, envoyerPartiesEnAttente } from './parties.js';
 import { chargerNiveau } from './jeu/niveau.js';
 import { placeDuNiveau, niveauSuivant } from './jeu/campagne.js';
 import { noterVictoire } from './progression.js';
@@ -101,6 +103,16 @@ const menu = $('#menu');
 // les scores du classement se comparent vraiment. Ailleurs, la graine est tirée au hasard.
 const nouvellePartie = () => creerPartie(niveau, niveau.survie ? 1 : undefined);
 let etat = nouvellePartie();
+// L'enregistrement de la partie : chaque décision du joueur, avec son moment (voir
+// jeu/enregistrement.js). Pas pour un niveau en essai depuis l'éditeur : sa fiche n'existe
+// que dans ce navigateur, personne ne pourrait rejouer la partie.
+const nouvelEnregistrementSiPossible = () => (depuisEditeur ? null : nouvelEnregistrement(etat, VERSION));
+let enregistrement = nouvelEnregistrementSiPossible();
+let dejaEnvoyee = false;  // la partie est finie et son enregistrement est parti
+let partieEnvoyee = null; // cet envoi : une promesse de son identifiant sur le serveur (ou de null)
+
+// Toutes les décisions du joueur passent par ici : le moteur les fait, l'enregistrement les note
+const agir = (nom, ...args) => agirEtNoter(enregistrement, etat, nom, ...args);
 let recordAvant = 0; // mode survie : le record de l'arène au début de la partie
 let rendu = null;              // le style graphique actif
 let styleActif = null;
@@ -135,7 +147,13 @@ async function choisirStyle(nom, { forcer = false } = {}) {
 }
 
 // ── La boucle de jeu ─────────────────────────────────────────
+// Le jeu avance par pas toujours égaux (PAS = 1/60 s) : c'est ce qui permet de rejouer une
+// partie enregistrée à l'identique. Le temps écoulé depuis l'image précédente s'ajoute à une
+// réserve, qu'on dépense pas par pas ; ce qui reste attend l'image suivante. (Le « - 0,001 » :
+// une image arrive parfois un poil avant 1/60 s ; on fait quand même son pas, et la réserve
+// passe un peu sous zéro. Sinon, de temps en temps, une image n'aurait aucun pas.)
 let avant = performance.now();
+let reserve = 0;
 function boucle(maintenant) {
   // dt = temps écoulé depuis l'image précédente (plafonné si l'onglet a dormi)
   const dt = Math.min(0.05, (maintenant - avant) / 1000);
@@ -144,12 +162,10 @@ function boucle(maintenant) {
   // le jeu attend aussi pendant qu'une fiche du didacticiel est ouverte
   const enJeu = !enPause && !didacticiel.bloque;
   if (enJeu) {
-    // On découpe en petits pas réguliers pour que la logique reste stable même en ×2
-    let reste = dt * vitesse;
-    while (reste > 0) {
-      const pas = Math.min(reste, 1 / 60);
-      majPartie(etat, pas);
-      reste -= pas;
+    reserve += dt * vitesse;
+    while (reserve >= PAS - 0.001) {
+      faireUnPas();
+      reserve -= PAS;
     }
   }
 
@@ -165,6 +181,22 @@ function boucle(maintenant) {
   son.maj(etat, { pause: !enJeu }); // la musique suit la partie (calme, vague, chef, pause)
   majInterface();
   requestAnimationFrame(boucle);
+}
+
+// Un pas de jeu. Quand une vague se termine (ou la partie), l'enregistrement note un contrôle.
+function faireUnPas() {
+  const statutAvant = etat.statut;
+  majPartie(etat, PAS);
+  if (statutAvant === 'vague' && etat.statut !== 'vague') noterControle(enregistrement, etat);
+}
+
+// La partie est finie, ou le joueur la quitte en route : on envoie son enregistrement (une
+// seule fois). statut : 'perdu', 'gagne' ou 'abandon'. Une partie quittée avant la première
+// vague n'apprend rien : on ne l'envoie pas.
+function envoyerEnregistrement(statut) {
+  if (!enregistrement || dejaEnvoyee || etat.vague === 0) return;
+  dejaEnvoyee = true;
+  partieEnvoyee = garderEtEnvoyer(preparerEnvoi(enregistrement, etat, statut));
 }
 
 // Effets d'interface liés aux événements du moteur (les styles, eux,
@@ -308,7 +340,7 @@ function ouvrirMenu(index) {
         <span class="role">${g.role}</span>
         <span class="manque"></span>`;
       b.addEventListener('click', () => {
-        if (construire(etat, index, cle)) fermerMenu();
+        if (agir('construire', index, cle)) fermerMenu();
       });
       menu.append(b);
     }
@@ -333,7 +365,7 @@ function ouvrirMenu(index) {
         <span class="role">${differences(c, suivant)}</span>
         <span class="manque"></span>`;
       b.addEventListener('click', () => {
-        if (ameliorer(etat, index)) ouvrirMenu(index); // le menu montre tout de suite le nouveau niveau
+        if (agir('ameliorer', index)) ouvrirMenu(index); // le menu montre tout de suite le nouveau niveau
       });
       // pendant qu'on survole le bouton (ou qu'on y arrive au clavier), le cercle montre
       // la portée du niveau suivant. :focus-visible = le focus vient du clavier, pas du
@@ -350,7 +382,7 @@ function ouvrirMenu(index) {
     }
     const revendre = document.createElement('button');
     revendre.textContent = `Revendre (+${prixRevente(tour)})`;
-    revendre.addEventListener('click', () => { vendre(etat, index); fermerMenu(); });
+    revendre.addEventListener('click', () => { agir('vendre', index); fermerMenu(); });
     menu.append(revendre);
   }
   menu.hidden = false;
@@ -395,7 +427,7 @@ for (const b of boutonsPouvoirs) {
 
 function utiliserPouvoir(nom) {
   if (!pouvoirPret(etat, nom)) return;
-  if (nom === 'froid') { lancerGrandFroid(etat); return; }
+  if (nom === 'froid') { agir('lancerGrandFroid'); return; }
   if (ui.visee) { arreterVisee(); return; }
   lacherHeros();
   ui.visee = 'meteore';
@@ -514,7 +546,7 @@ function remplirBenediction() {
 }
 
 function prendreBenediction(id) {
-  if (!choisirBenediction(etat, id)) return;
+  if (!agir('choisirBenediction', id)) return;
   $('#benediction').hidden = true;
   offreAffichee = null;
   afficherMesBenedictions();
@@ -565,6 +597,10 @@ function afficherIntro() {
     const { meteore, froid } = POUVOIRS;
     carte.append(element('p', 'mention-pouvoirs', `Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`));
   }
+  // la partie est enregistrée (si le joueur ne l'a pas refusé dans les Options) : on le dit
+  if (enregistrement && lireOptions().partage) {
+    carte.append(element('p', 'mention-partage', 'Ta partie sera enregistrée pour pouvoir la revoir et mieux régler le jeu. Tu peux refuser dans les Options.'));
+  }
   // le record à battre (lu dans le classement, qui répond « plus tard »)
   const record = element('p', 'record-arene', '');
   if (niveau.survie) {
@@ -588,13 +624,22 @@ async function tableauClassement(moi) {
   const scores = await meilleursScores(niveau.id, 10);
   const table = element('table', 'classement');
   const tete = table.createTHead().insertRow();
-  for (const titre of ['', 'Pseudo', 'Vagues', 'Monstres']) tete.append(element('th', '', titre));
+  for (const titre of ['', 'Pseudo', 'Vagues', 'Monstres', '']) tete.append(element('th', '', titre));
   const corps = table.createTBody();
   scores.forEach((score, i) => {
     const ligne = corps.insertRow();
     if (i + 1 === moi) ligne.className = 'moi';
     // textContent partout : un pseudo est affiché tel quel, jamais interprété comme du HTML
     for (const valeur of [i + 1, score.pseudo, score.vagues, score.battus]) ligne.append(element('td', '', String(valeur)));
+    // la partie de ce score a été enregistrée : on peut la revoir
+    const revoir = element('td', 'revoir-score');
+    if (score.partie) {
+      const lien = element('a', '', 'Revoir');
+      lien.href = `./revoir.html?partie=${encodeURIComponent(score.partie)}`;
+      lien.title = `Revoir la partie de ${score.pseudo}`;
+      revoir.append(lien);
+    }
+    ligne.append(revoir);
   });
   return table;
 }
@@ -640,7 +685,9 @@ function afficherFinSurvie() {
     memoriserPseudo(pseudo);
     envoyer.disabled = true;
     envoyer.textContent = 'Envoi…';
-    const resultat = await enregistrerScore(niveau.id, { pseudo, vagues, battus });
+    // le score garde l'identifiant de sa partie enregistrée : le classement pourra la faire revoir
+    const partie = await partieEnvoyee;
+    const resultat = await enregistrerScore(niveau.id, { pseudo, vagues, battus, partie });
     if (resultat.erreur) {
       // le serveur a refusé (un pseudo bizarre, trop d'envois d'un coup…) : on le dit, et on peut réessayer
       erreur.textContent = resultat.erreur;
@@ -675,6 +722,7 @@ async function lireRecord() {
 }
 
 function afficherFin(victoire) {
+  envoyerEnregistrement(victoire ? 'gagne' : 'perdu');
   son.jingle(victoire ? 'victoire' : 'defaite');
   if (niveau.survie) return afficherFinSurvie();
   const m = $('#message');
@@ -707,7 +755,11 @@ function afficherFin(victoire) {
 }
 
 function recommencer() {
+  if (etat.statut === 'vague' || etat.statut === 'preparation') envoyerEnregistrement('abandon'); // quittée en route
   etat = nouvellePartie();
+  enregistrement = nouvelEnregistrementSiPossible();
+  dejaEnvoyee = false;
+  partieEnvoyee = null;
   arreterVisee();
   lacherHeros();
   offreAffichee = null;
@@ -731,7 +783,7 @@ $('#message').addEventListener('click', (e) => {
   if (action === 'jouer') { $('#message').hidden = true; enPause = false; }
   if (action === 'recommencer') recommencer();
 });
-$('#lancer').addEventListener('click', () => { if (lancerVague(etat)) son.effet('vague'); });
+$('#lancer').addEventListener('click', () => { if (agir('lancerVague')) son.effet('vague'); });
 $('#recommencer').addEventListener('click', recommencer);
 // la vitesse est une option : le jeu s'en souvient (l'abonnement aux options, plus bas, l'applique)
 $('#vitesse').addEventListener('click', () => changerOptions({ vitesse: vitesse === 1 ? 2 : vitesse === 2 ? 3 : 1 }));
@@ -780,13 +832,13 @@ conteneur.addEventListener('click', (e) => {
   if (!rendu) return;
   if (ui.visee) {
     const p = rendu.versSol(e.clientX, e.clientY);
-    if (p && lancerMeteore(etat, p.x, p.y)) arreterVisee();
+    if (p && agir('lancerMeteore', p.x, p.y)) arreterVisee();
     return;
   }
   if (ui.herosChoisi) {
     // un clic sur le héros lui-même le lâche ; ailleurs, il y va
     const p = rendu.versSol(e.clientX, e.clientY);
-    if (!herosSous(e.clientX, e.clientY) && p) envoyerHeros(etat, p.x, p.y);
+    if (!herosSous(e.clientX, e.clientY) && p) agir('envoyerHeros', p.x, p.y);
     lacherHeros();
     return;
   }
@@ -894,14 +946,26 @@ document.querySelectorAll('[data-ambiance]').forEach((b) =>
   b.setAttribute('aria-pressed', String(b.dataset.ambiance === reglages.ambiance)));
 requestAnimationFrame(boucle);
 
+// Les parties enregistrées : celles qui n'avaient pas pu partir la dernière fois partent
+// maintenant ; et si le joueur quitte la page en pleine partie (onglet fermé, retour à la
+// carte…), le navigateur la garde pour l'envoyer à la prochaine visite.
+envoyerPartiesEnAttente();
+addEventListener('pagehide', () => {
+  if (!enregistrement || dejaEnvoyee || etat.vague === 0) return;
+  if (etat.statut === 'vague' || etat.statut === 'preparation') garderEnAttente(preparerEnvoi(enregistrement, etat, 'abandon'));
+});
+
 // Accès de débogage depuis la console du navigateur (ex. : __jeu.etat.or = 999).
 // __jeu.avancer(3) fait avancer la partie de 3 secondes, puis redessine : pratique pour
 // tester même quand l'onglet est caché (le navigateur met alors la boucle en pause).
+// __jeu.agir('construire', 3, 'givrine') fait une décision comme le joueur (elle est enregistrée).
 window.__jeu = {
   get etat() { return etat; }, get rendu() { return rendu; }, get ui() { return ui; }, son,
+  get enregistrement() { return enregistrement; }, get partieEnvoyee() { return partieEnvoyee; },
+  agir,
   avancer(secondes = 1) {
-    for (let t = 0; t < secondes; t += 1 / 60) majPartie(etat, 1 / 60);
-    rendu?.dessiner(etat, 1 / 60, 1 / 60, ui);
+    for (let i = Math.round(secondes / PAS); i > 0 && etat.statut !== 'perdu' && etat.statut !== 'gagne'; i--) faireUnPas();
+    rendu?.dessiner(etat, PAS, PAS, ui);
     traiterEvenements();
     majInterface();
   },

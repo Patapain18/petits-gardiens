@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Revoir la partie — Petits Gardiens</title>
+  <meta name="description" content="Revoir une partie de Petits Gardiens, telle qu’elle a été jouée." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect x='3' y='4' width='10' height='6' fill='%23f0803a'/%3E%3Crect x='1' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='13' y='6' width='2' height='2' fill='%23f0803a'/%3E%3Crect x='5' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='10' y='6' width='1' height='2' fill='%231a1014'/%3E%3Crect x='4' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='6' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='9' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='11' y='10' width='1' height='2' fill='%23b8522a'/%3E%3Crect x='7' y='2' width='2' height='2' fill='%23ffd23a'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/revoir.css" />
+</head>
+<body data-style="pixel">
+  <!-- La partie revue est dessinée ici, par le style de son niveau -->
+  <div id="scene" aria-label="La partie revue"></div>
+
+  <!-- Barre du haut : qui a joué, et où en est la partie -->
+  <header class="barre">
+    <div class="panneau ressources">
+      <span class="ressource" title="Pièces d'or"><span class="piece" aria-hidden="true"></span><b id="or">0</b></span>
+      <span class="ressource">Vague <b id="vague">0</b></span>
+      <span class="ressource">Battus <b id="battus">0</b></span>
+      <span class="ressource" id="ligne-heros" hidden>Héros <b id="niveau-heros">niv. 1</b></span>
+      <a class="bouton-lien" href="./">Carte</a>
+    </div>
+    <div class="panneau qui-revoir">
+      <span class="etiquette" id="titre-revoir">Revoir la partie</span>
+      <b id="qui">…</b>
+    </div>
+  </header>
+
+  <!-- Le Grand froid : un voile de givre sur les bords de l'écran (comme en jeu) -->
+  <div id="givre" aria-hidden="true"></div>
+  <!-- Les bénédictions choisies (sous la barre du haut) -->
+  <div id="mes-benedictions" class="mes-benedictions" aria-label="Les bénédictions choisies" hidden></div>
+
+  <!-- Un avertissement : la partie a été jouée avec une autre version du jeu, ou elle s'écarte de la vraie -->
+  <p id="avertissement" class="panneau avertissement" role="status" hidden></p>
+
+  <!-- La lecture : pause, vitesse, et la frise de la partie (cliquer dessus pour y aller) -->
+  <footer class="barre bas">
+    <div class="panneau lecture">
+      <button id="lecture" class="principal">Pause</button>
+      <span class="vitesses" role="group" aria-label="Vitesse">
+        <button data-vitesse="1" aria-pressed="false">×1</button>
+        <button data-vitesse="2" aria-pressed="true">×2</button>
+        <button data-vitesse="4" aria-pressed="false">×4</button>
+        <button data-vitesse="8" aria-pressed="false">×8</button>
+      </span>
+      <div id="frise" class="frise" role="slider" tabindex="0" aria-label="Moment de la partie" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="frise-vagues" id="frise-vagues"></div>
+        <div class="frise-avance" id="frise-avance"></div>
+      </div>
+      <span class="temps" id="temps">0:00</span>
+    </div>
+  </footer>
+
+  <!-- Messages : chargement, partie introuvable, fin de la partie (remplis par revoir.js) -->
+  <div id="message" class="voile">
+    <div class="panneau carte"><p>Chargement de la partie…</p></div>
+  </div>
+
+  <script type="module" src="/src/revoir.js"></script>
+</body>
+</html>

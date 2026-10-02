@@ -278,6 +278,8 @@ a.lien-niveau:focus-visible { outline: 3px solid var(--accent); outline-offset: 
 .podium .pseudo { min-width: 9em; margin-right: 1em; overflow-wrap: anywhere; }
 .podium .vagues-score { color: var(--texte-doux); }
 .podium li:first-child .vagues-score { color: inherit; }
+/* « Revoir » : la partie de ce score a été enregistrée (revoir.html) */
+.podium .revoir-score { margin-left: 1em; color: inherit; font-size: 0.8em; opacity: 0.85; }
 .classement-vide { margin: 0; color: var(--texte-doux); }
 .note-classement { margin: 10px 0 0; color: var(--texte-doux); font-size: 0.75em; opacity: 0.85; }
 

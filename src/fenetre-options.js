@@ -32,6 +32,10 @@ const SECTIONS = [
         valeurs: [['toujours', 'À chaque partie'], ['premiere-fois', 'Seulement la première fois']],
         aide: 'Pour rejouer un niveau sans revoir les fiches et les leçons qu’on connaît déjà.',
       },
+      {
+        cle: 'partage', type: 'case', texte: 'Partager mes parties',
+        aide: 'À la fin de chaque partie, tes décisions (où tu poses tes gardiens, quand tu lances les pouvoirs…) partent sur le serveur du classement, avec ton pseudo. Elles servent à revoir les parties et à mieux régler le jeu. Rien d’autre sur toi n’est envoyé.',
+      },
     ],
   },
   {

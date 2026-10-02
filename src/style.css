@@ -359,6 +359,7 @@ body[data-style='pixel'] .carte p { line-height: 1.8; }
 .carte .description-niveau { color: var(--texte); }
 .carte .mention-didacticiel { color: var(--accent); }
 .carte .mention-pouvoirs, .carte .mention-benedictions, .carte .mention-heros { color: var(--accent); }
+.carte .mention-partage { font-size: 0.78em; opacity: 0.8; } /* la partie sera enregistrée (voir parties.js) */
 
 /* ── Mode survie : le record, le pseudo et le classement ── */
 #ligne-record.battu b { color: var(--accent); }
@@ -393,6 +394,9 @@ body[data-style='pixel'] .carte p { line-height: 1.8; }
 .classement :is(th, td):nth-child(n + 3) { text-align: right; }
 .classement tr.moi td { color: var(--accent-texte); background: var(--accent); }
 body[data-style='pixel'] .classement td { line-height: 1.6; }
+/* « Revoir » : la partie de ce score a été enregistrée */
+.classement td.revoir-score { width: 1%; white-space: nowrap; }
+.classement td.revoir-score a { color: inherit; font-size: 0.85em; }
 
 /* ── Didacticiel : la fiche qui présente un nouveau personnage ── */
 .voile-presentation { z-index: 30; background: rgba(20, 12, 24, 0.5); }

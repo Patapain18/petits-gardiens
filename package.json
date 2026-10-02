@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "equilibrage": "node scripts/equilibrage.js"
+    "equilibrage": "node scripts/equilibrage.js",
+    "parties": "node scripts/parties.js"
   },
   "dependencies": {
     "three": "^0.186.1"

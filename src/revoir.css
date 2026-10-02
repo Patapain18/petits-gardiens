@@ -1,0 +1,71 @@
+/* ─────────────────────────────────────────────────────────────
+   La page « Revoir la partie » (revoir.html) : la même interface que le
+   jeu (style.css), plus la frise de la partie et les boutons de lecture.
+   ───────────────────────────────────────────────────────────── */
+
+/* qui a joué : le niveau en petit au-dessus, puis le joueur, son résultat et le jour */
+.qui-revoir { flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 14px; max-width: 48vw; }
+.qui-revoir .etiquette { color: var(--accent); font-size: 0.8em; }
+.qui-revoir b { color: var(--texte); line-height: 1.4; }
+.ressource b { white-space: nowrap; }
+
+/* la lecture prend toute la largeur du bas de l'écran */
+.lecture { flex: 1; gap: 12px; }
+.vitesses { display: inline-flex; gap: 4px; }
+.vitesses button { padding: 6px 9px; }
+.temps { min-width: 9ch; text-align: right; color: var(--texte-doux); font-variant-numeric: tabular-nums; }
+
+/* La frise : toute la partie, de gauche à droite. Un trait par fin de vague ; la partie
+   déjà revue se remplit. Un clic (ou les flèches du clavier) y emmène. */
+.frise {
+  position: relative;
+  flex: 1;
+  height: 22px;
+  min-width: 120px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--bord-sombre);
+  border-radius: calc(var(--rayon) * 0.6);
+  cursor: pointer;
+  overflow: hidden;
+}
+.frise:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.frise-avance {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--avance, 0) * 100%);
+  background: var(--accent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.frise-vagues { position: absolute; inset: 0; pointer-events: none; }
+.frise-vagues span {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  background: var(--texte);
+  opacity: 0.45;
+}
+/* toutes les 5 vagues (les bénédictions) : un trait plus marqué */
+.frise-vagues span.cinq { width: 3px; opacity: 0.9; }
+
+/* L'avertissement (autre version du jeu, partie qui s'écarte de la vraie) */
+.avertissement {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100vw - 24px));
+  margin: 0;
+  padding: 8px 14px;
+  color: var(--texte);
+  font-size: 0.8em;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .barre { flex-wrap: wrap; }
+  .lecture { flex-wrap: wrap; }
+  .frise { flex-basis: 100%; order: 3; }
+}

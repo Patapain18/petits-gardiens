@@ -43,9 +43,15 @@ export function vaguesDeSurvie(vaguesEcrites) {
   const vagues = [...vaguesEcrites];
   // on part de la menace de la dernière vague écrite
   let budget = vaguesEcrites[vaguesEcrites.length - 1].reduce((total, g) => total + menace(g), 0);
+  // des monstres de plus en plus serrés : 0,6 s entre deux monstres, × 0,97 à chaque vague. On
+  // multiplie à la main plutôt qu'avec Math.pow, qui peut différer d'un navigateur à l'autre au
+  // dernier chiffre (voir calcul.js) : les vagues sont ainsi les mêmes pour tout le monde.
+  let serrage = 0.6;
+  for (let n = 0; n < vagues.length; n++) serrage *= 0.97;
   for (let n = vagues.length; n < VAGUES_EN_TOUT; n++) {
     budget *= CROISSANCE;
-    const ecart = Math.max(0.2, 0.6 * Math.pow(0.97, n)); // des monstres de plus en plus serrés
+    const ecart = Math.max(0.2, serrage);
+    serrage *= 0.97;
     vagues.push(THEMES[n % THEMES.length].map(({ type, part }, i) => {
       const m = MONSTRES[type];
       let nombre = Math.max(1, Math.round((budget * part) / (m.pv * m.vitesse)));

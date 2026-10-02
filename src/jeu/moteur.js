@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 import { GARDIENS, MONSTRES, POUVOIRS, HEROS, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
 import { creerAleatoire } from './aleatoire.js';
+import { distance } from './calcul.js';
 import { ficheDe, ficheDuHeros, pouvoirDe, socleActif, bonusDeDepart, proposerBenedictions, TOUTES_LES } from './benedictions.js';
 
 // Le vent de Bourrasque : le monstre poussé glisse en arrière à VITESSE_RECUL cases
@@ -17,6 +18,11 @@ const VITESSE_RECUL = 8;
 const ACCROCHE = 2.5;
 const SOUFFLES_MAX = 3;
 const DUREE_BOND = 0.4; // le petit saut d'un monstre qui vient de naître (les petits de la Gigogne)
+
+// Le jeu avance toujours par pas de 1/60 de seconde, dans le navigateur comme chez les joueurs
+// imaginaires. Des pas toujours égaux, et un hasard qui part d'une graine : rejouer les mêmes
+// décisions aux mêmes pas redonne exactement la même partie (voir enregistrement.js).
+export const PAS = 1 / 60;
 
 // niveau = l'objet renvoyé par chargerNiveau(fiche) : la partie se joue sur ce niveau.
 // graine = le point de départ du hasard de la partie. Avec la même graine, une
@@ -30,6 +36,7 @@ export function creerPartie(niveau, graine = Math.floor(Math.random() * 1e9)) {
     vague: 0,                 // nombre de vagues déjà lancées
     statut: 'preparation',    // 'preparation' | 'vague' | 'perdu' | 'gagne'
     temps: 0,
+    pas: 0,                   // le nombre de pas de jeu déjà faits (l'horloge des parties enregistrées)
     ennemis: [],
     tours: [],                // les gardiens posés
     projectiles: [],
@@ -198,7 +205,7 @@ function majHeros(etat, dt) {
   const h = etat.heros;
   h.attaque = Math.max(0, h.attaque - dt);
   if (h.cible) {
-    const dx = h.cible.x - h.x, dy = h.cible.y - h.y, d = Math.hypot(dx, dy);
+    const dx = h.cible.x - h.x, dy = h.cible.y - h.y, d = distance(dx, dy);
     const pas = HEROS.vitesse * dt;
     h.angle = Math.atan2(dy, dx);
     if (d <= pas) { h.x = h.cible.x; h.y = h.cible.y; h.cible = null; h.recharge = Math.max(h.recharge, 0.2); }
@@ -212,7 +219,7 @@ function majHeros(etat, dt) {
   const autour = [];
   for (const e of etat.ennemis) {
     if (e.pv <= 0 || e.cache || MONSTRES[e.type].volant) continue;
-    const d = Math.hypot(e.x - h.x, e.y - h.y);
+    const d = distance(e.x - h.x, e.y - h.y);
     if (d <= f.rayon) autour.push({ e, d });
   }
   if (!autour.length) { h.recharge = 0; return; }
@@ -222,7 +229,7 @@ function majHeros(etat, dt) {
   h.angle = Math.atan2(autour[0].e.y - h.y, autour[0].e.x - h.x);
   let xp = 0;
   for (const { e } of autour.slice(0, f.monstresMax)) {
-    blesser(etat, e, f.degats);
+    blesser(etat, e, f.degats, { par: 'heros' });
     if (e.pv <= 0) xp += MONSTRES[e.type].prime; // il gagne la prime de chaque monstre qu'il bat
   }
   etat.evenements.push({ type: 'frappe', x: h.x, y: h.y, rayon: f.rayon });
@@ -237,6 +244,7 @@ function majHeros(etat, dt) {
 
 export function majPartie(etat, dt) {
   if (etat.statut === 'perdu' || etat.statut === 'gagne') return;
+  etat.pas++;
   etat.temps += dt;
   // les pouvoirs se rechargent pendant les vagues seulement
   if (etat.pouvoirs && etat.statut === 'vague') {
@@ -317,7 +325,7 @@ function deplacerEnnemis(etat, dt) {
       let vitesse = e.cache ? fiche.vitesse * fiche.creuse.vitesse : fiche.vitesse;
       // le héros, arrêté tout près, leur barre la route (pas à ceux qui volent ou creusent dessous)
       const h = etat.heros;
-      if (h && !h.cible && !e.cache && !fiche.volant && Math.hypot(e.x - h.x, e.y - h.y) < HEROS.barrage.rayon) vitesse *= HEROS.barrage.facteur;
+      if (h && !h.cible && !e.cache && !fiche.volant && distance(e.x - h.x, e.y - h.y) < HEROS.barrage.rayon) vitesse *= HEROS.barrage.facteur;
       e.d += vitesse * e.facteurRalenti * dt;
     }
 
@@ -361,7 +369,7 @@ function faireTirerLesTours(etat, dt) {
     // Cible : le monstre le plus avancé qui est à portée (et qu'il peut toucher).
     // Un rayon, lui, reste accroché à sa cible tant qu'il peut la toucher : c'est
     // comme ça qu'il chauffe (et pendant ce temps, les autres monstres passent).
-    const aPortee = (e) => e.pv > 0 && peutViser(fiche, e) && Math.hypot(e.x - tour.x, e.y - tour.y) <= fiche.portee;
+    const aPortee = (e) => e.pv > 0 && peutViser(fiche, e) && distance(e.x - tour.x, e.y - tour.y) <= fiche.portee;
     let cible = fiche.rayon ? etat.ennemis.find((e) => e.id === tour.cibleRayon && aPortee(e)) || null : null;
     if (!cible) {
       for (const e of etat.ennemis) if (aPortee(e) && (!cible || e.d > cible.d)) cible = e;
@@ -391,7 +399,7 @@ function tirerRayon(etat, tour, fiche, cible, dt) {
   if (tour.cibleRayon !== cible.id) { tour.cibleRayon = cible.id; tour.chauffe = 0; }
   tour.chauffe = Math.min(1, (tour.chauffe || 0) + dt / montee);
   tour.rayon = cible.id;
-  blesser(etat, cible, fiche.degats * (1 + (max - 1) * tour.chauffe) * dt, { perce: true, flash: false });
+  blesser(etat, cible, fiche.degats * (1 + (max - 1) * tour.chauffe) * dt, { perce: true, flash: false, par: tour.type });
 }
 
 // Le feu du Dragon : de temps en temps, il crache sur le gardien le plus proche à sa portée,
@@ -404,7 +412,7 @@ function cracherLeFeu(etat, dt) {
     if (e.feu > 0) continue;
     let cible = null, plusPres = feu.portee;
     for (const tour of etat.tours) {
-      const d = Math.hypot(tour.x - e.x, tour.y - e.y);
+      const d = distance(tour.x - e.x, tour.y - e.y);
       if (d <= plusPres && !(tour.assomme > 0) && caracteristiques(tour.type, tour.niveau).projectile) { plusPres = d; cible = tour; }
     }
     if (!cible) { e.feu = 0.5; continue; }
@@ -426,13 +434,13 @@ function foudroyer(etat, tour, fiche, cible) {
   while (actuel && touches.length <= nombre) {
     touches.push(actuel);
     points.push({ x: actuel.x, y: actuel.y, h: hauteurDe(actuel) });
-    blesser(etat, actuel, degats);
+    blesser(etat, actuel, degats, { par: tour.type });
     degats *= attenuation;
     // le suivant : le plus proche des monstres encore debout et pas encore touchés
     let suivant = null, plusPres = saut;
     for (const e of etat.ennemis) {
       if (e.pv <= 0 || e.cache || touches.includes(e)) continue;
-      const d = Math.hypot(e.x - actuel.x, e.y - actuel.y);
+      const d = distance(e.x - actuel.x, e.y - actuel.y);
       if (d <= plusPres) { plusPres = d; suivant = e; }
     }
     actuel = suivant;
@@ -452,7 +460,7 @@ function creerProjectile(etat, tour, fiche, cible) {
   };
   if (fiche.projectile.cloche) {
     // Tir en cloche : on vise l'endroit où sera le monstre (approximativement)
-    const temps = Math.hypot(cible.x - tour.x, cible.y - tour.y) / p.vitesse;
+    const temps = distance(cible.x - tour.x, cible.y - tour.y) / p.vitesse;
     const enMarche = Math.max(0, temps - cible.gele); // gelé, il ne repart qu'au dégel
     p.dVisee = cible.d + MONSTRES[cible.type].vitesse * cible.facteurRalenti * enMarche; // là où il sera, sur le chemin
     p.reculVu = cible.reculTotal; // si le vent le repousse pendant le vol, le point de chute reculera d'autant
@@ -499,7 +507,7 @@ function deplacerProjectiles(etat, dt) {
       const cible = etat.ennemis.find((e) => e.id === p.cibleId && e.pv > 0 && !e.cache);
       if (!cible) continue; // la cible est morte (ou a plongé sous terre) entre-temps : le tir disparaît
       const dx = cible.x - p.x, dy = cible.y - p.y;
-      const dist = Math.hypot(dx, dy);
+      const dist = distance(dx, dy);
       const pas = p.vitesse * dt;
       if (dist <= pas) { toucher(etat, cible, fiche, p); continue; }
       p.x += (dx / dist) * pas;
@@ -512,13 +520,13 @@ function deplacerProjectiles(etat, dt) {
 }
 
 function toucher(etat, ennemi, fiche, projectile) {
-  blesser(etat, ennemi, fiche.degats);
+  blesser(etat, ennemi, fiche.degats, { par: projectile.gardien });
   if (fiche.ralentissement) {
     // le gel touche la cible et les monstres tout proches d'elle.
     // « gel » (fiche du monstre) : 0,5 = le gel ne lui fait que la moitié de l'effet
     const { facteur, duree, zone = 0 } = fiche.ralentissement;
     for (const e of etat.ennemis) {
-      if (e.pv <= 0 || e.cache || Math.hypot(e.x - ennemi.x, e.y - ennemi.y) > zone + 0.01) continue;
+      if (e.pv <= 0 || e.cache || distance(e.x - ennemi.x, e.y - ennemi.y) > zone + 0.01) continue;
       const gel = MONSTRES[e.type].gel ?? 1;
       e.ralenti = duree;
       e.facteurRalenti = gel === 1 ? facteur : 1 - (1 - facteur) * gel;
@@ -535,7 +543,7 @@ function toucher(etat, ennemi, fiche, projectile) {
 function souffler(etat, cible, { recul, zone }) {
   for (const e of etat.ennemis) {
     if (e.pv <= 0 || e.cache || e.accroche > 0 || e.souffles >= SOUFFLES_MAX) continue;
-    if (Math.hypot(e.x - cible.x, e.y - cible.y) > zone + 0.01) continue;
+    if (distance(e.x - cible.x, e.y - cible.y) > zone + 0.01) continue;
     const vent = MONSTRES[e.type].vent ?? 1;
     if (vent <= 0) continue;
     e.recul = recul * vent;
@@ -552,11 +560,11 @@ function souffler(etat, cible, { recul, zone }) {
 function exploser(etat, p, fiche) {
   const autour = [];
   for (const e of etat.ennemis) {
-    const d = Math.hypot(e.x - p.x, e.y - p.y);
+    const d = distance(e.x - p.x, e.y - p.y);
     if (e.pv > 0 && peutViser(fiche, e) && d <= fiche.zone) autour.push({ e, d });
   }
   autour.sort((a, b) => a.d - b.d);
-  for (const { e } of autour.slice(0, fiche.monstresMax ?? Infinity)) blesser(etat, e, fiche.degats);
+  for (const { e } of autour.slice(0, fiche.monstresMax ?? Infinity)) blesser(etat, e, fiche.degats, { par: p.gardien });
   etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: p.type, rayon: fiche.zone });
 }
 
@@ -569,14 +577,17 @@ function exploser(etat, p, fiche) {
 // Givrine seules tenait les 150 vagues de l'arène !)
 function meteoreTombe(etat, p) {
   for (const e of etat.ennemis) {
-    if (e.pv > 0 && !e.cache && Math.hypot(e.x - p.x, e.y - p.y) <= p.rayon) blesser(etat, e, e.pv * p.part, { perce: true });
+    if (e.pv > 0 && !e.cache && distance(e.x - p.x, e.y - p.y) <= p.rayon) blesser(etat, e, e.pv * p.part, { perce: true, par: 'meteore' });
   }
   etat.evenements.push({ type: 'explosion', x: p.x, y: p.y, quoi: 'meteore', rayon: p.rayon });
 }
 
 // perce : le coup traverse les carapaces ; flash : le monstre clignote (pas pour un rayon
 // continu, il clignoterait sans arrêt). Le rayon du Prisme fait les deux.
-function blesser(etat, ennemi, degats, { perce = false, flash = true } = {}) {
+// par : qui frappe (un type de gardien, 'heros' ou 'meteore') ; l'événement « mort » le
+// répète, avec gele (était-il gelé par le Grand froid ?) : les statistiques des parties
+// enregistrées s'en servent (qui bat le plus de monstres, combien de combos…).
+function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null } = {}) {
   if (ennemi.pv <= 0) return;
   const armure = MONSTRES[ennemi.type].armure;
   if (armure && !perce) {
@@ -592,7 +603,7 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true } = {}) {
     etat.battus++;
     const prime = Math.round(fiche.prime * (etat.bonus?.primes ?? 1)); // (la bénédiction « Butin »)
     etat.or += prime;
-    etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, d: ennemi.d, quoi: ennemi.type, prime });
+    etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, d: ennemi.d, quoi: ennemi.type, prime, par, gele: ennemi.gele > 0 });
     if (fiche.enfants) faireNaitre(etat, ennemi, fiche.enfants);
   }
 }

@@ -12,6 +12,7 @@
 // bas (comme sur une feuille). Les styles 3D traduisent (x, y) en (X, Z).
 // ─────────────────────────────────────────────────────────────
 import { creerAleatoire, bruitFractal, transition } from './aleatoire.js';
+import { distance } from './calcul.js';
 import { GARDIENS, MONSTRES } from './donnees.js';
 import { vaguesDeSurvie } from './survie.js';
 
@@ -40,7 +41,7 @@ export function chargerNiveau(fiche) {
   let longueurChemin = 0;
   for (let i = 0; i < chemin.length - 1; i++) {
     const a = chemin[i], b = chemin[i + 1];
-    const l = Math.hypot(b.x - a.x, b.y - a.y);
+    const l = distance(b.x - a.x, b.y - a.y);
     segments.push({ a, b, l, debut: longueurChemin });
     longueurChemin += l;
   }
@@ -83,7 +84,7 @@ export function chargerNiveau(fiche) {
       let t = ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / (l * l);
       t = Math.max(0, Math.min(1, t));
       const px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t;
-      min = Math.min(min, Math.hypot(x - px, y - py));
+      min = Math.min(min, distance(x - px, y - py));
     }
     return min;
   }
@@ -92,7 +93,7 @@ export function chargerNiveau(fiche) {
   // négative dans l'eau, positive dehors (Infinity s'il n'y a pas d'étang)
   function distanceEtang(x, y) {
     let min = Infinity;
-    for (const e of etangs) min = Math.min(min, Math.hypot(x - e.x, y - e.y) - e.rayon);
+    for (const e of etangs) min = Math.min(min, distance(x - e.x, y - e.y) - e.rayon);
     return min;
   }
 
@@ -106,12 +107,12 @@ export function chargerNiveau(fiche) {
     // À quelle distance est-on de la zone de jeu ? (0 si on est dedans)
     const horsX = Math.max(0, -x, x - largeur);
     const horsY = Math.max(0, -y, y - hauteur);
-    const dehors = Math.hypot(horsX, horsY);
+    const dehors = distance(horsX, horsY);
 
     // Plus on est loin du chemin / des socles, plus on autorise de relief
     let libre = transition(1.0, 3.0, distanceAuChemin(x, y));
-    for (const s of socles) libre = Math.min(libre, transition(0.8, 1.8, Math.hypot(x - s.x, y - s.y)));
-    libre = Math.min(libre, transition(2.6, 4.2, Math.hypot(x - chateau.x, y - chateau.y)));
+    for (const s of socles) libre = Math.min(libre, transition(0.8, 1.8, distance(x - s.x, y - s.y)));
+    libre = Math.min(libre, transition(2.6, 4.2, distance(x - chateau.x, y - chateau.y)));
 
     // dans la zone de jeu le sol reste plat (les buttes faisaient des « trous » sombres vus de biais)
     const versBord = Math.min(x, y, largeur - x, hauteur - y);
@@ -123,13 +124,13 @@ export function chargerNiveau(fiche) {
     if (y < 0) {
       const fond = transition(-1, -10, y);
       h += fond * (3 + bruitFractal(x * 0.1, y * 0.1 + 7) * 6);
-      const pic = Math.max(0, 1 - Math.hypot((x - (largeur / 2 + 1)) * 0.7, (y + 14) * 0.9) / 11);
+      const pic = Math.max(0, 1 - distance((x - (largeur / 2 + 1)) * 0.7, (y + 14) * 0.9) / 11);
       h += Math.pow(pic, 1.3) * 13;
     }
 
     // Les étangs creusent le sol
     for (const e of etangs) {
-      const d = Math.hypot(x - e.x, y - e.y);
+      const d = distance(x - e.x, y - e.y);
       if (d < e.rayon) h = Math.min(h, -0.7 * (1 - d / e.rayon) - 0.05);
     }
     return h;
@@ -143,10 +144,10 @@ export function chargerNiveau(fiche) {
     const decor = [];
     const occupe = (x, y, marge) =>
       distanceAuChemin(x, y) < 1.1 + marge ||
-      socles.some((s) => Math.hypot(x - s.x, y - s.y) < 1.2 + marge) ||
-      Math.hypot(x - chateau.x, y - chateau.y) < 3.2 + marge ||
+      socles.some((s) => distance(x - s.x, y - s.y) < 1.2 + marge) ||
+      distance(x - chateau.x, y - chateau.y) < 3.2 + marge ||
       distanceEtang(x, y) < 0.4 ||
-      decor.some((d) => d.solide && Math.hypot(x - d.x, y - d.y) < 1.3);
+      decor.some((d) => d.solide && distance(x - d.x, y - d.y) < 1.3);
 
     // Arbres : peu dans la zone de jeu (pour bien voir), beaucoup autour
     for (let i = 0; i < 900 && decor.length < 170; i++) {
@@ -162,7 +163,7 @@ export function chargerNiveau(fiche) {
       // Vu de biais, un arbre « monte » vers le haut de l'écran : on regarde donc aussi
       // un peu au-dessus de lui (y plus petit) pour qu'il ne cache ni le chemin ni un socle.
       const masque = [1, 2, 3, 4].some((k) =>
-        distanceAuChemin(x, y - k) < 1.0 || socles.some((s) => Math.hypot(x - s.x, y - k - s.y) < 1.0));
+        distanceAuChemin(x, y - k) < 1.0 || socles.some((s) => distance(x - s.x, y - k - s.y) < 1.0));
       if (masque) continue;
       const r = alea();
       decor.push({
@@ -181,8 +182,8 @@ export function chargerNiveau(fiche) {
       const x = -8 + alea() * (largeur + 16), y = -6 + alea() * (hauteur + 13);
       if (distanceAuChemin(x, y) < 0.75) continue;
       if (distanceEtang(x, y) < 0) continue;
-      if (Math.hypot(x - chateau.x, y - chateau.y) < 2.4) continue;
-      if (socles.some((s) => Math.hypot(x - s.x, y - s.y) < 0.7)) continue;
+      if (distance(x - chateau.x, y - chateau.y) < 2.4) continue;
+      if (socles.some((s) => distance(x - s.x, y - s.y) < 0.7)) continue;
       // Les fleurs se regroupent en champs (bruit) plutôt qu'au hasard
       const champ = bruitFractal(x * 0.22 + 50, y * 0.22);
       if (alea() > Math.pow(champ, 2.2) * 2.2) continue;

@@ -7,9 +7,12 @@
 //                 (c'est ce qu'utilise l'éditeur de niveaux)
 // - /__ambiances : enregistre les réglages des ambiances (src/rendus/ambiances.json)
 //                 (c'est ce qu'utilise l'atelier des lumières)
+// - /__partie   : garde une partie enregistrée dans captures/parties/ (POST), ou la relit
+//                 (GET /__partie/nom) : pour vérifier qu'elle se rejoue pareil partout
 import { defineConfig } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { problemesFiche } from './src/jeu/niveau.js';
 import { formaterFiche } from './src/editeur/format.js';
 import { problemesAmbiances, formaterAmbiances } from './src/rendus/format-ambiances.js';
@@ -70,6 +73,28 @@ const outilsDev = {
         res.end(fichier);
       } catch {
         repondre(res, 400, { erreur: 'son illisible' });
+      }
+    });
+
+    // Les parties enregistrées, pour les vérifier : captures/parties/nom.json
+    server.middlewares.use('/__partie', async (req, res) => {
+      const dossier = path.join('captures', 'parties');
+      if (req.method === 'GET') {
+        const nom = decodeURIComponent((req.url || '/').split('?')[0].replace(/^\/+/, '')).replace(/[^\w-]/g, '');
+        const fichier = path.join(dossier, nom + '.json');
+        if (!nom || !fs.existsSync(fichier)) return repondre(res, 404, { erreur: 'partie introuvable' });
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        return res.end(fs.readFileSync(fichier, 'utf8'));
+      }
+      if (req.method !== 'POST') return repondre(res, 405, { erreur: 'GET ou POST seulement' });
+      try {
+        const { nom, partie } = JSON.parse(await lireCorps(req, TAILLE_MAX_CAPTURE));
+        const fichier = path.join(dossier, String(nom).replace(/[^\w-]/g, '') + '.json');
+        fs.mkdirSync(dossier, { recursive: true });
+        fs.writeFileSync(fichier, JSON.stringify(partie));
+        res.end(fichier);
+      } catch {
+        repondre(res, 400, { erreur: 'partie illisible' });
       }
     });
 
@@ -141,18 +166,30 @@ const outilsDev = {
   },
 };
 
-export default defineConfig({
+// La version du jeu, notée dans chaque partie enregistrée (voir src/parties.js) : le commit
+// publié, pour pouvoir rejouer une vieille partie avec les règles de l'époque. GitHub Actions
+// donne le commit dans GITHUB_SHA ; sur l'ordinateur, on le demande à git. En développement
+// (npm run dev), le code change sans arrêt : la version est « dev ».
+function versionDuJeu(commande) {
+  if (commande === 'serve') return 'dev';
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try { return execSync('git rev-parse --short=7 HEAD').toString().trim(); } catch { return 'inconnue'; }
+}
+
+export default defineConfig(({ command }) => ({
   plugins: [outilsDev],
+  define: { __VERSION__: JSON.stringify(versionDuJeu(command)) },
   server: { port: 5180 }, // toujours la même adresse : http://localhost:5180
   // Des adresses relatives (« ./assets/… » plutôt que « /assets/… ») : le site marche aussi
   // rangé dans un sous-dossier, comme sur GitHub Pages (patapain18.github.io/petits-gardiens/)
   base: './',
-  // Six pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
+  // Sept pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
   // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html),
-  // la salle des sons (sons.html) et l'atelier des lumières (lumieres.html)
+  // la salle des sons (sons.html), l'atelier des lumières (lumieres.html) et la page
+  // pour revoir une partie enregistrée (revoir.html)
   build: {
     rollupOptions: {
-      input: { accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html', lumieres: 'lumieres.html' },
+      input: { accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html', lumieres: 'lumieres.html', revoir: 'revoir.html' },
     },
   },
-});
+}));

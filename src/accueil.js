@@ -9,6 +9,7 @@ import { GARDIENS, MONSTRES, caracteristiques } from './jeu/donnees.js';
 import { DIFFICULTES } from './jeu/niveau.js';
 import { lireProgression, choisirToutDebloque, effacerProgression } from './progression.js';
 import { meilleursScores, sourceDuClassement } from './classement.js';
+import { envoyerPartiesEnAttente } from './parties.js';
 import { imagePersonnage } from './rendus/pixel.js';
 import { creerFenetreOptions } from './fenetre-options.js';
 
@@ -102,6 +103,13 @@ async function remplirClassement(classement, arene) {
       const li = el('li');
       // textContent : un pseudo est affiché tel quel, jamais interprété comme du HTML
       li.append(el('span', 'pseudo', score.pseudo), el('span', 'vagues-score', vagues(score.vagues)));
+      // la partie de ce score a été enregistrée : on peut la revoir
+      if (score.partie) {
+        const revoir = el('a', 'revoir-score', 'Revoir');
+        revoir.href = `./revoir.html?partie=${encodeURIComponent(score.partie)}`;
+        revoir.title = `Revoir la partie de ${score.pseudo}`;
+        li.append(revoir);
+      }
       liste.append(li);
     }
     contenu.push(liste);
@@ -150,6 +158,7 @@ $('#bouton-options').addEventListener('click', () => fenetreOptions.ouvrir());
 dessinerDefile();
 dessinerFrise();
 dessinerDefis();
+envoyerPartiesEnAttente(); // une partie quittée en route la dernière fois (voir parties.js)
 // Si on revient sur la page avec le bouton « retour » du navigateur, la progression
 // et le classement ont pu changer
 addEventListener('pageshow', () => { dessinerFrise(); dessinerDefis(); });

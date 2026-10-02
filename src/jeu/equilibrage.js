@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 import {
   creerPartie, majPartie, lancerVague, construire, ameliorer, tourSur, prixAmelioration, estDisponible,
-  pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros,
+  pouvoirPret, lancerMeteore, lancerGrandFroid, envoyerHeros, PAS,
 } from './moteur.js';
 import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS } from './donnees.js';
 import { choisirBenediction, pouvoirDe } from './benedictions.js';
@@ -43,7 +43,6 @@ export const STRATEGIES = [
 // Ce gardien tire-t-il ? (La Pépite, non : elle rapporte de l'or.)
 const tire = (type) => Boolean(caracteristiques(type, 1).projectile);
 
-const PAS = 1 / 60;            // pas de temps de la simulation : le même que dans le vrai jeu
 const DUREE_MAX_VAGUE = 900;   // garde-fou : une vague ne dure jamais plus de 15 minutes de jeu
 const PORTEE_CLASSEMENT = 3;   // la portée qui sert à juger un socle (celle de Braise et Givrine)
 

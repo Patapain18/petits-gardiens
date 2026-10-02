@@ -80,12 +80,13 @@ export async function meilleursScores(arene, combien = 10) {
 // Range un score. Renvoie { place, total, score } (place 1 = premier) ;
 // avec horsLigne: true si le serveur n'a pas répondu (le score est gardé sur cet
 // ordinateur) ; ou { erreur } si le serveur a refusé le score.
-export async function enregistrerScore(arene, { pseudo, vagues, battus }) {
+// partie : l'identifiant de la partie enregistrée (voir parties.js), pour pouvoir la revoir
+export async function enregistrerScore(arene, { pseudo, vagues, battus, partie = null }) {
   try {
     const resultat = await demander(SERVEUR, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ arene, pseudo, vagues, battus }),
+      body: JSON.stringify({ arene, pseudo, vagues, battus, ...(partie ? { partie } : {}) }),
     });
     source = 'en-ligne';
     return resultat;

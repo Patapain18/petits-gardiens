@@ -2,7 +2,7 @@
 
 Un tower defense vu de dessus. De petits monstres gentils, les **gardiens**, protègent leur château. Des monstres méchants suivent le chemin et, **si un seul entre dans le château, la partie est perdue**.
 
-> Où on en est (octobre 2026) : une **campagne complète** avec une carte des époques et trois mondes de 4 niveaux : le monde 1 en pixel art, le monde 2 en cartoon, le monde 3 en voxel (chacun commence par un **didacticiel**, le monde 2 finit par le Colosse et le monde 3 par le Dragon) ; un **mode survie** avec son **classement en ligne** ; un petit moteur maison (fiches de niveau, éditeur, équilibrage, fiches personnages) ; des **gardiens qui s'améliorent** jusqu'au niveau 3 ; trois styles graphiques, un par époque, chacun avec 4 ambiances ; **la musique et les bruitages**, fabriqués par le code : un même thème joué par trois orchestres, un par époque, et un thème pour les chefs ; et un **écran d'options**.
+> Où on en est (octobre 2026) : une **campagne complète** avec une carte des époques et trois mondes de 4 niveaux : le monde 1 en pixel art, le monde 2 en cartoon, le monde 3 en voxel (chacun commence par un **didacticiel**, le monde 2 finit par le Colosse et le monde 3 par le Dragon) ; un **mode survie** avec son **classement en ligne** ; des **parties enregistrées**, qu'on peut revoir ; un petit moteur maison (fiches de niveau, éditeur, équilibrage, fiches personnages) ; des **gardiens qui s'améliorent** jusqu'au niveau 3 ; trois styles graphiques, un par époque, chacun avec 4 ambiances ; **la musique et les bruitages**, fabriqués par le code : un même thème joué par trois orchestres, un par époque, et un thème pour les chefs ; et un **écran d'options**.
 
 **Jouer en ligne : https://patapain18.github.io/petits-gardiens/**
 
@@ -252,7 +252,7 @@ patapain18.github.io                    serveur/api/scores.js
 | Question | Réponse |
 |---|---|
 | `GET /api/scores?arene=arene-pixel&combien=10` | `{ scores: [{ pseudo, vagues, battus, date }, …], total }` : les meilleurs, dans l'ordre |
-| `POST /api/scores` avec `{ arene, pseudo, vagues, battus }` | `{ place, total, score }` ; ou `{ erreur }`, avec le statut 400 (score refusé), 403 (un autre site) ou 429 (trop d'envois) |
+| `POST /api/scores` avec `{ arene, pseudo, vagues, battus }` (et `partie`, l'identifiant de la partie enregistrée, s'il y en a un) | `{ place, total, score }` ; ou `{ erreur }`, avec le statut 400 (score refusé), 403 (un autre site) ou 429 (trop d'envois) |
 
 **La base** : Upstash Redis, branchée au projet depuis le tableau de bord de Vercel (onglet Storage). Vercel donne alors à la fonction deux réglages secrets : `KV_REST_API_URL` (l'adresse de la base) et `KV_REST_API_TOKEN` (sa clé). Ils ne sont écrits nulle part dans le code. La fonction parle à la base par de simples requêtes web (l'« API REST » d'Upstash), sans bibliothèque à installer.
 
@@ -278,6 +278,53 @@ npx vercel deploy --prod
 `serveur/vercel.json` fait tourner la fonction à Paris (`cdg1`), près de la base (à Francfort) : chaque question à la base fait l'aller-retour en quelques millisecondes. Il renvoie aussi l'adresse du serveur toute seule (https://petits-gardiens-classement.vercel.app) vers le jeu : sans ça, quelqu'un qui l'ouvre tomberait sur une page « 404 », puisque le serveur n'a pas de page. Le dossier `serveur/.vercel` (le lien avec le projet) et les fichiers `.env*` ne vont jamais sur GitHub.
 
 **Modérer** (effacer un pseudo déplacé) : sur vercel.com, projet `petits-gardiens-classement`, onglet Storage, ouvrir la base dans la console d'Upstash (« Open in Upstash »), puis « Data Browser » : dans la clé `classement:arene-pixel`, supprimer la ligne. L'arène `essai` sert aux vérifications : le serveur l'accepte, mais le jeu ne l'affiche jamais.
+
+## Les parties enregistrées
+
+Chaque partie est **enregistrée**, pour pouvoir la **revoir** (la page `revoir.html`) et pour **régler le jeu avec de vraies parties** (`npm run parties`), plus seulement avec les joueurs imaginaires.
+
+**On ne filme pas la partie** : une vidéo de 30 minutes serait bien trop lourde. On note seulement les **décisions du joueur**, chacune avec son moment, comme on note une partie d'échecs :
+
+```
+[7830, 'lancerMeteore', 8.21, 11.4]   au pas 7 830 : Météore en (8,21 ; 11,4)
+[7902, 'envoyerHeros', 12, 7]          au pas 7 902 : le héros part en (12 ; 7)
+```
+
+Pour revoir la partie, on la **rejoue** : le moteur refait les mêmes décisions aux mêmes moments, et retrouve exactement la même partie. Une partie de 25 vagues tient en 25 Ko environ.
+
+**Pour que le rejeu soit exact**, au dernier chiffre près, sur n'importe quel ordinateur, il faut trois choses :
+- **des pas toujours égaux** : le jeu avance par pas de 1/60 de seconde (`PAS`, dans `moteur.js`), quel que soit l'écran. `main.js` ajoute le temps écoulé à une réserve, qu'il dépense pas par pas. (Avant, chaque image avançait du temps écoulé depuis la précédente, 16,6 ms puis 16,8 ms… impossible à refaire pareil.) Le moteur compte ses pas dans `etat.pas` : c'est l'horloge des enregistrements.
+- **un hasard qui part d'une graine** : la même graine redonne le même hasard (`aleatoire.js`). La graine est notée dans l'enregistrement.
+- **les mêmes calculs dans tous les navigateurs** : les additions, multiplications, divisions et `Math.sqrt` donnent partout le même résultat, la norme des nombres à virgule (IEEE 754) l'impose. `Math.hypot` et `Math.pow`, non : Safari et Chrome peuvent différer au dernier chiffre, et une différence minuscule suffit à faire diverger une partie au bout de quelques minutes. Le moteur calcule donc ses distances avec `distance()` (`jeu/calcul.js`), et `survie.js` multiplie à la main plutôt qu'avec `Math.pow`. (Vérifié : une partie jouée dans Chrome se rejoue dans Safari avec le même or, les mêmes monstres au même endroit, et le héros à la même place, au dernier chiffre près. Et les parties des joueurs imaginaires n'ont pas changé d'un chiffre.)
+
+**Les contrôles** : à la fin de chaque vague, l'enregistrement note aussi l'or et les monstres battus. Au rejeu, on les compare. S'ils ne collent plus, la partie revue s'écarte de la vraie (le jeu a changé depuis, ou il y a un bug) : on le signale.
+
+**Le trajet d'une partie** :
+1. `main.js` fait passer chaque décision du joueur par `agir('construire', socle, type)` : le moteur la fait, et `jeu/enregistrement.js` la note si elle a marché.
+2. À la fin de la partie (ou quand on la quitte en route, après au moins une vague), `parties.js` l'envoie au serveur. Elle est d'abord gardée par le navigateur : si l'envoi échoue (pas d'Internet…) ou si l'onglet se ferme, elle part la prochaine fois qu'on ouvre le jeu.
+3. Le serveur (`serveur/api/parties.js`, à côté de celui du classement, dans la même base) vérifie tout : des décisions connues, des nombres possibles, 500 Ko au plus. Il range la partie pour un an, et répond son identifiant.
+4. Le score du classement garde cet identifiant : à côté du score, un lien **« Revoir »** ouvre `revoir.html?partie=…`.
+
+| Question | Réponse |
+|---|---|
+| `POST /api/parties` avec l'enregistrement | `{ id }` ; ou `{ erreur }` (400 partie refusée, 413 trop longue, 429 trop d'envois) |
+| `GET /api/parties?id=…` | la partie entière |
+| `GET /api/parties?combien=50&niveau=arene-pixel` | les dernières parties, en bref (sans leurs décisions) |
+
+**Revoir une partie** (`revoir.html` et `src/revoir.js`) : la partie est rejouée, et dessinée par le style de son niveau comme en jeu. Pause, vitesse de ×1 à ×8, et une frise (un trait par fin de vague) pour aller où l'on veut ; les flèches du clavier sautent de 10 secondes. Si la partie a été jouée avec une autre version du jeu, la page prévient : les règles ont peut-être changé depuis.
+
+**Régler le jeu : `npm run parties`**. La commande télécharge les dernières parties, les rejoue, et raconte chacune : la défense, les bénédictions choisies (et celles laissées de côté), les Météores, les Grand froid et les combos, le héros (son niveau, ses ordres, ce qu'il a battu), qui a battu les monstres, et la vague perdue. Puis un bilan de toutes les parties.
+
+```bash
+npm run parties                      # les 30 dernières parties de l'arène, et un bilan
+npm run parties -- --partie <id>     # une partie en détail, vague par vague
+npm run parties -- --niveau monde2-3 # celles d'un autre niveau
+npm run parties -- --essai           # les parties jouées pendant le développement
+```
+
+Chaque partie est rejouée avec **les règles de sa version** : le moteur de l'époque est ressorti de git (`git archive`), dans `parties/.moteurs/`. La version, c'est le commit publié : Vite l'écrit dans le jeu au moment de le fabriquer (`__VERSION__`, dans `vite.config.js`). Les parties téléchargées sont gardées dans `parties/`, qui ne va pas sur GitHub.
+
+**Ce qui est envoyé** : les décisions de la partie, le pseudo du classement (s'il y en a un) et la famille du navigateur (Safari, Chrome…), utile si une partie se rejoue mal. Rien d'autre. Chaque joueur peut refuser dans les Options (« Partager mes parties »), et la carte de début de partie le rappelle. Les parties jouées avec `npm run dev` partent « pour essai » : le serveur les range à part, pour ne pas les mélanger aux vraies.
 
 ## Le didacticiel
 
@@ -562,6 +609,7 @@ editeur.html           l'éditeur de niveaux
 personnages.html       la galerie des personnages, chacun dans les trois styles
 sons.html              la salle des sons : le thème et les bruitages, dans les trois époques
 lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
+revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 src/
 ├── accueil.js         la carte des époques : les mondes, les niveaux, la progression
 ├── accueil.css        son allure (chaque monde dans le style de son époque)
@@ -574,6 +622,8 @@ src/
 ├── options.js         les options du joueur (son, vitesse, affichage…), et qui doit être prévenu quand elles changent
 ├── fenetre-options.js la fenêtre des options, fabriquée à partir d'une liste (+ options.css)
 ├── classement.js      le classement du mode survie : il demande au serveur, ou garde le score sur l'ordinateur
+├── parties.js         l'envoi des parties enregistrées au serveur (et celles en attente)
+├── revoir.js          la page « Revoir la partie » : la partie rejouée et dessinée (+ revoir.css)
 ├── style.css          l'interface du jeu (elle change de look selon le style choisi)
 ├── niveaux/           LES FICHES DE NIVEAU (des données pures, sans code)
 │   ├── monde1-1.json … monde1-4.json   les quatre niveaux du monde 1
@@ -596,6 +646,8 @@ src/
 │   ├── equilibrage.js les joueurs imaginaires et le verdict d'équilibrage
 │   ├── donnees.js     les fiches des personnages : chiffres de jeu + apparence
 │   ├── moteur.js      ce qui se passe à chaque instant : déplacements, tirs, or, défaite
+│   ├── enregistrement.js  les parties enregistrées : noter les décisions, puis les rejouer (le « lecteur »)
+│   ├── calcul.js      distance() : un calcul qui donne le même résultat dans tous les navigateurs
 │   └── aleatoire.js   hasard « reproductible » et bruit (pour placer le décor)
 ├── son/               LE SON (fabriqué par le code, sans aucun fichier)
 │   ├── synthe.js      le petit synthétiseur : notes, bruits, enveloppes, table de mixage, écho
@@ -614,9 +666,13 @@ src/
     ├── apparence.js   le vocabulaire des apparences (gabarits, accessoires, couleurs)
     └── outils3d.js    morceaux partagés par les deux styles 3D
 serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir « Le classement en ligne »)
-├── api/scores.js      la fonction : vérifie, range et lit les scores
+├── api/scores.js      la fonction du classement : vérifie, range et lit les scores
+├── api/parties.js     la fonction des parties enregistrées : vérifie, range et relit les parties
 ├── vercel.json        la fonction tourne à Paris, près de la base ; l'adresse seule renvoie vers le jeu
 └── package.json
+scripts/
+├── equilibrage.js     npm run equilibrage : les joueurs imaginaires jouent chaque niveau
+└── parties.js         npm run parties : les vraies parties, rejouées et racontées
 ```
 
 ### Du fichier à la partie
@@ -630,7 +686,7 @@ serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir 
 
 Environ 60 fois par seconde :
 
-1. **`majPartie(etat, dt)`** fait avancer les règles d'un petit pas de temps `dt` : les monstres marchent, les gardiens visent le monstre le plus avancé à leur portée, les tirs volent, l'or tombe.
+1. **`majPartie(etat, PAS)`** fait avancer les règles d'un pas de 1/60 de seconde, toujours le même (voir « Les parties enregistrées ») : les monstres marchent, les gardiens visent le monstre le plus avancé à leur portée, les tirs volent, l'or tombe. Le temps écoulé depuis l'image précédente remplit une réserve, dépensée pas par pas : une image fait parfois deux pas, parfois aucun, et en vitesse ×2 il y a deux fois plus de pas.
 2. **`rendu.dessiner(etat, …)`** demande au style choisi de dessiner cet état.
 3. Les **événements** (« un monstre est mort », « un tir a touché »…) sont lus par le style pour faire des effets (particules, flash) et par le son pour les bruitages, puis effacés.
 
@@ -861,6 +917,8 @@ Dans la console du navigateur (F12) :
 
 - `__jeu.etat.or = 999` : de l'or à volonté pour tester ;
 - `__jeu.avancer(3)` : fait avancer la partie de 3 secondes, puis redessine (pour tester même quand l'onglet est caché : le navigateur met alors la boucle du jeu en pause) ;
+- `__jeu.agir('construire', 3, 'givrine')` : une décision, comme si le joueur avait cliqué (elle est enregistrée) ; `__jeu.enregistrement` : l'enregistrement de la partie en cours. Attention, `__jeu.etat.or = 999` n'est pas une décision : une partie « trichée » ainsi ne se rejoue pas pareil ;
+- l'adresse `/__partie` du serveur de développement garde une partie dans `captures/parties/nom.json` ; `revoir.html?fichier=nom` la revoit, et `revoir.html?fichier=nom&test=1` la rejoue d'un coup et range le résultat à côté. On ouvre la même adresse dans Safari, Chrome et Firefox, et on compare : c'est ainsi qu'on a vérifié que le rejeu est exact partout ;
 - sur la carte des époques (avec `npm run dev`) : « Ouvrir tous les niveaux (test) » (« Effacer la progression » est maintenant dans les options, pour tout le monde) ;
 - `__capturer('nom')` : enregistre une capture du jeu dans `captures/nom.jpg` (seulement avec `npm run dev`) ;
 - `__planche('nom')` (dans la galerie des personnages) : assemble les personnages affichés en une seule image, une ligne par personnage et une colonne par style, dans `captures/nom.jpg` ;
@@ -892,3 +950,5 @@ Dans la console du navigateur (F12) :
 7. ~~Sons et musique, écran d'options~~ (fait : un thème joué par trois orchestres, qui suit la partie, et les bruitages de chaque événement ; un second thème pour les combats de chef ; puis la fenêtre des options : son, vitesse, fiches, qualité graphique, taille de l'interface, caméra, progression).
 8. ~~Mettre le jeu en ligne~~ (fait : GitHub Pages, publié tout seul à chaque envoi sur `main`).
 9. ~~Le classement en ligne, pour comparer les scores entre amis~~ (fait : une fonction Vercel et une base Upstash Redis ; si le serveur ne répond pas, le score est gardé sur l'ordinateur).
+10. ~~Enregistrer les parties, pour les revoir et régler le jeu avec de vraies parties~~ (fait : `revoir.html` et `npm run parties`).
+11. Le héros, plus vivant : de la vie (à zéro, K.O. jusqu'à la vague suivante) et des pouvoirs gagnés avec ses niveaux : l'Onde de choc et le Bond (à déclencher), la Peau de pierre (automatique). Réglé avec les parties enregistrées.

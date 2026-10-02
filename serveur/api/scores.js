@@ -4,7 +4,9 @@
 // /api/scores :
 // - GET  /api/scores?arene=arene-pixel&combien=10 → les meilleurs scores ;
 // - POST /api/scores avec { arene, pseudo, vagues, battus } → range le
-//   score, et répond sa place.
+//   score, et répond sa place. (Avec, si on l'a, « partie » : l'identifiant
+//   de la partie enregistrée, voir parties.js. Le classement peut alors la
+//   faire revoir.)
 // Les scores sont rangés dans une base Upstash Redis, branchée au projet
 // depuis le tableau de bord de Vercel. Vercel donne alors à cette fonction
 // deux réglages secrets : l'adresse de la base et sa clé. Le jeu, lui, ne
@@ -64,13 +66,15 @@ function nettoyerPseudo(texte) {
 }
 
 function lireScore(corps) {
-  const { arene, vagues, battus } = corps || {};
+  const { arene, vagues, battus, partie } = corps || {};
   const pseudo = nettoyerPseudo(corps?.pseudo ?? '');
   if (!ARENES.includes(arene)) return { erreur: 'Arène inconnue.' };
   if (!pseudo) return { erreur: `Le pseudo doit faire de 1 à ${LONGUEUR_PSEUDO} caractères.` };
   if (!Number.isInteger(vagues) || vagues < 0 || vagues > MAX_VAGUES) return { erreur: 'Ce nombre de vagues est impossible.' };
   if (!Number.isInteger(battus) || battus < 0 || battus > MAX_BATTUS) return { erreur: 'Ce nombre de monstres est impossible.' };
-  return { score: { arene, pseudo, vagues, battus, date: Date.now() } };
+  const score = { arene, pseudo, vagues, battus, date: Date.now() };
+  if (typeof partie === 'string' && /^[a-z0-9]{8,24}$/.test(partie)) score.partie = partie; // (sinon, on l'ignore)
+  return { score };
 }
 
 // Combien d'envois récents depuis cet ordinateur ? On ne garde pas son adresse
@@ -91,7 +95,7 @@ async function lire(req, res) {
   // un peu plus que demandé : à égalité de note, c'est la date qui départage (voir « avant »)
   const [valeurs, total] = await redis(['ZRANGE', cleArene(arene), 0, combien + 9, 'REV'], ['ZCARD', cleArene(arene)]);
   const scores = valeurs.map((v) => JSON.parse(v)).sort(avant).slice(0, combien)
-    .map(({ pseudo, vagues, battus, date }) => ({ pseudo, vagues, battus, date }));
+    .map(({ pseudo, vagues, battus, date, partie }) => ({ pseudo, vagues, battus, date, ...(partie ? { partie } : {}) }));
   return repondre(res, 200, { scores, total });
 }
 

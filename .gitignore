@@ -4,3 +4,5 @@ captures
 .DS_Store
 .vercel
 .env*
+# les parties enregistrées, téléchargées par npm run parties (et les moteurs de chaque version)
+parties
