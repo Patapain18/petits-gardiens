@@ -1,0 +1,83 @@
+/* ─────────────────────────────────────────────────────────────
+   L'atelier des textures (textures.html) : le même look que l'atelier des
+   lumières (la vue à gauche, les réglages à droite), avec en plus la bande
+   des textures en haut, et les gros plans sous la vue.
+   ───────────────────────────────────────────────────────────── */
+@import './atelier-lumieres.css';
+
+.atelier { grid-template-columns: minmax(0, 1fr) 390px; }
+
+/* ── la bande des textures, rangées par famille ── */
+.bande-textures { max-width: 1500px; margin: 4px auto 6px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.famille { display: flex; flex-direction: column; gap: 4px; }
+.nom-famille { font-size: 0.75rem; color: #c8b8a8; }
+.vignettes { display: flex; flex-wrap: wrap; gap: 6px; }
+.vignette {
+  position: relative;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 3px 4px;
+  font: inherit;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  color: #e9d6b8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.vignette canvas { width: 48px; height: 48px; image-rendering: pixelated; border-radius: 3px; }
+.vignette:hover { background: rgba(255, 210, 122, 0.12); }
+.vignette[aria-pressed='true'] { border-color: #ffd27a; background: rgba(255, 210, 122, 0.18); color: #fff4e0; }
+.vignette:focus-visible { outline: 3px solid #ffd27a; outline-offset: 2px; }
+/* une texture modifiée (pas encore enregistrée) : une petite pastille dorée */
+.vignette.modifiee::after { content: ''; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ffd27a; }
+
+/* ── ce qu'on regarde : avec le bouton « Montrer l'avant » ── */
+.bouton-avant {
+  margin-bottom: 1px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: #fff4e0;
+  background: #2a1d36;
+  border: 1px solid rgba(255, 210, 122, 0.35);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.bouton-avant[aria-pressed='true'] { color: #2a1a10; background: #ffd27a; border-color: #ffd27a; }
+.bouton-avant:focus-visible { outline: 3px solid #ffd27a; outline-offset: 2px; }
+
+/* ── sous la vue : la taille d'un pixel, les gros plans, le grand sol ── */
+.info-vue { margin: 6px 0 0; font-size: 0.8rem; color: #c8b8a8; }
+.apercus { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin-top: 12px; }
+.apercus figure { margin: 0; }
+.apercus canvas { display: block; max-width: 100%; image-rendering: pixelated; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.12); }
+.apercus figcaption { margin-top: 4px; font-size: 0.78rem; color: #c8b8a8; }
+.legende-mesures { grid-column: 1 / -1; margin: 0; font-size: 0.75rem; color: #a8988c; }
+
+/* ── la recette ── */
+.recette h3 { margin: 12px 0 6px; font-size: 0.95rem; color: #ffd27a; font-weight: 500; }
+.recette .aide { margin: 0 0 6px; font-size: 0.72rem; line-height: 1.3; color: #a8988c; }
+.rampe { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 6px; }
+.nom-rampe { min-width: 4.6em; font-size: 0.8rem; color: #e9d6b8; }
+.rampe input[type='color'] { width: 30px; height: 24px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 5px; background: none; cursor: pointer; }
+.panneau button.petit { padding: 1px 8px; font-size: 0.85rem; line-height: 1.4; }
+.couche { position: relative; }
+.outils-couche { position: absolute; top: -12px; right: 6px; display: flex; gap: 3px; }
+.reglage select, .reglage input:not([type]), .ajout-couche select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #fff4e0;
+  background: #2a1d36;
+  border: 1px solid rgba(255, 210, 122, 0.35);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+.ajout-couche { display: flex; gap: 6px; margin: 2px 0 10px; }
+.ajout-couche select { flex: 1; width: auto; }
+.recette .choix-case { font-size: 0.82rem; padding: 2px 0; }

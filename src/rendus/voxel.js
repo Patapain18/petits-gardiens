@@ -14,6 +14,8 @@ import { GARDIENS, MONSTRES, POUVOIRS, HEROS, HAUTEUR_VOL, caracteristiques } fr
 import { lireApparence, melanger, couleursEclats, verifierApparences, verifierStyle } from './apparence.js';
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
+import TEXTURES from './textures.json';
+import { fabriquerTexture, aspectDeLaFace, placerUV } from './recettes.js';
 import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
@@ -26,68 +28,37 @@ const TAILLE_GARDIEN = 1.6; // les personnages sont un peu agrandis pour bien le
 const TAILLE_MONSTRE = 1.5;
 
 // ═════════════════════════════════════════════════════════════
-// 1. TEXTURES « PIXELISÉES » GÉNÉRÉES PAR LE CODE (16 × 16 pixels)
+// 1. TEXTURES « PIXELISÉES » (16 × 16 pixels), FABRIQUÉES D'APRÈS LEURS RECETTES
+// Les recettes sont rangées dans textures.json (voir recettes.js) ; l'atelier des
+// textures (textures.html) les règle. Chaque texture a une ou plusieurs variantes.
 // ═════════════════════════════════════════════════════════════
-const alea = creerAleatoire(7);
+// le hasard du décor (fleurs, teintes des blocs…) : il repart de la même graine à chaque nouveau
+// rendu (voir le constructeur), pour que le même niveau ait toujours le même décor
+let alea = creerAleatoire(7);
 const choisir = (liste) => liste[Math.floor(alea() * liste.length)];
+const RECETTES = TEXTURES.voxel;
 
-// fn(x, y) renvoie une couleur CSS (ou null = pixel transparent)
-function texture(fn) {
-  const c = document.createElement('canvas');
-  c.width = c.height = 16;
-  const ctx = c.getContext('2d');
-  for (let y = 0; y < 16; y++) {
-    for (let x = 0; x < 16; x++) {
-      const couleur = fn(x, y);
-      if (!couleur) continue;
-      ctx.fillStyle = couleur;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-  const t = new THREE.CanvasTexture(c);
+// Peint une variante d'une texture dans un canvas (un nouveau, ou celui d'une texture déjà là)
+function peindreTexture(canvas, recette, nom, variante) {
+  const { largeur, hauteur, pixels } = fabriquerTexture(recette, nom, variante);
+  canvas.width = largeur;
+  canvas.height = hauteur;
+  canvas.getContext('2d').putImageData(new ImageData(pixels, largeur, hauteur), 0, 0);
+  return canvas;
+}
+
+function texture(recette, nom, variante) {
+  const t = new THREE.CanvasTexture(peindreTexture(document.createElement('canvas'), recette, nom, variante));
   t.magFilter = THREE.NearestFilter;            // pixels nets quand on zoome
   t.minFilter = THREE.NearestMipmapLinearFilter;
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 
-const VERT = ['#6fb440', '#64a83a', '#7abd4a', '#5c9e34', '#6aae3f'];
-const TERRE = ['#8a5f3c', '#7a5234', '#946a45', '#6e4a2f'];
-// petit bruit pour faire des taches (mousse) dans une texture
-const bruitTexture = (x, y) => bruitFractal(x * 0.35 + 3, y * 0.35 + 8, 2) + (y < 6 ? 0.15 : -0.1);
-const PIERRE = ['#a29c90', '#958f84', '#aea89b', '#8a8479', '#9c968a'];
-
+// Toutes les textures : pour chaque nom (« herbe », « briques »…), la liste de ses variantes
 function creerTextures() {
-  // hauteur de la frange d'herbe sur le côté, différente pour chaque colonne
-  const frange = Array.from({ length: 16 }, () => 2 + Math.floor(alea() * 3));
-  return {
-    herbe: texture(() => choisir(VERT)),
-    herbeCote: texture((x, y) => (y < frange[x] ? choisir(VERT) : choisir(TERRE))),
-    terre: texture(() => choisir(TERRE)),
-    chemin: texture(() => (alea() < 0.08 ? choisir(['#d8c08a', '#8a6a3e']) : choisir(['#d6b47a', '#cba86c', '#dfbe86', '#c29f64']))),
-    pierre: texture(() => choisir(PIERRE)),
-    mousse: texture((x, y) => (bruitTexture(x, y) > 0.45 ? choisir(['#6f9a3a', '#7aa843', '#5f8a32']) : choisir(PIERRE))),
-    neige: texture(() => choisir(['#f4f6fa', '#e8ecf2', '#ffffff', '#dfe5ee'])),
-    sable: texture(() => choisir(['#e6d29a', '#dcc68c', '#efdcaa', '#d6bf84'])),
-    // pierres taillées du château : rangées de briques avec joints
-    briques: texture((x, y) => {
-      const rangee = Math.floor(y / 4);
-      const decale = rangee % 2 ? 4 : 0;
-      if (y % 4 === 3 || (x + decale) % 8 === 7) return choisir(['#8a8070', '#958a78']);
-      return choisir(['#d8cdb4', '#cfc3a8', '#e0d6bf', '#c6b99c']);
-    }),
-    tronc: texture((x) => choisir(x % 4 === 0 ? ['#4f3820', '#563d23'] : ['#6b4b2a', '#7a5732', '#634528'])),
-    bouleau: texture((x, y) => ((y * 7 + x * 3) % 11 < 2 && alea() < 0.7 ? '#2c2a28' : choisir(['#e8e4dc', '#d8d4cc', '#f0ece4']))),
-    // feuilles en gris clair : la couleur vient de chaque arbre (vert, doré, roux…)
-    feuilles: texture(() => (alea() < 0.16 ? null : choisir(['#e6e6e6', '#cfcfcf', '#f4f4f4', '#bdbdbd']))),
-    planches: texture((x, y) => (y % 4 === 0 ? '#6e4c2c' : choisir(['#a87a48', '#9c6f40', '#b38552']))),
-    laine: texture(() => choisir(['#c23a2e', '#b33328', '#cc4436'])),
-    toit: texture((x, y) => (y % 4 === 0 ? '#22345e' : choisir(['#3e62b0', '#3658a2', '#4a70c0']))),
-    sombre: texture(() => choisir(['#1a1410', '#221a14', '#16110d'])),
-    lanterne: texture((x, y) => (x < 2 || x > 13 || y < 2 || y > 13 ? '#3a2a1a' : choisir(['#ffd36a', '#ffe08a', '#ffc548']))),
-    // grain léger pour les personnages (sinon ils paraissent en plastique)
-    grain: texture(() => choisir(['#ffffff', '#f2f2f2', '#e6e6e6', '#fafafa'])),
-  };
+  return Object.fromEntries(Object.entries(RECETTES).map(([nom, recette]) =>
+    [nom, Array.from({ length: recette.variantes }, (_, v) => texture(recette, nom, v))]));
 }
 
 // Les six faces d'un cube : sa direction (la « normale » n), et deux directions qui la longent
@@ -584,6 +555,7 @@ export default class RenduVoxel {
   // niveau = l'objet renvoyé par chargerNiveau(fiche) : tout le décor est construit à partir de lui
   constructor(conteneur, niveau, reglages) {
     verifierApparences(GARDIENS, MONSTRES);
+    alea = creerAleatoire(7); // le même décor à chaque fois (l'atelier des textures compare avant / après)
     this.conteneur = conteneur;
     this.niveau = niveau;
     this.temps = 0;
@@ -733,17 +705,31 @@ export default class RenduVoxel {
   }
 
   // ── Matériaux ──────────────────────────────────────────────
-  // Le matériau d'un paquet de faces (l'herbe a trois paquets : dessus, côtés, dessous).
-  // vertexColors : chaque coin a sa couleur (la teinte du bloc × la clarté du coin).
-  materiauBloc(cle) {
+  // Le matériau d'un paquet de faces (l'herbe a trois paquets : dessus, côtés, dessous ; et un
+  // paquet par variante de sa texture). vertexColors : chaque coin a sa couleur (la teinte du
+  // bloc × la clarté du coin).
+  materiauBloc(cle, variante = 0) {
     const std = (map, extra = {}) => new THREE.MeshStandardMaterial({ map, roughness: 0.95, metalness: 0, vertexColors: true, ...extra });
-    const t = this.tex;
+    const t = this.tex[cle][variante];
     switch (cle) {
-      case 'feuilles': return std(t.feuilles, { alphaTest: 0.5, side: THREE.DoubleSide });
-      case 'neige': return std(t.neige, { roughness: 0.7 });
-      case 'lanterne': return std(t.lanterne, { emissive: '#ffb347', emissiveMap: t.lanterne, emissiveIntensity: 0 });
-      default: return std(t[cle]);
+      case 'feuilles': return std(t, { alphaTest: 0.5, side: THREE.DoubleSide });
+      case 'neige': return std(t, { roughness: 0.7 });
+      case 'lanterne': return std(t, { emissive: '#ffb347', emissiveMap: t, emissiveIntensity: 0 });
+      default: return std(t);
     }
+  }
+
+  // L'atelier des textures change une recette : on repeint ses images sur place, sans rien
+  // reconstruire. Renvoie false si ça ne suffit pas (le nombre de variantes a changé : il faut
+  // alors refaire tout le monde, avec un nouveau rendu).
+  majTexture(nom, recette) {
+    const liste = this.tex[nom];
+    if (!liste || liste.length !== recette.variantes) return false;
+    liste.forEach((t, v) => {
+      peindreTexture(t.image, recette, nom, v);
+      t.needsUpdate = true;
+    });
+    return true;
   }
 
   // Matériau pour les personnages (couleur unie + grain), mis en cache
@@ -751,7 +737,7 @@ export default class RenduVoxel {
     const { unique, ...reglages } = options; // unique = un matériau rien qu'à lui (pas partagé)
     const cle = couleur + JSON.stringify(reglages);
     if (!unique && this.cacheMateriaux.has(cle)) return this.cacheMateriaux.get(cle);
-    const mat = this.carte.brancher(new THREE.MeshStandardMaterial({ color: couleur, map: this.tex.grain, roughness: 0.85, ...reglages }));
+    const mat = this.carte.brancher(new THREE.MeshStandardMaterial({ color: couleur, map: this.tex.grain[0], roughness: 0.85, ...reglages }));
     if (!unique) this.cacheMateriaux.set(cle, mat);
     return mat;
   }
@@ -861,7 +847,7 @@ export default class RenduVoxel {
       for (const [bx, n, bz, teinte] of blocs[type]) {
         // teinte = un nombre (plus clair / plus sombre) ou une vraie couleur (feuillages)
         if (teinte.isColor) c.copy(teinte); else c.setScalar(teinte);
-        for (const f of FACES_CUBE) {
+        for (const [face, f] of FACES_CUBE.entries()) {
           const [nx, ny, nz] = f.n;
           const v = voisin(bx + nx, n + ny, bz + nz);
           if (v) {
@@ -871,7 +857,9 @@ export default class RenduVoxel {
             else if (!(v === CHEMIN && ny === 0 && !chemin)) continue;
           }
           const cle = type === 'herbe' ? (ny > 0 ? 'herbe' : ny < 0 ? 'terre' : 'herbeCote') : type;
-          const p = paquet(cle);
+          // l'aspect de la face : quelle variante de sa texture, tournée ou retournée (voir recettes.js)
+          const aspect = aspectDeLaFace(RECETTES[cle], bx, n, bz, face);
+          const p = paquet(`${cle}|${aspect.variante}`);
           const debut = p.positions.length / 3;
           const ao = COINS.map(([su, sv]) => {
             const [ux, uy, uz] = f.u, [vx, vy, vz] = f.v;
@@ -887,7 +875,7 @@ export default class RenduVoxel {
             const k = CLARTE_COIN[niveau];
             p.positions.push(x, y, z);
             p.normales.push(nx, ny, nz);
-            p.uvs.push((su + 1) / 2, (sv + 1) / 2);
+            p.uvs.push(...placerUV((su + 1) / 2, (sv + 1) / 2, aspect));
             p.couleurs.push(c.r * k, c.g * k, c.b * k);
             return niveau;
           });
@@ -900,19 +888,22 @@ export default class RenduVoxel {
     });
 
     // 3. un objet par paquet, avec son matériau
-    for (const [cle, p] of paquets) {
+    this.feuilles = [];
+    this.blocsLanterne = [];
+    for (const [nomPaquet, p] of paquets) {
+      const [cle, variante] = nomPaquet.split('|');
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute(p.positions, 3));
       geo.setAttribute('normal', new THREE.Float32BufferAttribute(p.normales, 3));
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(p.uvs, 2));
       geo.setAttribute('color', new THREE.Float32BufferAttribute(p.couleurs, 3));
       geo.setIndex(p.indices);
-      const materiau = this.materiauBloc(cle);
+      const materiau = this.materiauBloc(cle, Number(variante));
       const mesh = new THREE.Mesh(geo, this.carte.brancher(cle === 'feuilles' ? this.onduler(materiau) : materiau));
       mesh.castShadow = cle !== 'chemin' && cle !== 'sable';
       mesh.receiveShadow = true;
-      if (cle === 'feuilles') this.feuilles = mesh;
-      if (cle === 'lanterne') this.blocsLanterne = mesh;
+      if (cle === 'feuilles') this.feuilles.push(mesh);
+      if (cle === 'lanterne') this.blocsLanterne.push(mesh);
       this.scene.add(mesh);
     }
   }
@@ -1068,11 +1059,7 @@ export default class RenduVoxel {
   // un miroir, une grande tache blanche (repérée par l'atelier des lumières). Un peu plus rugueuse,
   // son reflet s'étale et ne brûle plus.
   creerEau() {
-    const hasardEau = creerAleatoire(11); // un hasard à part : le décor qui suit ne change pas
-    this.texEau = texture((x, y) => {
-      const v = Math.sin((x + y * 0.5) * 0.8) + Math.sin(y * 1.3 - x * 0.4) + (hasardEau() - 0.5) * 0.5;
-      return v > 1.25 ? '#a8dcf2' : v > 0.35 ? '#66b4dc' : v < -1.2 ? '#2f78a6' : '#4898c6';
-    });
+    this.texEau = this.tex.eau[0];
     this.texEau.wrapS = this.texEau.wrapT = THREE.RepeatWrapping;
     this.matEau = this.carte.brancher(new THREE.MeshStandardMaterial({
       map: this.texEau, roughness: 0.42, metalness: 0, transparent: true, opacity: 0.84,
@@ -1146,7 +1133,7 @@ export default class RenduVoxel {
     const temps = this.uTempsVent;
     this.uLueur = { value: 0 }; // les fleurs brillent un peu à contre-jour
     const matVent = (tete) => {
-      const mat = new THREE.MeshStandardMaterial({ roughness: 0.8, map: this.tex.grain });
+      const mat = new THREE.MeshStandardMaterial({ roughness: 0.8, map: this.tex.grain[0] });
       mat.onBeforeCompile = (shader) => {
         shader.uniforms.uTemps = temps;
         if (tete) {
@@ -1207,9 +1194,9 @@ export default class RenduVoxel {
     this.socles = this.niveau.socles.map((e, i) => {
       const groupe = new THREE.Group();
       groupe.position.set(e.x, this.sol(e.x, e.y), e.y);
-      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.18, 1.1), this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.pierre, roughness: 0.95 })));
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.18, 1.1), this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.pierre[0], roughness: 0.95 })));
       base.position.y = 0.09;
-      const dessus = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.12, 0.86), this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.briques, roughness: 0.9, emissive: '#ffc260', emissiveIntensity: 0 })));
+      const dessus = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.12, 0.86), this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.briques[0], roughness: 0.9, emissive: '#ffc260', emissiveIntensity: 0 })));
       dessus.position.y = 0.24;
       for (const mesh of [base, dessus]) { mesh.castShadow = mesh.receiveShadow = true; groupe.add(mesh); }
       // Petit cube doré qui flotte au-dessus des socles libres
@@ -1230,8 +1217,8 @@ export default class RenduVoxel {
   // ── Drapeaux du château (ils ondulent) ─────────────────────
   creerDrapeaux() {
     this.drapeaux = [];
-    const bois = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.planches, roughness: 0.9 }));
-    const tissu = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.laine, roughness: 1 }));
+    const bois = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.planches[0], roughness: 0.9 }));
+    const tissu = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.laine[0], roughness: 1 }));
     for (const m of this.mats) {
       const haut = m.grand ? 1.6 : 1.0;
       const mat = new THREE.Mesh(new THREE.BoxGeometry(0.07, haut, 0.07), bois);
@@ -1263,8 +1250,8 @@ export default class RenduVoxel {
   // Leur lumière, la nuit, vient de la carte des lumières (voir lumieres.js), comme celle de la
   // porte du château.
   creerLanternes() {
-    const poteau = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.planches, roughness: 0.9 }));
-    this.matLanterne = new THREE.MeshStandardMaterial({ map: this.tex.lanterne, emissive: '#ffb347', emissiveMap: this.tex.lanterne, emissiveIntensity: 0.2 });
+    const poteau = this.carte.brancher(new THREE.MeshStandardMaterial({ map: this.tex.planches[0], roughness: 0.9 }));
+    this.matLanterne = new THREE.MeshStandardMaterial({ map: this.tex.lanterne[0], emissive: '#ffb347', emissiveMap: this.tex.lanterne[0], emissiveIntensity: 0.2 });
     for (const l of this.niveau.lanternes) {
       const y0 = this.sol(l.x, l.y);
       const p = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.9, 0.1), poteau);
@@ -2185,7 +2172,7 @@ export default class RenduVoxel {
     const nuit = a.nuit;
     this.carte.uniforms.uCarteForce.value = a.lumieres;
     this.matLanterne.emissiveIntensity = 0.2 + nuit * 0.9;
-    if (this.blocsLanterne) this.blocsLanterne.material.emissiveIntensity = 0.2 + nuit * 0.9;
+    for (const m of this.blocsLanterne) m.material.emissiveIntensity = 0.2 + nuit * 0.9;
     this.matEau.emissiveIntensity = 0.4 - nuit * 0.3;
     this.uLueur.value = a.lueur;
   }
@@ -2367,7 +2354,7 @@ export default class RenduVoxel {
     this.drapeaux.forEach((morceaux, j) => morceaux.forEach((p, i) => {
       p.rotation.y = Math.sin(this.temps * 4 - i * 0.9 + j) * (0.18 + i * 0.12) + (i === 0 ? 0.5 : 0);
     }));
-    if (this.feuilles) this.feuilles.material.emissiveIntensity = 0;
+    for (const m of this.feuilles) m.material.emissiveIntensity = 0;
 
     this.placerCamera();
     this.majFaisceaux();
@@ -2436,7 +2423,7 @@ export default class RenduVoxel {
     this.appareilPhoto?.dispose();
     this.carte.dispose();
     liberer(this.scene);
-    Object.values(this.tex).forEach((t) => t.dispose());
+    Object.values(this.tex).flat().forEach((t) => t.dispose()); // (chaque texture : la liste de ses variantes)
     this.composer.dispose?.();
     this.renderer.dispose();
     this.renderer.domElement.remove();

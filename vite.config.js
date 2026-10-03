@@ -7,6 +7,8 @@
 //                 (c'est ce qu'utilise l'éditeur de niveaux)
 // - /__ambiances : enregistre les réglages des ambiances (src/rendus/ambiances.json)
 //                 (c'est ce qu'utilise l'atelier des lumières)
+// - /__textures : enregistre les recettes des textures (src/rendus/textures.json)
+//                 (c'est ce qu'utilise l'atelier des textures)
 // - /__partie   : garde une partie enregistrée dans captures/parties/ (POST), ou la relit
 //                 (GET /__partie/nom) : pour vérifier qu'elle se rejoue pareil partout
 import { defineConfig } from 'vite';
@@ -16,9 +18,11 @@ import { execSync } from 'node:child_process';
 import { problemesFiche } from './src/jeu/niveau.js';
 import { formaterFiche } from './src/editeur/format.js';
 import { problemesAmbiances, formaterAmbiances } from './src/rendus/format-ambiances.js';
+import { problemesTextures, formaterTextures } from './src/rendus/format-textures.js';
 
 const DOSSIER_NIVEAUX = path.resolve('src/niveaux');
 const FICHIER_AMBIANCES = path.resolve('src/rendus/ambiances.json');
+const FICHIER_TEXTURES = path.resolve('src/rendus/textures.json');
 // Un nom de fichier sûr : des minuscules, des chiffres et des tirets, rien d'autre.
 // (Impossible d'écrire « ../../quelque-chose » ailleurs que dans src/niveaux.)
 const ID_VALIDE = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -53,7 +57,9 @@ const outilsDev = {
       if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' });
       try {
         const { nom, image } = JSON.parse(await lireCorps(req, TAILLE_MAX_CAPTURE));
-        const fichier = path.join('captures', String(nom).replace(/[^\w-]/g, '') + '.jpg');
+        // une image PNG (le pixel art, sans flou) ou JPEG (les vues du jeu, plus légères)
+        const extension = String(image).startsWith('data:image/png') ? '.png' : '.jpg';
+        const fichier = path.join('captures', String(nom).replace(/[^\w-]/g, '') + extension);
         fs.mkdirSync('captures', { recursive: true });
         fs.writeFileSync(fichier, Buffer.from(String(image).split(',')[1], 'base64'));
         res.end(fichier);
@@ -113,6 +119,23 @@ const outilsDev = {
       if (problemes.length) return repondre(res, 422, { erreur: `Réglages incorrects : ${problemes[0]}`, problemes });
       fs.writeFileSync(FICHIER_AMBIANCES, formaterAmbiances(donnees));
       repondre(res, 200, { fichier: 'src/rendus/ambiances.json' });
+    });
+
+    // Les recettes des textures (l'atelier des textures) : on revérifie tout, en comparant avec
+    // le fichier actuel (les mêmes styles, les mêmes textures, des recettes correctes)
+    server.middlewares.use('/__textures', async (req, res) => {
+      if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' });
+      let donnees;
+      try {
+        donnees = JSON.parse(await lireCorps(req, TAILLE_MAX_FICHE));
+      } catch {
+        return repondre(res, 400, { erreur: 'Recettes illisibles (JSON invalide ou trop gros).' });
+      }
+      const modele = JSON.parse(fs.readFileSync(FICHIER_TEXTURES, 'utf8'));
+      const problemes = problemesTextures(donnees, modele);
+      if (problemes.length) return repondre(res, 422, { erreur: `Recettes incorrectes : ${problemes[0]}`, problemes });
+      fs.writeFileSync(FICHIER_TEXTURES, formaterTextures(donnees));
+      repondre(res, 200, { fichier: 'src/rendus/textures.json' });
     });
 
     // Les fiches de niveau
@@ -183,15 +206,16 @@ export default defineConfig(({ command }) => ({
   // Des adresses relatives (« ./assets/… » plutôt que « /assets/… ») : le site marche aussi
   // rangé dans un sous-dossier, comme sur GitHub Pages (patapain18.github.io/petits-gardiens/)
   base: './',
-  // Huit pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
+  // Neuf pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
   // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html),
-  // la salle des sons (sons.html), l'atelier des lumières (lumieres.html), la page
-  // pour revoir une partie enregistrée (revoir.html) et celle des visites (visites.html)
+  // la salle des sons (sons.html), l'atelier des lumières (lumieres.html), celui des
+  // textures (textures.html), la page pour revoir une partie enregistrée (revoir.html)
+  // et celle des visites (visites.html)
   build: {
     rollupOptions: {
       input: {
-        accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html',
-        sons: 'sons.html', lumieres: 'lumieres.html', revoir: 'revoir.html', visites: 'visites.html',
+        accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html',
+        lumieres: 'lumieres.html', textures: 'textures.html', revoir: 'revoir.html', visites: 'visites.html',
       },
     },
   },

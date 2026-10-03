@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:5180 : c'est la **carte des époques**, d'où l'on choisit un niveau. L'éditeur de niveaux est à http://localhost:5180/editeur.html, la galerie des personnages (chacun dans les trois styles) à http://localhost:5180/personnages.html, la salle des sons à http://localhost:5180/sons.html, et l'atelier des lumières à http://localhost:5180/lumieres.html.
+Puis ouvrir http://localhost:5180 : c'est la **carte des époques**, d'où l'on choisit un niveau. L'éditeur de niveaux est à http://localhost:5180/editeur.html, la galerie des personnages (chacun dans les trois styles) à http://localhost:5180/personnages.html, la salle des sons à http://localhost:5180/sons.html, l'atelier des lumières à http://localhost:5180/lumieres.html, et l'atelier des textures à http://localhost:5180/textures.html.
 
 Pour jouer un niveau précis : `http://localhost:5180/jeu.html?niveau=monde1-3` (le nom du fichier, sans `.json`).
 
@@ -644,6 +644,84 @@ Au passage, un vieux défaut est réparé : les têtes et les tiges des fleurs a
 
 Le tour complet final de l'atelier : 168 images (15 niveaux, dans les trois styles, aux quatre moments de la journée), sans aucune zone brûlée de taille notable (au plus 0,1 % de l'image, de petits reflets blancs voulus du pixel art).
 
+## Les textures
+
+### Des recettes plutôt que des dessins
+
+Dans le style voxel, chaque texture fait **16 × 16 pixels**, comme dans Minecraft. Personne ne les dessine à la main : chacune est fabriquée par le code d'après une **recette**, rangée dans `src/rendus/textures.json` (des données, comme les fiches de niveau). Une recette a trois parties :
+
+- **les rampes** : des listes de couleurs, si possible rangées du plus sombre au plus clair (« vert » : cinq verts, « terre » : quatre bruns…) ;
+- **les couches**, posées l'une après l'autre : d'abord un fond, puis des taches, des joints, des brins d'herbe, la lumière d'en haut… ;
+- **les variantes**, et le droit de **tourner** ou de **retourner** la texture d'un bloc à l'autre (sur un grand sol, l'œil ne voit plus que c'est toujours la même image).
+
+Par exemple, l'herbe d'aujourd'hui : chaque pixel prend un des cinq verts au hasard.
+
+```json
+"herbe": {
+  "rampes": { "vert": ["#6fb440", "#64a83a", "#7abd4a", "#5c9e34", "#6aae3f"] },
+  "couches": [{ "type": "hasard", "rampe": "vert", "part": 1 }],
+  "variantes": 1,
+  "tourner": false,
+  "miroir": false
+}
+```
+
+| Couche | Ce qu'elle fait |
+|---|---|
+| Couleurs au hasard (`hasard`) | chaque pixel (ou une part des pixels) prend une couleur au hasard dans la rampe |
+| Frange en haut (`frange`) | une bande en haut, plus ou moins haute selon la colonne : l'herbe qui déborde sur le côté d'un bloc |
+| Taches (`taches`) | des taches douces, qui se raccordent d'un bloc à l'autre (un « bruit » qui fait le tour) |
+| Joints de briques, Rangées, Colonnes | les briques du château, les planches et les tuiles, les fibres d'un tronc |
+| Traits en biais (`diagonales`) | l'écorce du bouleau |
+| Cadre (`bord`), Trous (`trous`) | le cadre de la lanterne ; les pixels transparents des feuilles |
+| Vagues (`vagues`) | les vaguelettes de l'eau |
+| Lumière d'en haut (`relief`) | le haut de chaque bosse s'éclaire, le bas s'assombrit, comme sous le soleil |
+| Brins, Cailloux, Fissures | des brins d'herbe à la pointe éclairée, de petits cailloux avec leur ombre, des fissures qui serpentent |
+
+Le code est dans `src/rendus/recettes.js`. Il ne connaît ni Three.js ni le navigateur : il remplit un tableau de pixels, que le style voxel transforme en textures. Quelques idées à retenir :
+
+- **chaque couche a son propre hasard** (sa graine vient du nom de la texture, de la variante et du numéro de la couche) : quand on règle une couche, les autres ne bougent pas ;
+- **l'aspect de chaque face** (sa variante, ses quarts de tour, son miroir) vient d'un « hachage » de sa place : la même face a toujours le même aspect, dans le jeu comme dans l'atelier. Chaque variante a sa propre texture, et ce sont les coordonnées de texture des coins de la face qui tournent (`placerUV`) ;
+- **le décor voxel repart toujours du même hasard** (les fleurs, la teinte des blocs) : deux rendus du même niveau sont identiques, et une comparaison avant / après ne montre que ce qui a vraiment changé.
+
+Le passage aux recettes n'a pas changé l'allure du jeu : les recettes refont les mêmes textures qu'avant (même couleur moyenne à l'écran, vérifiée sur deux niveaux). Seules les petites fleurs ont changé de place, puisque le hasard du décor repart maintenant de sa graine.
+
+### L'atelier des textures
+
+La page `textures.html` (un outil d'atelier, à côté de l'atelier des lumières) sert à **voir** les textures, puis à les régler :
+
+- **la bande des textures**, rangées par famille (le sol, les arbres et le bois, le château et les objets, les personnages). Une pastille dorée marque celles qu'on a modifiées ;
+- **un vrai niveau en 3D**, dans le style voxel : on choisit le niveau, l'ambiance, et la vue (la vue de jeu, le cinéma, ou **de près** : le chemin, un socle, le château, un arbre, l'étang). L'atelier dit combien de pixels d'écran fait un pixel de texture au centre de la vue (environ 1 en vue de jeu, 9 de près) ;
+- **les gros plans** de la texture choisie, avant (le fichier) et après (tes réglages), et **un grand sol** de 4 × 4 blocs avec ses variantes tournées ;
+- **la recette**, avec des curseurs : les couleurs de chaque rampe (et des boutons + et − pour en ajouter), les couches (on les règle, on les déplace, on en retire, on en ajoute), les variantes, les tours et le miroir. Tout s'applique tout de suite, même dans la 3D ; seul un changement de variantes oblige à reconstruire le niveau (une demi-seconde) ;
+- **« Montrer l'avant »** : la 3D avec les recettes du fichier, pour comparer.
+
+Pour ne pas se fier seulement à ses yeux, l'atelier mesure la texture choisie (survoler une mesure dit ce qu'elle veut dire) :
+
+| Mesure | Ce qu'elle veut dire |
+|---|---|
+| Taches | la ressemblance entre un pixel et son voisin : 0, chaque pixel est tiré au hasard, comme une télé sans signal ; plus haut, les pixels se regroupent en taches ; 1, un aplat |
+| Coutures | sur un grand sol, l'écart entre deux pixels de part et d'autre du bord d'un bloc, comparé à l'écart à l'intérieur : vers 1, on ne voit pas les bords des blocs ; plus haut, un quadrillage |
+| Aspects différents | combien d'aspects un bloc peut prendre (variantes × tours × miroir) : à 1, l'œil voit la répétition |
+| Couleurs, clarté moyenne | combien de couleurs différentes ; la clarté, de 0 (noir) à 1 (blanc) |
+| Chemin / herbe | l'écart de clarté entre le chemin et l'herbe : le chemin doit se détacher d'un coup d'œil |
+
+Les alertes ne concernent que les sols vus de dessus (l'herbe, la terre, le chemin, le sable, la neige, la pierre), là où le bruit, les coutures et la répétition se voient le plus.
+
+- **Planche des textures** : toutes les textures en gros plan (avant, après) et sur un grand sol, avec leurs mesures, dans `captures/textures-planche.png`.
+- **Banc d'essai (3D)** : le niveau sous les quatre ambiances, de loin et de près (le chemin, un socle, un arbre), dans `captures/textures-banc-<niveau>.jpg`.
+- **Avant / après (3D)** : les mêmes vues avec les recettes du fichier, puis les tiennes, dans `captures/textures-avant-apres-<niveau>.jpg`.
+- **Enregistrer dans le jeu** (avec `npm run dev`) : les recettes sont écrites dans `src/rendus/textures.json`, après avoir été revérifiées par le serveur de développement (`format-textures.js` : les mêmes textures, des couches connues, des réglages dans leurs bornes, des couleurs « #rrggbb »).
+
+### Ce que l'atelier a montré tout de suite
+
+- **Les sols sont du bruit pur** : la mesure des taches vaut 0,07 pour l'herbe, 0,01 pour le chemin, autour de 0 pour la terre, la pierre et le sable. De près, ça ressemble à une télé sans signal ; une vraie texture de pixel art a des taches, une lumière qui vient d'en haut, des détails.
+- **Tous les blocs ont la même image** : de près, les points sombres du chemin s'alignent en rangées. Le grand sol montre aussi que l'eau (des diagonales) et la pierre moussue (des losanges) se répètent d'un bloc à l'autre.
+- **Un premier essai** (des taches, des brins, des cailloux, quatre variantes tournées) fait passer les taches de l'herbe de 0,07 à 0,36… mais les coutures de 1,1 à 1,6 : on voit alors le quadrillage des blocs. Exactement le genre de défaut que l'œil rate sur une image du jeu entier.
+- **Le chemin se détache à peine de l'herbe** (un écart de clarté de 0,08).
+
+C'est le programme de l'étape suivante : refaire les textures du voxel avec l'atelier.
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -655,6 +733,7 @@ editeur.html           l'éditeur de niveaux
 personnages.html       la galerie des personnages, chacun dans les trois styles
 sons.html              la salle des sons : le thème et les bruitages, dans les trois époques
 lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
+textures.html          l'atelier des textures : voir les textures voxel en grand, les mesurer, régler leurs recettes
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
 src/
@@ -663,6 +742,7 @@ src/
 ├── personnages.js     la galerie des personnages (+ personnages.css)
 ├── sons.js           la salle des sons (+ sons.css)
 ├── atelier-lumieres.js l'atelier des lumières : la partie automatique, les curseurs, les mesures (+ atelier-lumieres.css)
+├── atelier-textures.js l'atelier des textures : gros plans, grand sol, niveau en 3D, mesures, recettes (+ atelier-textures.css)
 ├── main.js            le chef d'orchestre du jeu : boucle, boutons, menu, cartes de début et de fin
 ├── didacticiel.js     les leçons, les fiches de présentation et la flèche
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
@@ -710,6 +790,9 @@ src/
     ├── pixel.js       style 3 : vrai pixel art 16 bits, dessiné en Canvas 2D
     ├── ambiances.json les réglages des quatre ambiances de chaque style (l'atelier des lumières les modifie)
     ├── format-ambiances.js  vérifier et écrire ambiances.json
+    ├── textures.json  les recettes des textures du voxel (l'atelier des textures les modifie)
+    ├── recettes.js    la fabrique des textures : d'une recette à 16 × 16 pixels, et les mesures
+    ├── format-textures.js  vérifier et écrire textures.json
     ├── lumieres.js    les lumières du jeu, à chaque instant (lanternes, feu, explosions…), pour les trois styles
     ├── carte-lumieres.js  la carte des lumières des styles 3D (toutes les lumières dans une petite image vue de dessus)
     ├── apparence.js   le vocabulaire des apparences (gabarits, accessoires, couleurs)

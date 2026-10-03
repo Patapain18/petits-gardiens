@@ -1,0 +1,170 @@
+{
+  "voxel": {
+    "herbe": {
+      "rampes": { "vert": ["#6fb440", "#64a83a", "#7abd4a", "#5c9e34", "#6aae3f"] },
+      "couches": [{ "type": "hasard", "rampe": "vert", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "herbeCote": {
+      "rampes": {
+        "terre": ["#8a5f3c", "#7a5234", "#946a45", "#6e4a2f"],
+        "vert": ["#6fb440", "#64a83a", "#7abd4a", "#5c9e34", "#6aae3f"]
+      },
+      "couches": [
+        { "type": "hasard", "rampe": "terre", "part": 1 },
+        { "type": "frange", "rampe": "vert", "min": 2, "max": 4 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "terre": {
+      "rampes": { "terre": ["#8a5f3c", "#7a5234", "#946a45", "#6e4a2f"] },
+      "couches": [{ "type": "hasard", "rampe": "terre", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "chemin": {
+      "rampes": { "sable": ["#d6b47a", "#cba86c", "#dfbe86", "#c29f64"], "cailloux": ["#d8c08a", "#8a6a3e"] },
+      "couches": [
+        { "type": "hasard", "rampe": "sable", "part": 1 },
+        { "type": "hasard", "rampe": "cailloux", "part": 0.08 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "pierre": {
+      "rampes": { "pierre": ["#a29c90", "#958f84", "#aea89b", "#8a8479", "#9c968a"] },
+      "couches": [{ "type": "hasard", "rampe": "pierre", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "mousse": {
+      "rampes": {
+        "pierre": ["#a29c90", "#958f84", "#aea89b", "#8a8479", "#9c968a"],
+        "mousse": ["#6f9a3a", "#7aa843", "#5f8a32"]
+      },
+      "couches": [
+        { "type": "hasard", "rampe": "pierre", "part": 1 },
+        { "type": "taches", "rampe": "mousse", "taille": 3, "seuil": 0.45, "haut": 0.12 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "neige": {
+      "rampes": { "neige": ["#f4f6fa", "#e8ecf2", "#ffffff", "#dfe5ee"] },
+      "couches": [{ "type": "hasard", "rampe": "neige", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "sable": {
+      "rampes": { "sable": ["#e6d29a", "#dcc68c", "#efdcaa", "#d6bf84"] },
+      "couches": [{ "type": "hasard", "rampe": "sable", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "briques": {
+      "rampes": { "pierre": ["#d8cdb4", "#cfc3a8", "#e0d6bf", "#c6b99c"], "joint": ["#8a8070", "#958a78"] },
+      "couches": [
+        { "type": "hasard", "rampe": "pierre", "part": 1 },
+        { "type": "briques", "rampe": "joint", "hauteur": 4, "largeur": 8 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "tronc": {
+      "rampes": { "bois": ["#6b4b2a", "#7a5732", "#634528"], "fibre": ["#4f3820", "#563d23"] },
+      "couches": [
+        { "type": "hasard", "rampe": "bois", "part": 1 },
+        { "type": "colonnes", "rampe": "fibre", "pas": 4, "depart": 0 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "bouleau": {
+      "rampes": { "blanc": ["#e8e4dc", "#d8d4cc", "#f0ece4"], "noir": ["#2c2a28"] },
+      "couches": [
+        { "type": "hasard", "rampe": "blanc", "part": 1 },
+        { "type": "diagonales", "rampe": "noir", "a": 7, "b": 3, "pas": 11, "epaisseur": 2, "part": 0.7 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "feuilles": {
+      "rampes": { "gris": ["#e6e6e6", "#cfcfcf", "#f4f4f4", "#bdbdbd"] },
+      "couches": [{ "type": "hasard", "rampe": "gris", "part": 1 }, { "type": "trous", "part": 0.16 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "planches": {
+      "rampes": { "bois": ["#a87a48", "#9c6f40", "#b38552"], "joint": ["#6e4c2c"] },
+      "couches": [
+        { "type": "hasard", "rampe": "bois", "part": 1 },
+        { "type": "rangees", "rampe": "joint", "pas": 4, "depart": 0 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "laine": {
+      "rampes": { "rouge": ["#c23a2e", "#b33328", "#cc4436"] },
+      "couches": [{ "type": "hasard", "rampe": "rouge", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "toit": {
+      "rampes": { "bleu": ["#3e62b0", "#3658a2", "#4a70c0"], "joint": ["#22345e"] },
+      "couches": [
+        { "type": "hasard", "rampe": "bleu", "part": 1 },
+        { "type": "rangees", "rampe": "joint", "pas": 4, "depart": 0 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "sombre": {
+      "rampes": { "sombre": ["#1a1410", "#221a14", "#16110d"] },
+      "couches": [{ "type": "hasard", "rampe": "sombre", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "lanterne": {
+      "rampes": { "lumiere": ["#ffd36a", "#ffe08a", "#ffc548"], "cadre": ["#3a2a1a"] },
+      "couches": [
+        { "type": "hasard", "rampe": "lumiere", "part": 1 },
+        { "type": "bord", "rampe": "cadre", "epaisseur": 2 }
+      ],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "grain": {
+      "rampes": { "blanc": ["#ffffff", "#f2f2f2", "#e6e6e6", "#fafafa"] },
+      "couches": [{ "type": "hasard", "rampe": "blanc", "part": 1 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    },
+    "eau": {
+      "rampes": { "eau": ["#2f78a6", "#4898c6", "#66b4dc", "#a8dcf2"] },
+      "couches": [{ "type": "vagues", "rampe": "eau", "seuils": [-1.2, 0.35, 1.25], "hasard": 0.5 }],
+      "variantes": 1,
+      "tourner": false,
+      "miroir": false
+    }
+  }
+}
