@@ -15,7 +15,7 @@ import { lireApparence, melanger, couleursEclats, verifierApparences, verifierSt
 import { creerAleatoire, bruitFractal } from '../jeu/aleatoire.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import TEXTURES from './textures.json';
-import { fabriquerTexture, aspectDeLaFace, placerUV } from './recettes.js';
+import { fabriquerTexture, assemblerTerrain, aspectDeLaFace, placerUV } from './recettes.js';
 import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
@@ -41,6 +41,18 @@ const RECETTES = TEXTURES.voxel;
 // Peint une variante d'une texture dans un canvas (un nouveau, ou celui d'une texture déjà là)
 function peindreTexture(canvas, recette, nom, variante) {
   const { largeur, hauteur, pixels } = fabriquerTexture(recette, nom, variante);
+  canvas.width = largeur;
+  canvas.height = hauteur;
+  canvas.getContext('2d').putImageData(new ImageData(pixels, largeur, hauteur), 0, 0);
+  return canvas;
+}
+
+// L'eau des étangs : un grand carré de BLOCS_EAU × BLOCS_EAU blocs, assemblé avec les variantes
+// tournées de sa texture (voir assemblerTerrain). Avec une seule image de 16 pixels posée bloc
+// après bloc, l'œil voyait le même motif revenir à chaque bloc ; là, il ne revient que tous les 4.
+const BLOCS_EAU = 4;
+function peindreGrandSol(canvas, recette, nom, blocs = BLOCS_EAU) {
+  const { largeur, hauteur, pixels } = assemblerTerrain(recette, nom, blocs);
   canvas.width = largeur;
   canvas.height = hauteur;
   canvas.getContext('2d').putImageData(new ImageData(pixels, largeur, hauteur), 0, 0);
@@ -729,6 +741,10 @@ export default class RenduVoxel {
       peindreTexture(t.image, recette, nom, v);
       t.needsUpdate = true;
     });
+    if (nom === 'eau' && this.texEau) { // l'eau des étangs : son grand carré est assemblé à partir des variantes
+      peindreGrandSol(this.texEau.image, recette, nom);
+      this.texEau.needsUpdate = true;
+    }
     return true;
   }
 
@@ -1054,12 +1070,16 @@ export default class RenduVoxel {
   }
 
   // ── L'eau des étangs ───────────────────────────────────────
-  // Une texture d'eau en pixels (16 × 16, comme les blocs) qui glisse doucement, comme l'eau de
-  // Minecraft. L'eau était très lisse (roughness 0,15) : à midi, elle renvoyait le soleil comme
-  // un miroir, une grande tache blanche (repérée par l'atelier des lumières). Un peu plus rugueuse,
-  // son reflet s'étale et ne brûle plus.
+  // Une texture d'eau en pixels (16 pixels par bloc, comme les blocs) qui glisse doucement, comme
+  // l'eau de Minecraft : un grand carré de 4 × 4 blocs, fait des variantes de sa texture (voir
+  // peindreGrandSol). L'eau était très lisse (roughness 0,15) : à midi, elle renvoyait le soleil
+  // comme un miroir, une grande tache blanche (repérée par l'atelier des lumières). Un peu plus
+  // rugueuse, son reflet s'étale et ne brûle plus.
   creerEau() {
-    this.texEau = this.tex.eau[0];
+    this.texEau = new THREE.CanvasTexture(peindreGrandSol(document.createElement('canvas'), RECETTES.eau, 'eau'));
+    this.texEau.magFilter = THREE.NearestFilter;
+    this.texEau.minFilter = THREE.NearestMipmapLinearFilter;
+    this.texEau.colorSpace = THREE.SRGBColorSpace;
     this.texEau.wrapS = this.texEau.wrapT = THREE.RepeatWrapping;
     this.matEau = this.carte.brancher(new THREE.MeshStandardMaterial({
       map: this.texEau, roughness: 0.42, metalness: 0, transparent: true, opacity: 0.84,
@@ -1069,9 +1089,9 @@ export default class RenduVoxel {
     this.eaux = this.niveau.etangs.map((etang) => {
       const geo = new THREE.CircleGeometry(etang.rayon + 0.2, 48);
       geo.rotateX(-Math.PI / 2);
-      // la texture est posée « dans le monde » : un motif par bloc, quel que soit l'étang
-      const pos = geo.attributes.position, uv = geo.attributes.uv;
-      for (let i = 0; i < pos.count; i++) uv.setXY(i, (etang.x + pos.getX(i)) / B, -(etang.y + pos.getZ(i)) / B);
+      // la texture est posée « dans le monde » : 16 pixels par bloc, quel que soit l'étang
+      const pos = geo.attributes.position, uv = geo.attributes.uv, cote = B * BLOCS_EAU;
+      for (let i = 0; i < pos.count; i++) uv.setXY(i, (etang.x + pos.getX(i)) / cote, -(etang.y + pos.getZ(i)) / cote);
       const eau = new THREE.Mesh(geo, this.matEau);
       eau.position.set(etang.x, -0.18, etang.y);
       eau.receiveShadow = true;
@@ -2349,7 +2369,7 @@ export default class RenduVoxel {
     this.uTempsVent.value = this.temps;
     this.uniformesCiel.uTemps.value = this.temps;
     for (const eau of this.eaux) eau.position.y = -0.18 + Math.sin(this.temps * 1.2) * 0.01;
-    this.texEau.offset.set(this.temps * 0.05, this.temps * 0.03); // l'eau glisse doucement
+    this.texEau.offset.set((this.temps * 0.05) / BLOCS_EAU, (this.temps * 0.03) / BLOCS_EAU); // l'eau glisse doucement
     this.majVie(dtReel);
     this.drapeaux.forEach((morceaux, j) => morceaux.forEach((p, i) => {
       p.rotation.y = Math.sin(this.temps * 4 - i * 0.9 + j) * (0.18 + i * 0.12) + (i === 0 ? 0.5 : 0);
@@ -2424,6 +2444,7 @@ export default class RenduVoxel {
     this.carte.dispose();
     liberer(this.scene);
     Object.values(this.tex).flat().forEach((t) => t.dispose()); // (chaque texture : la liste de ses variantes)
+    this.texEau.dispose();
     this.composer.dispose?.();
     this.renderer.dispose();
     this.renderer.domElement.remove();

@@ -61,7 +61,7 @@ const NOMS_REGLAGES = {
   rampe: 'Rampe', part: 'Part des pixels', min: 'Hauteur la plus petite', max: 'Hauteur la plus grande', taille: 'Taille (pixels)',
   seuil: 'Seuil', haut: 'Vers le haut', hauteur: 'Hauteur', largeur: 'Largeur', pas: 'Pas', depart: 'Départ',
   a: 'a (× y)', b: 'b (× x)', epaisseur: 'Épaisseur', seuils: 'Seuils', hasard: 'Hasard', force: 'Force', nombre: 'Nombre', longueur: 'Longueur',
-  variantes: 'Variantes',
+  variantes: 'Variantes', ombre: 'Ombre', nuances: 'Nuances', relief: 'Relief', sens: 'Sens (0 debout, 1 couché)', rayon: 'Rayon',
 };
 
 const $ = (s) => document.querySelector(s);
@@ -250,11 +250,14 @@ function peindre(canvas, { largeur, hauteur, pixels }, zoom) {
   return canvas;
 }
 
+// Le grand sol d'une texture (le côté de l'herbe : un mur, avec la terre dessous, comme dans le jeu)
+const grandSol = (nom, recette, blocs) => assemblerTerrain(recette, nom, blocs, nom === 'herbeCote' ? { recette: recetteApres('terre'), nom: 'terre' } : null);
+
 function majApercus() {
   const nom = choix.texture, apres = recetteApres(nom);
   peindre($('#gros-plan-avant'), fabriquerTexture(AVANT[nom], nom, 0), 12);
   peindre($('#gros-plan-apres'), fabriquerTexture(apres, nom, 0), 12);
-  peindre($('#grand-sol'), assemblerTerrain(apres, nom, 4), 4);
+  peindre($('#grand-sol'), grandSol(nom, apres, 4), 4);
 }
 
 const vignettes = {};
@@ -550,7 +553,7 @@ async function planche() {
     const modifiee = JSON.stringify(apres) !== JSON.stringify(AVANT[nom]);
     ctx.drawImage(peindre(element('canvas'), fabriquerTexture(AVANT[nom], nom, 0), Z), x0, y0 + TITRE);
     ctx.drawImage(peindre(element('canvas'), fabriquerTexture(apres, nom, 0), Z), x0 + CASE + M, y0 + TITRE);
-    ctx.drawImage(peindre(element('canvas'), assemblerTerrain(apres, nom, 4), 2), x0 + 2 * (CASE + M), y0 + TITRE);
+    ctx.drawImage(peindre(element('canvas'), grandSol(nom, apres, 4), 2), x0 + 2 * (CASE + M), y0 + TITRE);
     ctx.fillStyle = modifiee ? '#ffd27a' : '#e9d6b8';
     ctx.font = '15px "Pixelify Sans", sans-serif';
     ctx.fillText(`${NOMS_TEXTURES[nom] || nom}${modifiee ? ' (modifiée)' : ''}`, x0, y0 + 13);

@@ -35,6 +35,7 @@ export function problemesRecette(r, chemin) {
       if (!sorte) { problemes.push(`${ici} : sorte de couche inconnue « ${couche?.type} »`); return; }
       for (const [cle, borne] of Object.entries(sorte.reglages)) {
         const v = couche[cle];
+        if (v === undefined && cle in sorte.neuve) continue; // absent : la fabrique prend la valeur d'une couche neuve
         if (borne === 'rampe') {
           if (typeof v !== 'string' || !rampes?.[v]) problemes.push(`${ici}.${cle} : il faut le nom d’une des rampes de la recette`);
         } else if (borne === 'liste') {

@@ -654,14 +654,25 @@ Dans le style voxel, chaque texture fait **16 × 16 pixels**, comme dans Minecra
 - **les couches**, posées l'une après l'autre : d'abord un fond, puis des taches, des joints, des brins d'herbe, la lumière d'en haut… ;
 - **les variantes**, et le droit de **tourner** ou de **retourner** la texture d'un bloc à l'autre (sur un grand sol, l'œil ne voit plus que c'est toujours la même image).
 
-Par exemple, l'herbe d'aujourd'hui : chaque pixel prend un des cinq verts au hasard.
+Par exemple, l'herbe. Au début, chaque pixel prenait un des cinq verts au hasard (une seule couche) ; la voici maintenant : un fond de verts très proches, des taches claires et des taches sombres de 2 pixels, une douzaine de brins (un pixel sombre, la pointe éclairée au-dessus), un peu de lumière d'en haut, et 4 variantes que chaque bloc peut tourner d'un quart de tour.
 
 ```json
 "herbe": {
-  "rampes": { "vert": ["#6fb440", "#64a83a", "#7abd4a", "#5c9e34", "#6aae3f"] },
-  "couches": [{ "type": "hasard", "rampe": "vert", "part": 1 }],
-  "variantes": 1,
-  "tourner": false,
+  "rampes": {
+    "base": ["#66aa3b", "#6aad3d", "#6db040"],
+    "clair": ["#76b947", "#7cbd4b"],
+    "sombre": ["#5e9f36", "#599932"],
+    "brins": ["#4d8b2d", "#8bcc59"]
+  },
+  "couches": [
+    { "type": "hasard", "rampe": "base", "part": 1 },
+    { "type": "taches", "rampe": "clair", "taille": 2, "seuil": 0.6, "haut": 0 },
+    { "type": "taches", "rampe": "sombre", "taille": 2, "seuil": 0.64, "haut": 0 },
+    { "type": "brins", "rampe": "brins", "nombre": 12, "longueur": 1 },
+    { "type": "relief", "taille": 3, "force": 0.05, "seuil": 0.04 }
+  ],
+  "variantes": 4,
+  "tourner": true,
   "miroir": false
 }
 ```
@@ -669,20 +680,26 @@ Par exemple, l'herbe d'aujourd'hui : chaque pixel prend un des cinq verts au has
 | Couche | Ce qu'elle fait |
 |---|---|
 | Couleurs au hasard (`hasard`) | chaque pixel (ou une part des pixels) prend une couleur au hasard dans la rampe |
-| Frange en haut (`frange`) | une bande en haut, plus ou moins haute selon la colonne : l'herbe qui déborde sur le côté d'un bloc |
+| Frange en haut (`frange`) | une bande en haut, plus ou moins haute selon la colonne : l'herbe qui déborde sur le côté d'un bloc, avec son ombre sur la terre |
 | Taches (`taches`) | des taches douces, qui se raccordent d'un bloc à l'autre (un « bruit » qui fait le tour) |
-| Joints de briques, Rangées, Colonnes | les briques du château, les planches et les tuiles, les fibres d'un tronc |
-| Traits en biais (`diagonales`) | l'écorce du bouleau |
-| Cadre (`bord`), Trous (`trous`) | le cadre de la lanterne ; les pixels transparents des feuilles |
-| Vagues (`vagues`) | les vaguelettes de l'eau |
+| Joints de briques (`briques`) | des briques décalées d'une rangée à l'autre, chacune avec sa nuance et son relief (le haut et la gauche éclairés) : le château, les tuiles du toit |
+| Planches (`lames`) | des planches en rangées, chacune avec sa nuance et un raccord placé au hasard |
+| Rangées, Colonnes, Traits en biais | des lignes régulières, et l'ancienne écorce du bouleau |
+| Traits (`traits`) | de petits traits debout ou couchés : les fibres du tronc, le fil du bois, les marques noires du bouleau, les reflets de l'eau |
+| Cadre (`bord`), Halo (`halo`) | le cadre de la lanterne, et sa lumière plus forte au centre |
+| Trous (`trous`) | des pixels transparents, isolés ou groupés : les feuilles laissent passer la lumière |
+| Vagues (`vagues`), Dégradé (`degrade`) | des vaguelettes qui font le tour ; le haut plus clair que le bas |
 | Lumière d'en haut (`relief`) | le haut de chaque bosse s'éclaire, le bas s'assombrit, comme sous le soleil |
 | Brins, Cailloux, Fissures | des brins d'herbe à la pointe éclairée, de petits cailloux avec leur ombre, des fissures qui serpentent |
 
 Le code est dans `src/rendus/recettes.js`. Il ne connaît ni Three.js ni le navigateur : il remplit un tableau de pixels, que le style voxel transforme en textures. Quelques idées à retenir :
 
 - **chaque couche a son propre hasard** (sa graine vient du nom de la texture, de la variante et du numéro de la couche) : quand on règle une couche, les autres ne bougent pas ;
+- **les variantes se raccordent entre elles, même tournées.** Les taches et la lumière d'en haut viennent d'un bruit calculé sur une grille de valeurs au hasard. Les valeurs du bord de la grille sont communes à toutes les variantes, et symétriques : le bord se lit pareil dans les deux sens, et pareil en colonne qu'en rangée (on regarde le bruit au centre de chaque pixel, pour que le quart de tour tombe juste). Deux variantes quelconques, tournées n'importe comment, se touchent donc sans couture ; seul le milieu change d'une variante à l'autre ;
+- **un réglage absent prend la valeur d'une couche neuve** : un vieux fichier de recettes se fabrique toujours, même quand une couche a gagné un réglage ;
 - **l'aspect de chaque face** (sa variante, ses quarts de tour, son miroir) vient d'un « hachage » de sa place : la même face a toujours le même aspect, dans le jeu comme dans l'atelier. Chaque variante a sa propre texture, et ce sont les coordonnées de texture des coins de la face qui tournent (`placerUV`) ;
-- **le décor voxel repart toujours du même hasard** (les fleurs, la teinte des blocs) : deux rendus du même niveau sont identiques, et une comparaison avant / après ne montre que ce qui a vraiment changé.
+- **le décor voxel repart toujours du même hasard** (les fleurs, la teinte des blocs) : deux rendus du même niveau sont identiques, et une comparaison avant / après ne montre que ce qui a vraiment changé ;
+- **l'eau des étangs** est une seule grande image posée « dans le monde » : elle est assemblée sur 4 × 4 blocs avec les variantes tournées de sa texture (`peindreGrandSol`, dans `voxel.js`). Avec une image de 16 pixels par bloc, le même motif revenait à chaque bloc ; il ne revient plus que tous les 4.
 
 Le passage aux recettes n'a pas changé l'allure du jeu : les recettes refont les mêmes textures qu'avant (même couleur moyenne à l'écran, vérifiée sur deux niveaux). Seules les petites fleurs ont changé de place, puisque le hasard du décor repart maintenant de sa graine.
 
@@ -720,7 +737,25 @@ Les alertes ne concernent que les sols vus de dessus (l'herbe, la terre, le chem
 - **Un premier essai** (des taches, des brins, des cailloux, quatre variantes tournées) fait passer les taches de l'herbe de 0,07 à 0,36… mais les coutures de 1,1 à 1,6 : on voit alors le quadrillage des blocs. Exactement le genre de défaut que l'œil rate sur une image du jeu entier.
 - **Le chemin se détache à peine de l'herbe** (un écart de clarté de 0,08).
 
-C'est le programme de l'étape suivante : refaire les textures du voxel avec l'atelier.
+C'est ce qui a été corrigé ensuite.
+
+### Les nouvelles textures du voxel
+
+Les 19 recettes ont été redessinées une famille après l'autre (le sol, l'eau, le bois, le château), avec un aperçu qui fabrique en une seconde une planche avant / après, puis vérifiées dans l'atelier, en 3D, sur les cinq niveaux voxel.
+
+**La leçon principale** (celle de Minecraft) : avec de grosses taches, même sans couture, l'œil voit le motif revenir en grille. Des taches fines (2 pixels) et des quarts de tour au hasard donnent un sol naturel. Les grandes variations, elles, viennent de la teinte de chaque bloc, déjà calculée par le style voxel. Les côtés de blocs, qui ont un sens (la frange d'herbe en haut, les planches, les briques), ne tournent pas.
+
+| Mesure | Avant | Après |
+|---|---|---|
+| Taches de l'herbe (0 = une télé sans signal) | 0,07 | 0,25 |
+| Taches du chemin, de la terre, de la pierre | 0,01 ; −0,05 ; −0,01 | 0,32 ; 0,35 ; 0,44 |
+| Coutures des sols (vers 1 : on ne voit pas les bords) | 0,9 à 1,2 | 0,6 à 1,05 |
+| Aspects différents d'un bloc de sol | 1 | 16 |
+| Écart de clarté chemin / herbe | 0,084 | 0,120 |
+
+**Les ambiances n'ont pas bougé.** Elles avaient été réglées avec les anciennes textures : chaque texture garde donc sa couleur moyenne, à 0,03 près (le chemin est le seul à s'éclaircir vraiment, exprès, pour mieux se détacher de l'herbe). Les 20 images de l'atelier des lumières (5 niveaux voxel, 4 ambiances) ont été remesurées avant et après : la luminosité moyenne bouge d'au plus 0,004, les zones brûlées et bouchées ne bougent pas, et les points brûlés baissent (45 au lieu de 53). Au passage, l'atelier a trouvé deux fleurs blanches qui brûlaient à midi : leurs tiges et leurs têtes utilisent la texture « grain » des personnages, d'abord un poil trop claire, corrigée.
+
+**Ce qui se voit** : en vue de jeu, le changement est discret (plus propre, le chemin ressort mieux) ; de près (la caméra « Cinéma »), le chemin devient du sable tassé avec ses cailloux, l'herbe a des brins, les feuilles des trous groupés comme un vrai feuillage, les briques une nuance et un relief chacune, le toit des tuiles, et l'eau des reflets irréguliers au lieu de rangées qui se répètent.
 
 ## Comment le code est rangé
 

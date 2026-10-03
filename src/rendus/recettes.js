@@ -36,12 +36,26 @@ function graine(...morceaux) {
 
 // Un bruit doux qui « fait le tour » : son bord droit se raccorde à son bord gauche, et le haut au
 // bas. Une texture qui s'en sert se répète donc sans couture. taille : la taille des bosses, en pixels.
-function bruitRaccord(hasard, taille) {
+// Le bruit est calculé à partir d'une grille de valeurs au hasard :
+// - celles du bord de la grille (la première colonne et la première rangée) viennent d'un hasard
+//   commun à TOUTES les variantes (o.hasardBords), et elles sont symétriques (le bord se lit pareil
+//   dans les deux sens, et pareil en colonne qu'en rangée). Deux variantes posées côte à côte se
+//   raccordent donc, même quand l'une des deux est tournée ou retournée : pas de couture ;
+// - celles du milieu changent d'une variante à l'autre (o.hasard).
+// On regarde le bruit au centre de chaque pixel (x + 0,5) : tourner la texture d'un quart de tour
+// tombe alors juste sur la grille.
+function bruitRaccord(o, taille) {
   const n = Math.max(2, Math.round(TAILLE / taille)); // combien de bosses sur la largeur
-  const grille = Array.from({ length: n * n }, () => hasard());
-  const valeur = (i, j) => grille[(((j % n) + n) % n) * n + (((i % n) + n) % n)];
+  const bord = Array.from({ length: Math.floor(n / 2) + 1 }, () => o.hasardBords());
+  const milieu = Array.from({ length: n * n }, () => o.hasard());
+  const valeur = (i, j) => {
+    const ci = ((i % n) + n) % n, cj = ((j % n) + n) % n;
+    if (ci === 0) return bord[Math.min(cj, n - cj)];
+    if (cj === 0) return bord[Math.min(ci, n - ci)];
+    return milieu[cj * n + ci];
+  };
   return (x, y) => {
-    const gx = (x / TAILLE) * n, gy = (y / TAILLE) * n;
+    const gx = ((x + 0.5) / TAILLE) * n, gy = ((y + 0.5) / TAILLE) * n;
     const i = Math.floor(gx), j = Math.floor(gy);
     const fx = lisser(gx - i), fy = lisser(gy - j);
     const haut = valeur(i, j) + (valeur(i + 1, j) - valeur(i, j)) * fx;
@@ -76,7 +90,8 @@ function nouvelleImage() {
 // de la recette ; « liste » : une liste de nombres ; [min, max, pas] : un curseur), les réglages
 // d'une couche toute neuve, et ce qu'elle fait à l'image.
 // Les outils o : o.hasard() (un nombre entre 0 et 1), o.choisir(rampe) (une couleur au hasard
-// dans la rampe) et o.rampe(rampe) (toutes ses couleurs, dans l'ordre).
+// dans la rampe), o.rampe(rampe) (toutes ses couleurs, dans l'ordre), et o.hasardBords() (le
+// hasard commun à toutes les variantes, pour les bords du bruit : voir bruitRaccord).
 // ═════════════════════════════════════════════════════════════
 const PARTOUT = (fonction) => { for (let y = 0; y < TAILLE; y++) for (let x = 0; x < TAILLE; x++) fonction(x, y); };
 
@@ -92,13 +107,14 @@ export const COUCHES = {
   },
   frange: {
     nom: 'Frange en haut',
-    aide: 'Une bande en haut de la texture, plus ou moins haute d’une colonne à l’autre : l’herbe qui déborde sur le côté d’un bloc.',
-    reglages: { rampe: 'rampe', min: [0, 16, 1], max: [0, 16, 1] },
-    neuve: { min: 2, max: 4 },
-    fabriquer(img, { rampe, min, max }, o) {
+    aide: 'Une bande en haut de la texture, plus ou moins haute d’une colonne à l’autre : l’herbe qui déborde sur le côté d’un bloc. « Ombre » assombrit le dernier pixel de chaque colonne (l’herbe fait de l’ombre à la terre).',
+    reglages: { rampe: 'rampe', min: [0, 16, 1], max: [0, 16, 1], ombre: [0, 0.6, 0.01] },
+    neuve: { min: 2, max: 4, ombre: 0 },
+    fabriquer(img, { rampe, min, max, ombre }, o) {
       for (let x = 0; x < TAILLE; x++) {
         const hauteur = min + Math.floor(o.hasard() * (Math.max(min, max) - min + 1));
         for (let y = 0; y < hauteur; y++) img.poser(x, y, o.choisir(rampe));
+        if (hauteur > 0 && ombre > 0) img.teinter(x, hauteur - 1, 1 - ombre);
       }
     },
   },
@@ -108,19 +124,28 @@ export const COUCHES = {
     reglages: { rampe: 'rampe', taille: [2, 8, 1], seuil: [0, 1, 0.01], haut: [-0.5, 0.5, 0.01] },
     neuve: { taille: 4, seuil: 0.55, haut: 0 },
     fabriquer(img, { rampe, taille, seuil, haut }, o) {
-      const bruit = bruitRaccord(o.hasard, taille);
+      const bruit = bruitRaccord(o, taille);
       PARTOUT((x, y) => { if (bruit(x, y) + haut * (1 - (2 * y) / (TAILLE - 1)) > seuil) img.poser(x, y, o.choisir(rampe)); });
     },
   },
   briques: {
     nom: 'Joints de briques',
-    aide: 'Des rangées de briques décalées d’une rangée à l’autre : les joints prennent les couleurs de la rampe.',
-    reglages: { rampe: 'rampe', hauteur: [2, 8, 1], largeur: [2, 16, 1] },
-    neuve: { hauteur: 4, largeur: 8 },
-    fabriquer(img, { rampe, hauteur, largeur }, o) {
+    aide: 'Des rangées de briques décalées d’une rangée à l’autre : les joints prennent les couleurs de la rampe. « Nuances » : chaque brique est un peu plus claire ou plus sombre que sa voisine ; « relief » : le haut et la gauche de chaque brique s’éclairent, le bas et la droite s’assombrissent.',
+    reglages: { rampe: 'rampe', hauteur: [2, 8, 1], largeur: [2, 16, 1], nuances: [0, 0.4, 0.01], relief: [0, 0.5, 0.01] },
+    neuve: { hauteur: 4, largeur: 8, nuances: 0, relief: 0 },
+    fabriquer(img, { rampe, hauteur, largeur, nuances, relief }, o) {
+      const facteurs = new Map(); // la nuance de chaque brique (rangée, numéro dans la rangée)
       PARTOUT((x, y) => {
-        const decale = Math.floor(y / hauteur) % 2 ? Math.floor(largeur / 2) : 0;
-        if (y % hauteur === hauteur - 1 || (x + decale) % largeur === largeur - 1) img.poser(x, y, o.choisir(rampe));
+        const rangee = Math.floor(y / hauteur);
+        const decale = rangee % 2 ? Math.floor(largeur / 2) : 0;
+        const dx = (x + decale) % TAILLE % largeur, dy = y % hauteur; // la place du pixel dans sa brique
+        if (dy === hauteur - 1 || dx === largeur - 1) { img.poser(x, y, o.choisir(rampe)); return; }
+        const brique = `${rangee}:${Math.floor(((x + decale) % TAILLE) / largeur)}`;
+        if (!facteurs.has(brique)) facteurs.set(brique, 1 + (o.hasard() - 0.5) * 2 * nuances);
+        let facteur = facteurs.get(brique);
+        if (dy === 0) facteur *= 1 + relief; else if (dy === hauteur - 2) facteur *= 1 - relief;
+        if (dx === 0) facteur *= 1 + relief / 2; else if (dx === largeur - 2) facteur *= 1 - relief / 2;
+        img.teinter(x, y, facteur);
       });
     },
   },
@@ -164,25 +189,79 @@ export const COUCHES = {
   },
   trous: {
     nom: 'Trous',
-    aide: 'Des pixels transparents : les feuilles laissent passer la lumière. À poser en dernier.',
-    reglages: { part: [0, 1, 0.01] },
-    neuve: { part: 0.16 },
-    fabriquer(img, { part }, o) {
-      PARTOUT((x, y) => { if (o.hasard() < part) img.effacer(x, y); });
+    aide: 'Des pixels transparents : les feuilles laissent passer la lumière. À poser en dernier. « Taille » 1 : des pixels isolés, au hasard ; plus grand : des trous groupés, en taches de cette taille (« part » est alors le seuil).',
+    reglages: { part: [0, 1, 0.01], taille: [1, 8, 1] },
+    neuve: { part: 0.16, taille: 1 },
+    fabriquer(img, { part, taille }, o) {
+      if (taille <= 1) { PARTOUT((x, y) => { if (o.hasard() < part) img.effacer(x, y); }); return; }
+      const bruit = bruitRaccord(o, taille);
+      PARTOUT((x, y) => { if (bruit(x, y) < part) img.effacer(x, y); });
     },
   },
   vagues: {
     nom: 'Vagues',
-    aide: 'Des vaguelettes (l’eau). La rampe va du plus sombre au plus clair ; les « seuils » disent où l’on passe d’une couleur à la suivante (une couleur de plus que de seuils).',
+    aide: 'Des vaguelettes (l’eau). La rampe va du plus sombre au plus clair ; les « seuils » disent où l’on passe d’une couleur à la suivante (une couleur de plus que de seuils) ; « hasard » brouille les vagues avec des taches douces. Les vagues font un nombre entier d’ondulations sur la largeur : elles se raccordent d’un bloc à l’autre.',
     reglages: { rampe: 'rampe', seuils: 'liste', hasard: [0, 2, 0.05] },
     neuve: { seuils: [-1.2, 0.35, 1.25], hasard: 0.5 },
     fabriquer(img, { rampe, seuils, hasard }, o) {
-      const couleurs = o.rampe(rampe);
+      const couleurs = o.rampe(rampe), bruit = bruitRaccord(o, 4), tour = (2 * Math.PI) / TAILLE;
       PARTOUT((x, y) => {
-        const v = Math.sin((x + y * 0.5) * 0.8) + Math.sin(y * 1.3 - x * 0.4) + (o.hasard() - 0.5) * hasard;
+        const v = Math.sin(tour * (2 * x + y)) + Math.sin(tour * (x - 2 * y) + 1.7) + (bruit(x, y) - 0.5) * 2 * hasard;
         let k = 0;
         while (k < seuils.length && v > seuils[k]) k++;
         img.poser(x, y, couleurs[Math.min(k, couleurs.length - 1)]);
+      });
+    },
+  },
+  lames: {
+    nom: 'Planches',
+    aide: 'Des planches posées en rangées : chacune a sa nuance (« nuances »), un joint (la rampe) en bas, et un raccord vertical à un endroit au hasard.',
+    reglages: { rampe: 'rampe', hauteur: [2, 8, 1], nuances: [0, 0.4, 0.01] },
+    neuve: { hauteur: 4, nuances: 0.1 },
+    fabriquer(img, { rampe, hauteur, nuances }, o) {
+      for (let haut = 0; haut < TAILLE; haut += hauteur) {
+        const facteur = 1 + (o.hasard() - 0.5) * 2 * nuances, raccord = Math.floor(o.hasard() * TAILLE);
+        for (let y = haut; y < Math.min(TAILLE, haut + hauteur); y++) {
+          for (let x = 0; x < TAILLE; x++) {
+            if (y === haut + hauteur - 1 || x === raccord) img.poser(x, y, o.choisir(rampe));
+            else img.teinter(x, y, facteur);
+          }
+        }
+      }
+    },
+  },
+  traits: {
+    nom: 'Traits',
+    aide: 'De petits traits droits, debout (« sens » 0) ou couchés (« sens » 1), d’une longueur au hasard jusqu’à « longueur » : les fibres d’une écorce, le fil du bois, les marques du bouleau.',
+    reglages: { rampe: 'rampe', nombre: [0, 60, 1], longueur: [1, 16, 1], sens: [0, 1, 1] },
+    neuve: { nombre: 10, longueur: 3, sens: 0 },
+    fabriquer(img, { rampe, nombre, longueur, sens }, o) {
+      for (let i = 0; i < nombre; i++) {
+        const x0 = Math.floor(o.hasard() * TAILLE), y0 = Math.floor(o.hasard() * TAILLE);
+        const couleur = o.choisir(rampe), l = 1 + Math.floor(o.hasard() * longueur);
+        for (let k = 0; k < l; k++) img.poser(sens ? x0 + k : x0, sens ? y0 : y0 + k, couleur);
+      }
+    },
+  },
+  degrade: {
+    nom: 'Dégradé',
+    aide: 'Le haut de la texture s’éclaircit et le bas s’assombrit (ou l’inverse, si la force est négative).',
+    reglages: { force: [-0.5, 0.5, 0.01] },
+    neuve: { force: 0.1 },
+    fabriquer(img, { force }) {
+      PARTOUT((x, y) => img.teinter(x, y, 1 + force * (1 - (2 * y) / (TAILLE - 1))));
+    },
+  },
+  halo: {
+    nom: 'Halo',
+    aide: 'Le centre de la texture s’éclaire, de moins en moins jusqu’au « rayon » : la lumière d’une lanterne.',
+    reglages: { force: [0, 1, 0.01], rayon: [2, 12, 0.5] },
+    neuve: { force: 0.3, rayon: 7 },
+    fabriquer(img, { force, rayon }) {
+      const centre = (TAILLE - 1) / 2;
+      PARTOUT((x, y) => {
+        const d = Math.sqrt((x - centre) ** 2 + (y - centre) ** 2);
+        if (d < rayon) img.teinter(x, y, 1 + force * (1 - d / rayon));
       });
     },
   },
@@ -192,7 +271,7 @@ export const COUCHES = {
     reglages: { taille: [2, 8, 1], force: [0, 0.6, 0.01], seuil: [0, 0.3, 0.01] },
     neuve: { taille: 4, force: 0.12, seuil: 0.04 },
     fabriquer(img, { taille, force, seuil }, o) {
-      const hauteur = bruitRaccord(o.hasard, taille);
+      const hauteur = bruitRaccord(o, taille);
       // la pente vers le bas : positive, le pixel est plus haut que celui du dessus (il regarde le soleil)
       PARTOUT((x, y) => {
         const pente = hauteur(x, y) - hauteur(x, y - 1);
@@ -263,8 +342,11 @@ export function fabriquerTexture(recette, nom, variante = 0) {
     const sorte = COUCHES[couche.type];
     if (!sorte) return; // une sorte de couche inconnue : on la passe
     const hasard = creerAleatoire(graine(nom, variante, i));
+    const hasardBords = creerAleatoire(graine(nom, 'bords', i)); // le même pour toutes les variantes
     const rampe = (n) => rampes[n] || [[255, 0, 255]]; // une rampe qui manque : du magenta, bien visible
-    sorte.fabriquer(img, couche, { hasard, rampe, choisir: (n) => { const r = rampe(n); return r[Math.floor(hasard() * r.length)]; } });
+    // un réglage absent (une recette écrite avant qu'il existe) prend la valeur d'une couche neuve
+    const reglages = { ...sorte.neuve, ...couche };
+    sorte.fabriquer(img, reglages, { hasard, hasardBords, rampe, choisir: (n) => { const r = rampe(n); return r[Math.floor(hasard() * r.length)]; } });
   });
   return { largeur: TAILLE, hauteur: TAILLE, pixels: img.pixels };
 }
@@ -291,16 +373,20 @@ export function placerUV(u, v, { quarts, miroir }) {
   return [u, v];
 }
 
-// Un morceau de terrain : blocs × blocs faces du dessus, chacune avec son aspect (pour voir dans
-// l'atelier ce que donne un grand sol, et pour mesurer les coutures). Renvoie { largeur, hauteur, pixels }.
-export function assemblerTerrain(recette, nom, blocs = 4) {
-  const variantes = Array.from({ length: recette.variantes || 1 }, (_, v) => fabriquerTexture(recette, nom, v).pixels);
+// Un morceau de terrain : blocs × blocs faces, chacune avec son aspect (pour voir dans l'atelier ce
+// que donne un grand sol, pour mesurer les coutures, et pour l'eau des étangs). Avec « dessous »
+// ({ recette, nom }), c'est un mur : la première rangée a la texture choisie, les autres celle du
+// dessous (sous le côté de l'herbe, de la terre). Renvoie { largeur, hauteur, pixels }.
+export function assemblerTerrain(recette, nom, blocs = 4, dessous = null) {
+  const lesVariantes = (r, n) => Array.from({ length: r.variantes || 1 }, (_, v) => fabriquerTexture(r, n, v).pixels);
+  const variantes = lesVariantes(recette, nom), variantesDessous = dessous && lesVariantes(dessous.recette, dessous.nom);
   const cote = blocs * TAILLE;
   const pixels = new Uint8ClampedArray(cote * cote * 4);
   for (let bz = 0; bz < blocs; bz++) {
     for (let bx = 0; bx < blocs; bx++) {
-      const aspect = aspectDeLaFace(recette, bx, 0, bz, 2);
-      const source = variantes[aspect.variante];
+      const enDessous = dessous && bz > 0;
+      const aspect = aspectDeLaFace(enDessous ? dessous.recette : recette, bx, 0, bz, 2);
+      const source = (enDessous ? variantesDessous : variantes)[aspect.variante];
       for (let y = 0; y < TAILLE; y++) {
         for (let x = 0; x < TAILLE; x++) {
           // le pixel de la texture qui tombe ici, d'après les mêmes calculs que les coins des faces
