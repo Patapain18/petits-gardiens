@@ -953,6 +953,12 @@ export default class RenduPixel {
 
     // Tous les sprites sont fabriqués une seule fois
     this.personnages = new Map(); // les sprites de chaque personnage, fabriqués à la première apparition
+    // les personnages cachés le temps d'une photo (l'atelier des modèles photographie la scène avec,
+    // puis sans eux, pour mesurer s'ils se détachent du sol) : 'tour:3' (le gardien du socle 3),
+    // 'ennemi:12' (le monstre numéro 12), 'heros', 'socle:3' (le socle 3, libre)
+    this.masques = new Set();
+    // les personnages photographiés sans leur ombre (même clés) : la photo « avec lui » de l'atelier
+    this.sansOmbre = new Set();
     this.sprites = {
       socle: spriteSocle(false),
       socleSurligne: spriteSocle(true),
@@ -1278,10 +1284,11 @@ export default class RenduPixel {
     }
     this.niveau.socles.forEach((e, i) => {
       if (e.bonus && !this.debloques.has(i)) return; // un socle bonus encore endormi
+      if (this.masques.has('socle:' + i)) return;
       const p = this.versPixel(e.x, e.y);
       this.dessinerImage(i === ui.survol || i === ui.selection ? this.sprites.socleSurligne : this.sprites.socle, p.x, p.y + 7);
     });
-    if (etat.heros) this.dessinerSolHeros(etat, ui);
+    if (etat.heros && !this.masques.has('heros')) this.dessinerSolHeros(etat, ui);
 
     // 2. Tout ce qui a de la hauteur : on fait la liste, chaque chose avec son dessin et son ombre
     const objets = [];
@@ -1301,8 +1308,10 @@ export default class RenduPixel {
     // les gardiens (et le « + » doré des socles libres)
     this.niveau.socles.forEach((e, i) => {
       if (e.bonus && !this.debloques.has(i)) return;
+      if (this.masques.has('socle:' + i)) return;
       const p = this.versPixel(e.x, e.y);
       const tour = occupes.get(i);
+      if (tour && this.masques.has('tour:' + i)) return;
       if (!tour) {
         objets.push({ y: p.y + 4, dessin: () => this.dessinerImage(PLUS, p.x, p.y - 9 + (Math.floor(this.temps * 3 + i) % 2), 0.5, 0.5) });
         return;
@@ -1323,7 +1332,7 @@ export default class RenduPixel {
       const recul = tour.attaque > 0.12 ? (versGauche ? 1 : -1) : 0; // il recule d'un pixel quand il tire
       objets.push({
         y: p.y + 4,
-        ombre: { img, x: p.x + recul, y: p.y + 3 },
+        ombre: this.sansOmbre.has('tour:' + i) ? null : { img, x: p.x + recul, y: p.y + 3 },
         dessin: () => {
           // (assommé par le feu du Dragon : plus sombre et un peu gris)
           this.dessinerImage(tour.assomme > 0 ? teinte(img, 'assomme') : img, p.x + recul, p.y + 3 - saut); // les pattes posées au milieu du socle
@@ -1341,7 +1350,7 @@ export default class RenduPixel {
     // le héros : il sautille quand il marche, s'écrase quand il frappe, cligne des yeux de temps en temps ;
     // en l'air pendant un Bond (son ombre reste par terre) ; K.O. : gris, les yeux fermés, des étoiles
     // au-dessus de la tête ; il s'éclaire quand il prend des coups ; sa barre de vie quand il est blessé
-    if (etat.heros) {
+    if (etat.heros && !this.masques.has('heros')) {
       const h = etat.heros;
       const p = this.versPixel(h.x, h.y);
       const sp = this.spritesDe(HEROS);
@@ -1355,7 +1364,7 @@ export default class RenduPixel {
       const sorte = h.ko ? 'assomme' : h.touche > 0 && Math.floor(this.temps * 8) % 2 === 0 ? 'blesse' : '';
       objets.push({
         y: p.y + 2,
-        ombre: { img, x: p.x + enAir * a.ombre.dx, y: p.y + 1 + enAir * a.ombre.dy },
+        ombre: this.sansOmbre.has('heros') ? null : { img, x: p.x + enAir * a.ombre.dx, y: p.y + 1 + enAir * a.ombre.dy },
         dessin: () => {
           const y = p.y + 1 - saut - enAir + (h.ko ? 1 : 0);
           this.dessinerImage(sorte ? teinte(img, sorte) : img, p.x, y);
@@ -1382,6 +1391,7 @@ export default class RenduPixel {
     }
     // les monstres
     for (const e of etat.ennemis) {
+      if (this.masques.has('ennemi:' + e.id)) continue;
       const p = this.versPixel(e.x, e.y);
       const fiche = MONSTRES[e.type];
       const sp = this.spritesDe(fiche);
@@ -1403,7 +1413,7 @@ export default class RenduPixel {
       const y = p.y + 2 - vol - bond;
       // son ombre reste par terre : plus il est haut, plus elle s'éloigne de lui
       const enAir = vol + bond;
-      const ombre = { img, x: p.x + enAir * a.ombre.dx, y: p.y + 2 + enAir * a.ombre.dy };
+      const ombre = this.sansOmbre.has('ennemi:' + e.id) ? null : { img, x: p.x + enAir * a.ombre.dx, y: p.y + 2 + enAir * a.ombre.dy };
       const dessin = () => {
         // ralenti par une Givrine : bleu ; pris dans la glace du Grand froid : presque blanc (et un
         // glaçon autour, plus bas) ; touché : il s'éclaire un instant. S'il est gelé, il s'éclaire EN
@@ -2108,6 +2118,13 @@ export default class RenduPixel {
     this.oy = Math.round((this.ecran.height - hauteur * T) / 2);
     this.ectx.imageSmoothingEnabled = false;
     this.peindreSol();
+  }
+
+  // Les apparences ont changé (dans l'atelier des modèles) : les sprites de chaque personnage seront
+  // redessinés à sa prochaine apparition
+  oublierPersonnages() {
+    this.personnages.clear();
+    this.partie = null;
   }
 
   detruire() {

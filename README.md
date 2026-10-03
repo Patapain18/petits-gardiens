@@ -826,6 +826,59 @@ Une mesure trompe ici : les « taches » de l'herbe baissent (−0,11), parce qu
 
 **Les ambiances n'ont pas bougé**, dans les deux styles : les 32 images de l'atelier des lumières (les 8 niveaux des mondes 1 et 2, aux 4 moments de la journée) ont été remesurées avant et après. Les zones brûlées restent sous 0,07 % de l'image, le total des points brûlés ne bouge pas (55 en pixel, 66 en cartoon), la luminosité moyenne bouge d'au plus 0,005 en pixel et 0,011 en cartoon (le cartoon est un peu plus sombre la nuit : 2 % de l'image « bouchée » au lieu de 1,6 %, très loin de l'alerte, à 35 %).
 
+## L'atelier des modèles
+
+### Se voit-il bien ?
+
+Dans un jeu de défense, le joueur doit repérer chaque monstre d'un coup d'œil, même petit, même pressé, sous n'importe quelle lumière. Or on ne voit pas bien soi-même si un personnage se détache : on sait où il est, alors on le trouve. Et environ un garçon sur douze est daltonien : il confond plus ou moins le rouge et le vert. La page `modeles.html` (un outil d'atelier) **mesure** si chaque personnage se voit bien, puis aide à régler son apparence.
+
+On choisit le style, le niveau, l'ambiance, et le modèle : un monstre, un gardien (à chacun de ses trois niveaux), le héros, ou le socle libre (là où l'on construit). La scène est un **défilé** : tous les monstres attendent en file sur le chemin, chaque socle porte un gardien (le gardien choisi est sur le socle du milieu), et le héros attend devant le château. La partie n'avance pas, mais le vent, l'eau et les petites animations continuent.
+
+### Comment on mesure
+
+L'atelier photographie la scène deux fois : **avec le personnage** (mais sans son ombre : on ne mesure que lui), puis **sans lui** (il est caché le temps d'une photo). Les pixels qui changent, c'est lui. On compare alors chacun de ses pixels au pixel du sol qu'il cache. Le code de la mesure est dans `src/rendus/lisibilite.js`.
+
+- **Comme l'œil le voit** : les couleurs passent dans l'espace « Lab » (L : la clarté ; a : du vert au rouge ; b : du bleu au jaune), où la distance entre deux couleurs suit à peu près ce que l'œil perçoit. Cette distance, l'**écart ΔE** (« delta E »), vaut 0 pour deux couleurs identiques, environ 2 quand on voit tout juste une différence, 10 pour deux couleurs nettement différentes, et plus de 30 pour deux couleurs qui n'ont rien à voir. La mesure garde l'écart **médian** : la moitié de ses pixels font mieux, l'autre moitié moins bien.
+- **La vue des daltoniens** est simulée par les matrices de Machado (2009) : la deutéranopie et la protanopie (le rouge et le vert), et la tritanopie (le bleu et le jaune, bien plus rare). Le menu « Vue d'un daltonien » pose le même calcul sur tout l'écran (un filtre SVG).
+- **Trois places sur le chemin** : un monstre est mesuré à sa place et à mi-chemin de ses deux voisins, et on garde la valeur du milieu (passer à l'ombre d'un arbre ne doit pas tout changer).
+- **Deux photos vraiment identiques** : la flamme d'une Braise vacille au hasard à chaque image. Pendant une photo, le hasard repart toujours du même nombre, sinon la flamme comptait comme une partie du monstre voisin.
+- Les petits points isolés (un reflet, la lueur d'une lanterne) ne comptent pas : on ne garde que les gros morceaux de la silhouette, que l'atelier dessine en doré par-dessus la vue.
+
+| Mesure | Ce qu'elle veut dire |
+|---|---|
+| Se détache du sol | l'écart ΔE médian entre ses pixels et le sol qu'ils cachent ; alerte sous 22, rouge sous 14 |
+| Daltoniens (rouge-vert) | la même mesure, vue par un œil deutéranope ou protanope (le pire des deux) |
+| Tritanopie (bleu-jaune) | la même, pour le daltonisme bleu-jaune |
+| Taille | sa hauteur à l'écran (ce qui se voit de lui), dans une fenêtre de jeu de 1 280 × 720 |
+| Ressemblance | pour un monstre : celui qui lui ressemble le plus (l'écart entre leurs couleurs moyennes, et le rapport de leurs tailles) |
+
+« **Mesurer tout le style** » fait le tour des 32 modèles sous les quatre ambiances (15 secondes en voxel), avec un tableau et une planche dans `captures/modeles-tour-<style>-<niveau>.jpg`. « **Avant / après** » montre le modèle avec l'apparence du fichier, puis la tienne. « **Enregistrer dans le jeu** » réécrit `src/jeu/apparences.json`, après une vérification par le serveur de développement (`format-apparences.js` : les mêmes personnages, le même gabarit, des couleurs « #rrggbb », une taille raisonnable).
+
+Pour les photos, chaque style sait cacher un personnage (`rendu.masques`) ou lui retirer son ombre (`rendu.sansOmbre`), et refabriquer tous les personnages quand une apparence change (`oublierPersonnages`).
+
+### Ce que l'atelier a trouvé, et ce qui a changé
+
+Le premier tour complet donne une image claire : **le cartoon et le pixel art s'en sortent bien**, grâce au contour sombre de leurs personnages. **Le voxel**, qui n'en a pas, a les vrais soucis, surtout à l'heure dorée (la lumière orangée et l'étalonnage assombrissent tous les verts) :
+
+- **le Filou**, brun sur le chemin brun, disparaissait presque (un écart de 10) ;
+- **le Gluant** devenait un pavé olive à l'écran (une clarté de 32 sur 100, au lieu de 74 pour sa couleur) : un daltonien ne le distinguait plus du chemin rouille (un écart de 6). Changer sa couleur n'y suffisait pas : c'est la lumière qui l'éteignait.
+
+Ce qui a changé :
+
+1. **Le Filou devient une souris gris-bleu** (aux yeux rouges). Le bleu tranche sur les chemins orangés, pour tout le monde : c'est l'axe bleu-jaune, que les daltoniens rouge-vert voient bien.
+2. **Le Gluant passe à un vert citron**, plus clair et plus jaune (`#a6ee4c` au lieu de `#5ed048`) : sa clarté n'est plus celle du chemin de sable. Les trois petits sur le dos de la Gigogne, qui sont des Gluants, prennent la même couleur.
+3. **Dans le style voxel, la gelée luit un peu de sa propre couleur** (une lueur de 0,3, dans `voxel.js`). Le voxel remettait la lueur des monstres à zéro à chaque image (elle sert au flash blanc quand ils sont touchés) : il garde maintenant une « lueur de base » par morceau. Le Gluant et la Gigogne se voient à l'heure dorée, à l'aube et la nuit.
+
+| Pire des quatre ambiances (vue normale / daltoniens) | Voxel | Cartoon | Pixel |
+|---|---|---|---|
+| Gluant, avant → après | 13 / 6 → 34 / 25 | 41 / 17 → 50 / 28 | 34 / 10 → 39 / 22 |
+| Filou, avant → après | 10 / 9 → 16 / 15 | 18 / 16 → 30 / 26 | 16 / 13 → 36 / 32 |
+| Cases rouges sur les 128 mesures du style (32 modèles × 4 ambiances) | 21 → 11 | 3 → 0 | 2 → 1 |
+
+(La pire ambiance du Filou en voxel est l'aube brumeuse, où tout pâlit ; à l'heure dorée, il passe de 10 à 38.)
+
+**Ce qui reste en rouge**, à regarder plus tard : en voxel, le Colosse (mais il est immense : 150 à 200 pixels de haut), la Gigogne à l'aube, la Taupe la nuit, et quelques gardiens (l'Étincelle de niveau 3, la Bourrasque à l'aube, le Prisme la nuit) ; en pixel art, le Dragon la nuit (13,9, tout juste sous le seuil). Les lumières des quatre niveaux voxel ont été remesurées avec la gelée qui luit : rien ne brûle (au plus 0,02 % de l'image).
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -838,6 +891,7 @@ personnages.html       la galerie des personnages, chacun dans les trois styles
 sons.html              la salle des sons : le thème et les bruitages, dans les trois époques
 lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
 textures.html          l'atelier des textures : voir les textures des trois styles en grand, les mesurer, régler leurs recettes
+modeles.html           l'atelier des modèles : chaque personnage sur les vrais sols, sa lisibilité mesurée (daltoniens compris), ses couleurs
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
 src/
@@ -847,6 +901,7 @@ src/
 ├── sons.js           la salle des sons (+ sons.css)
 ├── atelier-lumieres.js l'atelier des lumières : la partie automatique, les curseurs, les mesures (+ atelier-lumieres.css)
 ├── atelier-textures.js l'atelier des textures : gros plans, grand sol, vrai niveau, mesures, recettes (+ atelier-textures.css)
+├── atelier-modeles.js l'atelier des modèles : le défilé, les photos avec et sans le modèle, les mesures, l'apparence (+ atelier-modeles.css)
 ├── main.js            le chef d'orchestre du jeu : boucle, boutons, menu, cartes de début et de fin
 ├── didacticiel.js     les leçons, les fiches de présentation et la flèche
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
@@ -878,6 +933,7 @@ src/
 │   ├── niveau.js      lit et vérifie une fiche, puis calcule chemin, relief et décor
 │   ├── equilibrage.js les joueurs imaginaires et le verdict d'équilibrage
 │   ├── donnees.js     les fiches des personnages : chiffres de jeu + apparence
+│   ├── apparences.json l'apparence des personnages, rangée à part (l'atelier des modèles la modifie)
 │   ├── moteur.js      ce qui se passe à chaque instant : déplacements, tirs, or, défaite
 │   ├── enregistrement.js  les parties enregistrées : noter les décisions, puis les rejouer (le « lecteur »)
 │   ├── calcul.js      distance() : un calcul qui donne le même résultat dans tous les navigateurs
@@ -901,6 +957,8 @@ src/
     ├── lumieres.js    les lumières du jeu, à chaque instant (lanternes, feu, explosions…), pour les trois styles
     ├── carte-lumieres.js  la carte des lumières des styles 3D (toutes les lumières dans une petite image vue de dessus)
     ├── apparence.js   le vocabulaire des apparences (gabarits, accessoires, couleurs)
+    ├── format-apparences.js  vérifier et écrire apparences.json
+    ├── lisibilite.js  la lisibilité : les couleurs comme l'œil les voit (Lab, écart ΔE), la vue des daltoniens, la mesure avec / sans
     └── outils3d.js    morceaux partagés par les deux styles 3D
 serveur/               LE SERVEUR DU CLASSEMENT (un projet Vercel à part, voir « Le classement en ligne »)
 ├── api/scores.js      la fonction du classement : vérifie, range et lit les scores
@@ -942,6 +1000,8 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 | `versEcran(x, y, hauteur)` | où se trouve un point du jeu à l'écran ? (pour placer le menu, les « +6 » et la flèche du didacticiel) |
 | `portrait(apparence)` | le portrait d'un personnage, dans ce style (pour les fiches du didacticiel) |
 | `choisirAmbiance(nom, immediat)` | changer le moment de la journée (`immediat` : sans glisser doucement, pour l'atelier des lumières) |
+| `majTexture(nom)` | une recette de texture a changé : la refaire, ou repeindre le sol (pour l'atelier des textures) |
+| `oublierPersonnages()`, `masques`, `sansOmbre` | une apparence a changé : refabriquer les personnages ; cacher un personnage, ou lui retirer son ombre, le temps d'une photo (pour l'atelier des modèles) |
 | `redimensionner()` / `detruire()` | suivre la taille de la fenêtre / tout libérer |
 
 ### Les trois styles, techniquement
@@ -952,7 +1012,7 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 
 ## Les fiches des personnages
 
-Chaque personnage est décrit **une seule fois**, dans `src/jeu/donnees.js` : ses chiffres de jeu (prix, dégâts, vitesse…) et son **apparence**. Les trois styles fabriquent eux-mêmes le personnage à partir de cette apparence.
+Chaque personnage est décrit **une seule fois**, dans `src/jeu/donnees.js` : ses chiffres de jeu (prix, dégâts, vitesse…) et son **apparence**. Les trois styles fabriquent eux-mêmes le personnage à partir de cette apparence. L'apparence est rangée à part, dans `src/jeu/apparences.json` (des données, comme les fiches de niveau) : l'atelier des modèles la règle et l'enregistre, sans toucher au code des règles.
 
 ```js
 braise: {
@@ -960,11 +1020,7 @@ braise: {
   niveaux: [
     {
       cout: 70, degats: 9, cadence: 0.8, portee: 3.0,
-      apparence: {
-        gabarit: 'gardien',                                                // la silhouette de base
-        couleurs: { clair: '#ffb46a', peau: '#f0803a', fonce: '#b8522a' }, // dessus éclairé, peau, ombre
-        accessoires: ['flamme'],                                           // ce qu'il porte
-      },
+      apparence: APPARENCES.gardiens.braise[0],  // lue dans apparences.json
     },
     { nom: 'Braise ardente', cout: 70, /* … */ },  // niveau 2 : cout = prix de l'amélioration
     { nom: 'Brasier', cout: 110, /* … */ },        // niveau 3
@@ -972,7 +1028,14 @@ braise: {
 },
 ```
 
-Les monstres n'ont qu'un niveau : leur fiche contient directement leurs chiffres et leur `apparence`.
+```json
+"braise": [
+  { "gabarit": "gardien", "couleurs": { "clair": "#ffb46a", "peau": "#f0803a", "fonce": "#b8522a" }, "accessoires": ["flamme"] },
+  …
+]
+```
+
+Le gabarit est la silhouette de base, les couleurs vont du dessus éclairé (`clair`) à l'ombre (`fonce`), et les accessoires sont ce qu'il porte. Les monstres n'ont qu'un niveau : leur fiche contient directement leurs chiffres et leur `apparence` (`APPARENCES.monstres.gluant`…).
 
 **Les pouvoirs**, des champs facultatifs que le moteur sait lire :
 
@@ -1191,3 +1254,4 @@ Dans la console du navigateur (F12) :
 10. ~~Enregistrer les parties, pour les revoir et régler le jeu avec de vraies parties~~ (fait : `revoir.html` et `npm run parties`).
 11. ~~Le héros, plus vivant : de la vie (à zéro, K.O. jusqu'à la vague suivante) et des pouvoirs gagnés avec ses niveaux~~ (fait : la Peau de pierre au niveau 2, l'Onde de choc au 4, le Bond au 6 ; réglé avec les parties enregistrées).
 12. ~~Un atelier des textures, et des textures refaites dans les trois styles~~ (fait : des recettes réglables et mesurées ; le voxel, puis le pixel art et le cartoon).
+13. ~~Un atelier des modèles, pour que chaque personnage se voie bien, même pour un joueur daltonien~~ (fait : le Filou gris-bleu, le Gluant vert citron, la gelée qui luit en voxel).

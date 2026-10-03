@@ -166,6 +166,21 @@ export function socleProche(emplacements, x, y, rayon = 0.75) {
 // pour qu'un modèle dont l'avant regarde vers +Z se tourne dans la bonne direction.
 export const versRotationY = (angle) => Math.atan2(Math.cos(angle), Math.sin(angle));
 
+// Pour l'atelier des modèles : un personnage photographié sans son ombre (la photo « avec lui » ne
+// doit montrer que lui : voir rendus/lisibilite.js). oui = false : ses morceaux ne projettent plus
+// d'ombre, et son ombre ronde (s'il en a une) disparaît ; oui = true : tout revient comme avant.
+export function ombrerVue(vue, oui) {
+  if (!oui && vue.ombre) vue.ombre.visible = false;
+  if ((vue.sansOmbre ?? false) === !oui) return;
+  if (oui && vue.ombre) vue.ombre.visible = true;
+  vue.sansOmbre = !oui;
+  vue.racine.traverse((o) => {
+    if (!o.isMesh) return;
+    o.userData.ombreAvant ??= o.castShadow;
+    o.castShadow = oui && o.userData.ombreAvant;
+  });
+}
+
 // Libère la mémoire graphique d'un objet et de ses enfants
 export function liberer(objet) {
   objet.traverse((o) => {

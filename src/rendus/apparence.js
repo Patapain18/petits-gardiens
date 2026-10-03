@@ -30,7 +30,7 @@ export const ACCESSOIRES = {
   couronne: '#ffcf3a', // une couronne sur la tête (les gardiens de niveau 3)
   antennes: '#6ae8ff', // deux antennes qui crépitent d'électricité
   moulinet: '#ff5a7a', // un moulinet (petit moulin à vent) qui tourne sur la tête
-  petits: '#5ed048',   // trois petites gelées qui voyagent sur le dos
+  petits: '#a6ee4c',   // trois petites gelées qui voyagent sur le dos (des Gluants : leur couleur)
   casque: '#f2efe6',   // un casque de mineur avec sa lampe (il relève le haut de la tête : ce qui suit se pose dessus)
   pioche: '#9aa4b4',   // une pioche dans le dos (la couleur : celle de son fer)
   prisme: '#ffffff',   // un cristal qui flotte au-dessus de la tête et fait des arcs-en-ciel

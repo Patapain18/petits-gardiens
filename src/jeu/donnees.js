@@ -2,14 +2,17 @@
 // LES FICHES DES PERSONNAGES
 // Tout ce qu'il faut savoir sur un personnage, au même endroit :
 // - ses chiffres de jeu (prix, dégâts, vitesse…), lus par le moteur ;
-// - son « apparence », lue par les trois styles graphiques.
+// - son « apparence », lue par les trois styles graphiques. Elle est rangée à
+//   part, dans apparences.json (des données, comme les fiches de niveau) : l'atelier
+//   des modèles (modeles.html) la règle et l'enregistre.
 // Changer une fiche change le personnage dans TOUS les styles.
 // Vitesses en cases par seconde, portées et zones en cases, temps en secondes.
 //
 // L'apparence : (vocabulaire complet dans src/rendus/apparence.js)
-// - gabarit    : la silhouette de base (gardien, gelee, rongeur, golem, volant)
+// - gabarit    : la silhouette de base (gardien, gelee, rongeur, golem, volant, tortue,
+//                taupe, dragon)
 // - couleurs   : clair (le dessus éclairé), peau, fonce (l'ombre, les pattes),
-//                et parfois yeux, mousse ou lave
+//                et parfois yeux, mousse, lave, carapace, museau ou ventre
 // - taille     : 1 = taille normale
 // - accessoires: flamme, cristaux, echarpe, cornes, mortier, cape, couronne,
 //                antennes, moulinet, petits
@@ -17,6 +20,7 @@
 //                L'ordre compte en pixel art : chaque accessoire se peint par-dessus
 //                les précédents (la couronne en dernier passe devant la flamme).
 // ─────────────────────────────────────────────────────────────
+import APPARENCES from './apparences.json' with { type: 'json' };
 
 // Les volants volent à cette hauteur au-dessus du chemin (en cases) : le moteur
 // s'en sert pour viser, les styles pour les dessiner là-haut.
@@ -41,27 +45,15 @@ export const GARDIENS = {
     niveaux: [
       {
         cout: 70, degats: 9, cadence: 0.8, portee: 3.0, // cadence : une attaque toutes les 0,8 s
-        apparence: {
-          gabarit: 'gardien',
-          couleurs: { clair: '#ffb46a', peau: '#f0803a', fonce: '#b8522a' },
-          accessoires: ['flamme'],
-        },
+        apparence: APPARENCES.gardiens.braise[0],
       },
       {
         nom: 'Braise ardente', cout: 70, degats: 14, cadence: 0.62, portee: 3.2,
-        apparence: {
-          gabarit: 'gardien', taille: 1.08,
-          couleurs: { clair: '#ff9a5a', peau: '#e8602a', fonce: '#a8381e' },
-          accessoires: [{ type: 'cape', couleur: '#b8302a' }, 'flamme'],
-        },
+        apparence: APPARENCES.gardiens.braise[1],
       },
       {
         nom: 'Brasier', cout: 110, degats: 22, cadence: 0.54, portee: 3.4,
-        apparence: {
-          gabarit: 'gardien', taille: 1.16,
-          couleurs: { clair: '#ff8a6a', peau: '#d8402a', fonce: '#8a2418' },
-          accessoires: [{ type: 'cape', couleur: '#7a1e2a' }, { type: 'flamme', couleur: '#6ac8ff' }, 'couronne'],
-        },
+        apparence: APPARENCES.gardiens.braise[2],
       },
     ],
   },
@@ -76,29 +68,17 @@ export const GARDIENS = {
         cout: 75, degats: 7, cadence: 0.8, portee: 3.0,
         // facteur 0,45 = vitesse × 0,45 ; zone = le gel touche aussi les voisins de la cible
         ralentissement: { facteur: 0.45, duree: 2.5, zone: 0.9 },
-        apparence: {
-          gabarit: 'gardien',
-          couleurs: { clair: '#e0f6ff', peau: '#94d2ee', fonce: '#4f8ebc' },
-          accessoires: ['echarpe', 'cristaux'],
-        },
+        apparence: APPARENCES.gardiens.givrine[0],
       },
       {
         nom: 'Givre', cout: 70, degats: 11, cadence: 0.7, portee: 3.2,
         ralentissement: { facteur: 0.4, duree: 3, zone: 1.1 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.08,
-          couleurs: { clair: '#ecfaff', peau: '#a8e0f8', fonce: '#5a9ccc' },
-          accessoires: [{ type: 'cape', couleur: '#3a6eb8' }, 'echarpe', 'cristaux'],
-        },
+        apparence: APPARENCES.gardiens.givrine[1],
       },
       {
         nom: 'Blizzard', cout: 110, degats: 16, cadence: 0.6, portee: 3.4,
         ralentissement: { facteur: 0.35, duree: 3.5, zone: 1.4 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.16,
-          couleurs: { clair: '#ffffff', peau: '#c4ecff', fonce: '#6aa8d8' },
-          accessoires: [{ type: 'cape', couleur: '#f4fbff' }, { type: 'echarpe', couleur: '#5ab0e8' }, 'couronne', { type: 'cristaux', couleur: '#e4fbff' }],
-        },
+        apparence: APPARENCES.gardiens.givrine[2],
       },
     ],
   },
@@ -114,27 +94,15 @@ export const GARDIENS = {
         zone: 1.2, // rayon de l'explosion
         // l'explosion touche au plus 5 monstres, les plus près du point de chute (voir exploser() dans moteur.js)
         monstresMax: 5,
-        apparence: {
-          gabarit: 'gardien', taille: 1.1, // un peu plus costaud que les autres
-          couleurs: { clair: '#bc94ee', peau: '#8a5cc8', fonce: '#583890' },
-          accessoires: ['cornes', 'mortier'],
-        },
+        apparence: APPARENCES.gardiens.grondin[0], // un peu plus costaud que les autres
       },
       {
         nom: 'Tonnerre', cout: 100, degats: 40, cadence: 2.1, portee: 3.8, zone: 1.4, monstresMax: 6,
-        apparence: {
-          gabarit: 'gardien', taille: 1.18,
-          couleurs: { clair: '#c8a0f4', peau: '#7a48c0', fonce: '#4a2a80' },
-          accessoires: [{ type: 'cape', couleur: '#1f5a5a' }, 'cornes', 'mortier'],
-        },
+        apparence: APPARENCES.gardiens.grondin[1],
       },
       {
         nom: 'Séisme', cout: 150, degats: 62, cadence: 1.9, portee: 4.0, zone: 1.6, monstresMax: 8,
-        apparence: {
-          gabarit: 'gardien', taille: 1.26,
-          couleurs: { clair: '#d8b0ff', peau: '#6a38b0', fonce: '#3a1e6a' },
-          accessoires: [{ type: 'cape', couleur: '#164646' }, 'cornes', { type: 'mortier', couleur: '#6f7a90' }, 'couronne'],
-        },
+        apparence: APPARENCES.gardiens.grondin[2],
       },
     ],
   },
@@ -154,29 +122,17 @@ export const GARDIENS = {
         // Réglé pour valoir à peu près une Braise sur un groupe, et bien moins sur un monstre seul
         // (son éclair ne rate jamais : il frappe tout de suite, rien ne se perd en route).
         rebonds: { nombre: 2, saut: 1.6, attenuation: 0.6 },
-        apparence: {
-          gabarit: 'gardien',
-          couleurs: { clair: '#fff2a0', peau: '#f2cc36', fonce: '#b48c1c' },
-          accessoires: ['antennes'],
-        },
+        apparence: APPARENCES.gardiens.etincelle[0],
       },
       {
         nom: 'Éclair', cout: 75, degats: 14, cadence: 1.0, portee: 3.2,
         rebonds: { nombre: 3, saut: 1.7, attenuation: 0.62 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.08,
-          couleurs: { clair: '#ffec86', peau: '#eebf22', fonce: '#a67c12' },
-          accessoires: [{ type: 'cape', couleur: '#3048a8' }, 'antennes'],
-        },
+        apparence: APPARENCES.gardiens.etincelle[1],
       },
       {
         nom: 'Foudre', cout: 115, degats: 20, cadence: 0.95, portee: 3.4,
         rebonds: { nombre: 3, saut: 1.8, attenuation: 0.65 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.16,
-          couleurs: { clair: '#ffe46a', peau: '#e6b012', fonce: '#9a6c0c' },
-          accessoires: [{ type: 'cape', couleur: '#1c2868' }, { type: 'antennes', couleur: '#f4f0ff' }, 'couronne'],
-        },
+        apparence: APPARENCES.gardiens.etincelle[2],
       },
     ],
   },
@@ -191,29 +147,17 @@ export const GARDIENS = {
         cout: 75, degats: 3, cadence: 2.6, portee: 3.0,
         // souffle : les monstres à moins de « zone » cases de la cible reculent de « recul » cases
         souffle: { recul: 1.2, zone: 0.9 },
-        apparence: {
-          gabarit: 'gardien',
-          couleurs: { clair: '#e2fff2', peau: '#8adcbe', fonce: '#3c967a' },
-          accessoires: ['moulinet'],
-        },
+        apparence: APPARENCES.gardiens.bourrasque[0],
       },
       {
         nom: 'Rafale', cout: 75, degats: 5, cadence: 2.3, portee: 3.2,
         souffle: { recul: 1.5, zone: 1.1 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.08,
-          couleurs: { clair: '#d4fbec', peau: '#70d0ae', fonce: '#2c8668' },
-          accessoires: [{ type: 'cape', couleur: '#e05a7c' }, 'moulinet'],
-        },
+        apparence: APPARENCES.gardiens.bourrasque[1],
       },
       {
         nom: 'Tornade', cout: 115, degats: 8, cadence: 2.0, portee: 3.4,
         souffle: { recul: 1.9, zone: 1.3 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.16,
-          couleurs: { clair: '#c6f6e4', peau: '#56c29c', fonce: '#20765a' },
-          accessoires: [{ type: 'cape', couleur: '#a82c58' }, { type: 'moulinet', couleur: '#8a6aff' }, 'couronne'],
-        },
+        apparence: APPARENCES.gardiens.bourrasque[2],
       },
     ],
   },
@@ -228,27 +172,15 @@ export const GARDIENS = {
     niveaux: [
       {
         cout: 100, recolte: 25, portee: 0,
-        apparence: {
-          gabarit: 'gardien',
-          couleurs: { clair: '#ecc89c', peau: '#c8925a', fonce: '#8a5a32' },
-          accessoires: ['pioche', 'casque'],
-        },
+        apparence: APPARENCES.gardiens.pepite[0],
       },
       {
         nom: 'Filon', cout: 80, recolte: 45, portee: 0,
-        apparence: {
-          gabarit: 'gardien', taille: 1.08,
-          couleurs: { clair: '#e8bc8a', peau: '#bc8248', fonce: '#7e4e28' },
-          accessoires: [{ type: 'cape', couleur: '#2e6a4a' }, 'pioche', 'casque'],
-        },
+        apparence: APPARENCES.gardiens.pepite[1],
       },
       {
         nom: 'Trésor', cout: 120, recolte: 75, portee: 0,
-        apparence: {
-          gabarit: 'gardien', taille: 1.16,
-          couleurs: { clair: '#e4b47c', peau: '#b0743a', fonce: '#724420' },
-          accessoires: [{ type: 'cape', couleur: '#1e4a34' }, { type: 'pioche', couleur: '#7ae8ff' }, 'casque', 'couronne'],
-        },
+        apparence: APPARENCES.gardiens.pepite[2],
       },
     ],
   },
@@ -264,29 +196,17 @@ export const GARDIENS = {
       {
         cout: 110, degats: 10, portee: 3.2,
         rayon: { montee: 2, max: 3 },
-        apparence: {
-          gabarit: 'gardien',
-          couleurs: { clair: '#ffe0f2', peau: '#f0a4d4', fonce: '#b0689a' },
-          accessoires: ['prisme'],
-        },
+        apparence: APPARENCES.gardiens.prisme[0],
       },
       {
         nom: 'Rayon', cout: 90, degats: 15, portee: 3.4,
         rayon: { montee: 1.8, max: 3.2 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.08,
-          couleurs: { clair: '#ffd6ee', peau: '#ec94cc', fonce: '#a85a90' },
-          accessoires: [{ type: 'cape', couleur: '#5a3a9a' }, 'prisme'],
-        },
+        apparence: APPARENCES.gardiens.prisme[1],
       },
       {
         nom: 'Arc-en-ciel', cout: 130, degats: 22, portee: 3.6,
         rayon: { montee: 1.6, max: 3.5 },
-        apparence: {
-          gabarit: 'gardien', taille: 1.16,
-          couleurs: { clair: '#ffcce8', peau: '#e682c2', fonce: '#9c4c84' },
-          accessoires: [{ type: 'cape', couleur: '#3a2a7a' }, { type: 'prisme', couleur: '#fff6a0' }, 'couronne'],
-        },
+        apparence: APPARENCES.gardiens.prisme[2],
       },
     ],
   },
@@ -327,20 +247,20 @@ export const MONSTRES = {
     nom: 'Gluant', pv: 44, vitesse: 1.15, prime: 6, coup: 5,
     description: 'Une gelée qui avance en sautillant. Ni rapide, ni très solide : c’est le monstre de base.',
     conseil: 'Une ou deux Braise suffisent pour arrêter un petit groupe de Gluants.',
-    apparence: { gabarit: 'gelee', couleurs: { clair: '#b4f498', peau: '#5ed048', fonce: '#3a9a30' } },
+    apparence: APPARENCES.monstres.gluant,
   },
   filou: {
     nom: 'Filou', pv: 26, vitesse: 2.1, prime: 5, coup: 4,
     description: 'Petit et fragile… mais très rapide ! Il fonce vers le château en profitant de la moindre faille.',
     conseil: 'Une Givrine le ralentit : tes autres gardiens auront le temps de l’attraper.',
-    apparence: { gabarit: 'rongeur', couleurs: { clair: '#e8d0b0', peau: '#a87a56', fonce: '#6e4a30' } },
+    apparence: APPARENCES.monstres.filou,
   },
   cuirasse: {
     nom: 'Cuirassé', pv: 260, vitesse: 0.68, prime: 22, coup: 12,
     vent: 0.5, // lourd : le vent le fait deux fois moins reculer
     description: 'Un golem de pierre couvert de mousse. Il marche lentement, mais il encaisse énormément de coups.',
     conseil: 'Il faut beaucoup de dégâts : les rochers du Grondin et les gardiens améliorés en viennent à bout.',
-    apparence: { gabarit: 'golem', couleurs: { clair: '#b0b2ba', peau: '#8d8f98', fonce: '#6a6c74', mousse: '#5fa03a' } },
+    apparence: APPARENCES.monstres.cuirasse,
   },
 
   // ── Les nouveaux monstres du monde 2 ──
@@ -350,7 +270,7 @@ export const MONSTRES = {
     vent: 1.5, // léger : le vent l'emporte une fois et demie plus loin
     description: 'Une petite chauve-souris qui vole au-dessus du chemin. Les rochers du Grondin retombent par terre sans jamais la toucher.',
     conseil: 'Braise, Givrine et Étincelle l’attrapent en plein vol, le Grondin non. Une Bourrasque l’envoie valser loin en arrière.',
-    apparence: { gabarit: 'volant', couleurs: { clair: '#ff9cc6', peau: '#de4e88', fonce: '#94285a', yeux: '#ffe14a' } },
+    apparence: APPARENCES.monstres.voltigeur,
   },
   gigogne: {
     nom: 'Gigogne', pv: 120, vitesse: 0.85, prime: 10,
@@ -358,11 +278,7 @@ export const MONSTRES = {
     vent: 0.7,
     description: 'Une grosse maman gelée qui porte ses petits sur le dos. Quand on la bat, trois Gluants sautent par terre et continuent la route !',
     conseil: 'Garde des gardiens derrière elle pour les petits. Un Grondin bien placé les attrape tous les trois d’un seul rocher.',
-    apparence: {
-      gabarit: 'gelee', taille: 1.6,
-      couleurs: { clair: '#a8f0d8', peau: '#36c29a', fonce: '#1e886a' },
-      accessoires: [{ type: 'petits', couleur: '#5ed048' }],
-    },
+    apparence: APPARENCES.monstres.gigogne,
   },
   colosse: {
     nom: 'Colosse', pv: 5500, vitesse: 0.42, prime: 100,
@@ -372,11 +288,7 @@ export const MONSTRES = {
     gel: 0.5, // le gel ne le ralentit qu'à moitié
     description: 'Le chef des monstres : un géant de roche et de lave, qui avance lentement vers le château en faisant trembler le sol. Et quand on le bat, il se brise en deux !',
     conseil: 'Il faut beaucoup de dégâts, tout le long du chemin : des gardiens améliorés, des Grondin, des Étincelle. Et garde de la place derrière lui pour les deux Cuirassés.',
-    apparence: {
-      gabarit: 'golem', taille: 2.1,
-      couleurs: { clair: '#8a8090', peau: '#5c5462', fonce: '#3a3240', mousse: '#4a4250', lave: '#ff7a2a', yeux: '#ffd23a' },
-      accessoires: ['cornes'],
-    },
+    apparence: APPARENCES.monstres.colosse,
   },
 
   // ── Les nouveaux monstres du monde 3 ──
@@ -386,18 +298,14 @@ export const MONSTRES = {
     vent: 0.7,
     description: 'Une tortue de pierre à la carapace épaisse. Chaque coup perd 5 dégâts sur sa carapace : les petits coups ne lui font presque rien.',
     conseil: 'Il faut de gros coups : le rocher du Grondin, des gardiens améliorés… ou le rayon du Prisme, qui traverse la carapace.',
-    apparence: { gabarit: 'tortue', couleurs: { clair: '#bcd48c', peau: '#8eaa62', fonce: '#5c7238', carapace: '#6c7c8a' } },
+    apparence: APPARENCES.monstres.carapace,
   },
   taupe: {
     nom: 'Taupe', pv: 50, vitesse: 1.1, prime: 9,
     creuse: { dessous: 1.6, dessus: 2, vitesse: 1.5 }, // 1,6 s sous terre (1,5 fois plus vite), puis 2 s dehors
     description: 'Une taupe à lunettes qui creuse sous le chemin. Sous terre, aucun gardien ne peut la viser : on ne voit qu’un petit tas de terre qui avance.',
     conseil: 'Elle ressort régulièrement : des gardiens tout le long du chemin la cueillent chaque fois qu’elle sort.',
-    apparence: {
-      gabarit: 'taupe',
-      couleurs: { clair: '#8c7c86', peau: '#5e4e58', fonce: '#3c3038' },
-      accessoires: ['lunettes'],
-    },
+    apparence: APPARENCES.monstres.taupe,
   },
   dragon: {
     nom: 'Dragon', pv: 3500, vitesse: 0.45, prime: 150,
@@ -408,11 +316,7 @@ export const MONSTRES = {
     feu: { toutesLes: 5, portee: 3.2, duree: 2 },
     description: 'Le chef des monstres d’aujourd’hui : un énorme dragon rouge qui vole au-dessus du chemin. De temps en temps, il crache du feu sur un gardien, qui reste assommé.',
     conseil: 'Les rochers du Grondin ne l’atteignent pas : il faut des Prisme, qui ne le lâchent plus, et des Braise bien améliorées. Et assez de gardiens pour que les autres continuent quand il en assomme un.',
-    apparence: {
-      gabarit: 'dragon', taille: 2.2,
-      couleurs: { clair: '#ff8c6a', peau: '#d23c2c', fonce: '#8a1e1a', ventre: '#ffd27a', yeux: '#ffe14a' },
-      accessoires: ['cornes'],
-    },
+    apparence: APPARENCES.monstres.dragon,
   },
 };
 
@@ -468,11 +372,7 @@ export const HEROS = {
   nom: 'Grand Gardien',
   touche: 'h',
   description: 'Clique sur lui, puis sur la carte : il y marche. Il frappe le sol et touche les monstres autour de lui ; sur le chemin, il leur barre la route. Les monstres qu’il bloque le frappent : à zéro, il est K.O. jusqu’à la vague suivante.',
-  apparence: {
-    gabarit: 'gardien', taille: 1.5, // une fois et demie un gardien (en pixel art : le grand gardien, redessiné)
-    couleurs: { clair: '#ffffff', peau: '#dfe6f2', fonce: '#8e9ab0' },
-    accessoires: [{ type: 'cape', couleur: '#b8283a' }, { type: 'echarpe', couleur: '#ffcf3a' }, 'couronne'],
-  },
+  apparence: APPARENCES.heros, // une fois et demie un gardien (en pixel art : le grand gardien, redessiné)
   vitesse: 3,        // en cases par seconde, quand il marche
   rayon: 1.3,        // jusqu'où porte sa frappe, tout autour de lui
   monstresMax: 6,    // une frappe touche au plus 6 monstres, les plus proches

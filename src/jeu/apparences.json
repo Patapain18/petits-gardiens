@@ -1,0 +1,151 @@
+{
+  "gardiens": {
+    "braise": [
+      { "gabarit": "gardien", "couleurs": { "clair": "#ffb46a", "peau": "#f0803a", "fonce": "#b8522a" }, "accessoires": ["flamme"] },
+      {
+        "gabarit": "gardien",
+        "taille": 1.08,
+        "couleurs": { "clair": "#ff9a5a", "peau": "#e8602a", "fonce": "#a8381e" },
+        "accessoires": [{ "type": "cape", "couleur": "#b8302a" }, "flamme"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.16,
+        "couleurs": { "clair": "#ff8a6a", "peau": "#d8402a", "fonce": "#8a2418" },
+        "accessoires": [{ "type": "cape", "couleur": "#7a1e2a" }, { "type": "flamme", "couleur": "#6ac8ff" }, "couronne"]
+      }
+    ],
+    "givrine": [
+      { "gabarit": "gardien", "couleurs": { "clair": "#e0f6ff", "peau": "#94d2ee", "fonce": "#4f8ebc" }, "accessoires": ["echarpe", "cristaux"] },
+      {
+        "gabarit": "gardien",
+        "taille": 1.08,
+        "couleurs": { "clair": "#ecfaff", "peau": "#a8e0f8", "fonce": "#5a9ccc" },
+        "accessoires": [{ "type": "cape", "couleur": "#3a6eb8" }, "echarpe", "cristaux"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.16,
+        "couleurs": { "clair": "#ffffff", "peau": "#c4ecff", "fonce": "#6aa8d8" },
+        "accessoires": [
+          { "type": "cape", "couleur": "#f4fbff" },
+          { "type": "echarpe", "couleur": "#5ab0e8" },
+          "couronne",
+          { "type": "cristaux", "couleur": "#e4fbff" }
+        ]
+      }
+    ],
+    "grondin": [
+      {
+        "gabarit": "gardien",
+        "taille": 1.1,
+        "couleurs": { "clair": "#bc94ee", "peau": "#8a5cc8", "fonce": "#583890" },
+        "accessoires": ["cornes", "mortier"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.18,
+        "couleurs": { "clair": "#c8a0f4", "peau": "#7a48c0", "fonce": "#4a2a80" },
+        "accessoires": [{ "type": "cape", "couleur": "#1f5a5a" }, "cornes", "mortier"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.26,
+        "couleurs": { "clair": "#d8b0ff", "peau": "#6a38b0", "fonce": "#3a1e6a" },
+        "accessoires": [{ "type": "cape", "couleur": "#164646" }, "cornes", { "type": "mortier", "couleur": "#6f7a90" }, "couronne"]
+      }
+    ],
+    "etincelle": [
+      { "gabarit": "gardien", "couleurs": { "clair": "#fff2a0", "peau": "#f2cc36", "fonce": "#b48c1c" }, "accessoires": ["antennes"] },
+      {
+        "gabarit": "gardien",
+        "taille": 1.08,
+        "couleurs": { "clair": "#ffec86", "peau": "#eebf22", "fonce": "#a67c12" },
+        "accessoires": [{ "type": "cape", "couleur": "#3048a8" }, "antennes"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.16,
+        "couleurs": { "clair": "#ffe46a", "peau": "#e6b012", "fonce": "#9a6c0c" },
+        "accessoires": [{ "type": "cape", "couleur": "#1c2868" }, { "type": "antennes", "couleur": "#f4f0ff" }, "couronne"]
+      }
+    ],
+    "bourrasque": [
+      { "gabarit": "gardien", "couleurs": { "clair": "#e2fff2", "peau": "#8adcbe", "fonce": "#3c967a" }, "accessoires": ["moulinet"] },
+      {
+        "gabarit": "gardien",
+        "taille": 1.08,
+        "couleurs": { "clair": "#d4fbec", "peau": "#70d0ae", "fonce": "#2c8668" },
+        "accessoires": [{ "type": "cape", "couleur": "#e05a7c" }, "moulinet"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.16,
+        "couleurs": { "clair": "#c6f6e4", "peau": "#56c29c", "fonce": "#20765a" },
+        "accessoires": [{ "type": "cape", "couleur": "#a82c58" }, { "type": "moulinet", "couleur": "#8a6aff" }, "couronne"]
+      }
+    ],
+    "pepite": [
+      { "gabarit": "gardien", "couleurs": { "clair": "#ecc89c", "peau": "#c8925a", "fonce": "#8a5a32" }, "accessoires": ["pioche", "casque"] },
+      {
+        "gabarit": "gardien",
+        "taille": 1.08,
+        "couleurs": { "clair": "#e8bc8a", "peau": "#bc8248", "fonce": "#7e4e28" },
+        "accessoires": [{ "type": "cape", "couleur": "#2e6a4a" }, "pioche", "casque"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.16,
+        "couleurs": { "clair": "#e4b47c", "peau": "#b0743a", "fonce": "#724420" },
+        "accessoires": [{ "type": "cape", "couleur": "#1e4a34" }, { "type": "pioche", "couleur": "#7ae8ff" }, "casque", "couronne"]
+      }
+    ],
+    "prisme": [
+      { "gabarit": "gardien", "couleurs": { "clair": "#ffe0f2", "peau": "#f0a4d4", "fonce": "#b0689a" }, "accessoires": ["prisme"] },
+      {
+        "gabarit": "gardien",
+        "taille": 1.08,
+        "couleurs": { "clair": "#ffd6ee", "peau": "#ec94cc", "fonce": "#a85a90" },
+        "accessoires": [{ "type": "cape", "couleur": "#5a3a9a" }, "prisme"]
+      },
+      {
+        "gabarit": "gardien",
+        "taille": 1.16,
+        "couleurs": { "clair": "#ffcce8", "peau": "#e682c2", "fonce": "#9c4c84" },
+        "accessoires": [{ "type": "cape", "couleur": "#3a2a7a" }, { "type": "prisme", "couleur": "#fff6a0" }, "couronne"]
+      }
+    ]
+  },
+  "monstres": {
+    "gluant": { "gabarit": "gelee", "couleurs": { "clair": "#eeffb0", "peau": "#a6ee4c", "fonce": "#5cae2c" } },
+    "filou": { "gabarit": "rongeur", "couleurs": { "clair": "#dde4ef", "peau": "#8f9db6", "fonce": "#55607a" } },
+    "cuirasse": { "gabarit": "golem", "couleurs": { "clair": "#b0b2ba", "peau": "#8d8f98", "fonce": "#6a6c74", "mousse": "#5fa03a" } },
+    "voltigeur": { "gabarit": "volant", "couleurs": { "clair": "#ff9cc6", "peau": "#de4e88", "fonce": "#94285a", "yeux": "#ffe14a" } },
+    "gigogne": {
+      "gabarit": "gelee",
+      "taille": 1.6,
+      "couleurs": { "clair": "#a8f0d8", "peau": "#36c29a", "fonce": "#1e886a" },
+      "accessoires": [{ "type": "petits", "couleur": "#a6ee4c" }]
+    },
+    "colosse": {
+      "gabarit": "golem",
+      "taille": 2.1,
+      "couleurs": { "clair": "#8a8090", "peau": "#5c5462", "fonce": "#3a3240", "mousse": "#4a4250", "lave": "#ff7a2a", "yeux": "#ffd23a" },
+      "accessoires": ["cornes"]
+    },
+    "carapace": { "gabarit": "tortue", "couleurs": { "clair": "#bcd48c", "peau": "#8eaa62", "fonce": "#5c7238", "carapace": "#6c7c8a" } },
+    "taupe": { "gabarit": "taupe", "couleurs": { "clair": "#8c7c86", "peau": "#5e4e58", "fonce": "#3c3038" }, "accessoires": ["lunettes"] },
+    "dragon": {
+      "gabarit": "dragon",
+      "taille": 2.2,
+      "couleurs": { "clair": "#ff8c6a", "peau": "#d23c2c", "fonce": "#8a1e1a", "ventre": "#ffd27a", "yeux": "#ffe14a" },
+      "accessoires": ["cornes"]
+    }
+  },
+  "heros": {
+    "gabarit": "gardien",
+    "taille": 1.5,
+    "couleurs": { "clair": "#ffffff", "peau": "#dfe6f2", "fonce": "#8e9ab0" },
+    "accessoires": [{ "type": "cape", "couleur": "#b8283a" }, { "type": "echarpe", "couleur": "#ffcf3a" }, "couronne"]
+  }
+}

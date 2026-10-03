@@ -26,7 +26,7 @@ const ORIGINES = ['https://patapain18.github.io', 'http://localhost:5180', 'http
 // Le vrai site : lui seul ajoute des visites. Le jeu en développement peut lire les chiffres,
 // mais ses visites (les miennes, pendant que je vérifie) ne comptent pas.
 const SITE = 'https://patapain18.github.io';
-const PAGES = ['accueil', 'jeu', 'revoir', 'personnages', 'sons', 'lumieres', 'textures', 'editeur'];
+const PAGES = ['accueil', 'jeu', 'revoir', 'personnages', 'sons', 'lumieres', 'textures', 'modeles', 'editeur'];
 const NIVEAU_VALIDE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 // D'où vient le visiteur : le nom d'un site (« discord.com »), parfois suivi d'un dossier
 // (« patapain18.github.io/kaorie » : un autre site rangé sur la même adresse que le jeu)

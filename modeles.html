@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atelier des modèles — Petits Gardiens</title>
+  <meta name="description" content="Un outil d'atelier de Petits Gardiens : chaque personnage posé sur les vrais sols, sous les quatre ambiances, avec des mesures de lisibilité (y compris pour les joueurs daltoniens) et ses couleurs à régler." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&family=Lilita+One&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/atelier-modeles.css" />
+</head>
+<body>
+  <header class="entete">
+    <h1>Atelier des modèles</h1>
+    <p>Chaque personnage est posé sur les vrais sols d'un niveau, sous les quatre ambiances : les monstres attendent sur le chemin, les gardiens sur leurs socles. Pour savoir s'il se voit bien, l'atelier photographie la scène <strong>avec lui, puis sans lui</strong>, et compare ses pixels au sol qu'ils cachent, aussi pour un joueur daltonien. Ses couleurs, sa taille et celles de ses accessoires se règlent avec les curseurs.</p>
+    <nav class="filtres" aria-label="Autres pages">
+      <a href="./textures.html">Atelier des textures</a>
+      <a href="./lumieres.html">Atelier des lumières</a>
+      <a href="./personnages.html">Galerie des personnages</a>
+      <a href="./">Carte des époques</a>
+    </nav>
+  </header>
+
+  <!-- Les modèles (rempli par atelier-modeles.js) -->
+  <nav class="bande-modeles" id="bande-modeles" aria-label="Les modèles"></nav>
+
+  <!-- Ce qu'on regarde : le style, le niveau, l'ambiance, la vue, la vue d'un daltonien, avant ou après -->
+  <form class="choix" id="choix" aria-label="Ce qu'on regarde"></form>
+
+  <main class="atelier">
+    <section class="cote-vue" aria-label="Le modèle dans un niveau">
+      <div class="vue" id="vue">
+        <!-- la silhouette mesurée, dessinée par-dessus la vue -->
+        <canvas class="silhouette" id="silhouette" aria-hidden="true"></canvas>
+      </div>
+      <p class="info-vue" id="info-vue" aria-live="polite"></p>
+      <div class="mesures-modele" id="mesures" aria-live="polite"></div>
+    </section>
+
+    <aside class="panneau" aria-label="L'apparence">
+      <h2 id="titre-apparence">Apparence</h2>
+      <div class="apparence" id="apparence"></div>
+      <div class="actions" id="actions"></div>
+      <p class="etat-enregistrement" id="etat" role="status"></p>
+    </aside>
+  </main>
+
+  <!-- La vue d'un joueur daltonien : un filtre de couleurs posé sur toute la vue (voir lisibilite.js) -->
+  <svg class="filtres-svg" aria-hidden="true" focusable="false">
+    <filter id="deuteranopie" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" /></filter>
+    <filter id="protanopie" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" /></filter>
+    <filter id="tritanopie" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0" /></filter>
+  </svg>
+
+  <script type="module" src="/src/atelier-modeles.js"></script>
+</body>
+</html>

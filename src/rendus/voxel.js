@@ -20,7 +20,7 @@ import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
 import {
-  Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
+  Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier, ombrerVue,
 } from './outils3d.js';
 
 const B = 0.5; // taille d'un bloc : une case du jeu = 2 × 2 blocs
@@ -179,7 +179,11 @@ const GABARITS_VOXEL = {
   },
   gelee: {
     fabriquer(r, vue, { couleurs: c }, m) {
-      r.boite(vue.corps, 0.42, 0.38, 0.42, 0, 0.19, 0, m(c.peau, { transparent: true, opacity: 0.86 }));
+      // la gelée luit un peu de sa propre couleur : à l'heure dorée et la nuit, sans contour, elle
+      // devenait un pavé sombre de la couleur du chemin (voir l'atelier des modèles)
+      const gelee = m(c.peau, { transparent: true, opacity: 0.86 });
+      gelee.userData.lueur = { couleur: c.peau, force: 0.3 };
+      r.boite(vue.corps, 0.42, 0.38, 0.42, 0, 0.19, 0, gelee);
       r.boite(vue.corps, 0.2, 0.16, 0.2, 0, 0.16, 0, m(c.fonce));
       for (const sx of [-1, 1]) r.boite(vue.corps, 0.06, 0.08, 0.02, sx * 0.09, 0.25, 0.212, m(c.yeux));
       vue.ancres = { sommet: 0.38, demiLargeur: 0.21, demiProfondeur: 0.21, ceinture: 0.12, yeux: { ecart: 0.09, y: 0.25, z: 0.212, taille: 0.045 } };
@@ -578,6 +582,12 @@ export default class RenduVoxel {
     this.econome = reglages?.qualite === 'econome';
     this.tex = creerTextures();
     this.cacheMateriaux = new Map();
+    // les personnages cachés le temps d'une photo (l'atelier des modèles photographie la scène avec,
+    // puis sans eux, pour mesurer s'ils se détachent du sol) : 'tour:3' (le gardien du socle 3),
+    // 'ennemi:12' (le monstre numéro 12), 'heros', 'socle:3' (le socle 3, libre)
+    this.masques = new Set();
+    // les personnages photographiés sans leur ombre (même clés) : la photo « avec lui » de l'atelier
+    this.sansOmbre = new Set();
     // les lumières du jeu (lanternes, feu, explosions…), peintes dans la carte des lumières
     this.lumieres = new Lumieres(niveau);
     this.carte = new CarteDesLumieres(niveau);
@@ -1609,7 +1619,8 @@ export default class RenduVoxel {
       this.scene.add(this.marqueHeros);
     }
     const vue = this.vueHeros;
-    vue.racine.visible = this.anneauHeros.visible = true;
+    vue.racine.visible = this.anneauHeros.visible = !this.masques.has('heros');
+    ombrerVue(vue, !this.sansOmbre.has('heros'));
     const y = this.sol(h.x, h.y);
     vue.racine.position.set(h.x, y + h.z, h.y); // (h.z : en l'air, pendant un Bond)
     // il se tourne vers où il va (ou vers le monstre qu'il frappe), mais sans jamais tourner le dos
@@ -1735,6 +1746,8 @@ export default class RenduVoxel {
 
   majVueTour(vue, tour) {
     const e = this.niveau.socles[tour.socle];
+    vue.racine.visible = !this.masques.has('tour:' + tour.socle);
+    ombrerVue(vue, !this.sansOmbre.has('tour:' + tour.socle));
     vue.racine.position.set(e.x, this.sol(e.x, e.y) + 0.3, e.y);
     // se tourne doucement vers sa cible
     const cible = versRotationY(tour.angle);
@@ -1792,6 +1805,8 @@ export default class RenduVoxel {
     const t = this.temps + e.id;
     const y = this.sol(e.x, e.y) - 0.06;
     vue.racine.position.set(e.x, y, e.y);
+    vue.racine.visible = !this.masques.has('ennemi:' + e.id);
+    ombrerVue(vue, !this.sansOmbre.has('ennemi:' + e.id));
     vue.racine.rotation.y = Math.atan2(e.dx, e.dy);
     // il arrive avec un petit « pop » élastique (il grandit, dépasse un peu, puis se pose)
     vue.apparition = Math.min(1, vue.apparition + this.dtReel * 3.5);
@@ -1857,11 +1872,14 @@ export default class RenduVoxel {
     const k = MONSTRES[e.type].boss ? 0.35 : 1;
     const flash = e.touche > 0 ? 0.35 * k : 0;
     for (const mat of vue.materiaux) {
-      // touché : un flash blanc, ou bleu clair s'il est gelé (pour qu'on voie toujours qu'il l'est)
+      // touché : un flash blanc, ou bleu clair s'il est gelé (pour qu'on voie toujours qu'il l'est) ;
+      // sinon, la lueur de base du morceau (la gelée luit un peu), s'il en a une
+      const lueur = mat.userData.lueur;
       if (flash) mat.emissive.set(e.gele > 0 || lent < 1 ? '#bfe6ff' : '#fff2dc');
       else if (e.gele > 0) mat.emissive.set('#d8f4ff'); // pris dans la glace
       else if (lent < 1) mat.emissive.set('#3aa8ff');
-      mat.emissiveIntensity = flash || (e.gele > 0 ? 0.35 * k : lent < 1 ? 0.45 * k : 0);
+      else if (lueur) mat.emissive.set(lueur.couleur);
+      mat.emissiveIntensity = flash || (e.gele > 0 ? 0.35 * k : lent < 1 ? 0.45 * k : lueur?.force ?? 0);
     }
     majBarreDeVie(vue.barre, e.pv / e.pvMax, this.camera);
   }
@@ -2313,7 +2331,7 @@ export default class RenduVoxel {
       // un socle bonus n'existe qu'une fois débloqué (bénédiction « Nouveau socle ») : il sort alors
       // de terre avec un petit « pop » élastique
       const existe = socleActif(etat, i);
-      s.groupe.visible = existe;
+      s.groupe.visible = existe && !this.masques.has('socle:' + i);
       if (!existe) { s.apparition = 0; return; }
       if (s.apparition !== undefined && s.apparition < 1) {
         s.apparition = Math.min(1, s.apparition + dtReel * 2.5);
@@ -2436,6 +2454,16 @@ export default class RenduVoxel {
     this.composer.setSize(this.largeur, this.hauteur);
     this.etalonnage.uniforms.uRatio.value = this.largeur / this.hauteur;
     this.cadrer();
+  }
+
+  // Les apparences ont changé (dans l'atelier des modèles) : chaque personnage sera refabriqué au
+  // prochain dessin (les gardiens et les monstres, en repartant de zéro côté affichage ; le héros aussi)
+  oublierPersonnages() {
+    this.partie = null;
+    if (this.vueHeros) {
+      for (const objet of [this.vueHeros.racine, this.anneauHeros, this.marqueHeros]) { this.scene.remove(objet); liberer(objet); }
+      this.vueHeros = null;
+    }
   }
 
   detruire() {

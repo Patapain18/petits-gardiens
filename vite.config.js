@@ -9,6 +9,8 @@
 //                 (c'est ce qu'utilise l'atelier des lumières)
 // - /__textures : enregistre les recettes des textures (src/rendus/textures.json)
 //                 (c'est ce qu'utilise l'atelier des textures)
+// - /__apparences : enregistre l'apparence des personnages (src/jeu/apparences.json)
+//                 (c'est ce qu'utilise l'atelier des modèles)
 // - /__partie   : garde une partie enregistrée dans captures/parties/ (POST), ou la relit
 //                 (GET /__partie/nom) : pour vérifier qu'elle se rejoue pareil partout
 import { defineConfig } from 'vite';
@@ -19,10 +21,12 @@ import { problemesFiche } from './src/jeu/niveau.js';
 import { formaterFiche } from './src/editeur/format.js';
 import { problemesAmbiances, formaterAmbiances } from './src/rendus/format-ambiances.js';
 import { problemesTextures, formaterTextures } from './src/rendus/format-textures.js';
+import { problemesApparences, formaterApparences } from './src/rendus/format-apparences.js';
 
 const DOSSIER_NIVEAUX = path.resolve('src/niveaux');
 const FICHIER_AMBIANCES = path.resolve('src/rendus/ambiances.json');
 const FICHIER_TEXTURES = path.resolve('src/rendus/textures.json');
+const FICHIER_APPARENCES = path.resolve('src/jeu/apparences.json');
 // Un nom de fichier sûr : des minuscules, des chiffres et des tirets, rien d'autre.
 // (Impossible d'écrire « ../../quelque-chose » ailleurs que dans src/niveaux.)
 const ID_VALIDE = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -138,6 +142,22 @@ const outilsDev = {
       repondre(res, 200, { fichier: 'src/rendus/textures.json' });
     });
 
+    // L'apparence des personnages (l'atelier des modèles) : revérifiée avant d'être écrite
+    server.middlewares.use('/__apparences', async (req, res) => {
+      if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' });
+      let donnees;
+      try {
+        donnees = JSON.parse(await lireCorps(req, TAILLE_MAX_FICHE));
+      } catch {
+        return repondre(res, 400, { erreur: 'Apparences illisibles (JSON invalide ou trop gros).' });
+      }
+      const modele = JSON.parse(fs.readFileSync(FICHIER_APPARENCES, 'utf8'));
+      const problemes = problemesApparences(donnees, modele);
+      if (problemes.length) return repondre(res, 422, { erreur: `Apparences incorrectes : ${problemes[0]}`, problemes });
+      fs.writeFileSync(FICHIER_APPARENCES, formaterApparences(donnees));
+      repondre(res, 200, { fichier: 'src/jeu/apparences.json' });
+    });
+
     // Les fiches de niveau
     server.middlewares.use('/__niveaux', async (req, res) => {
       const id = decodeURIComponent((req.url || '/').split('?')[0].replace(/^\/+/, ''));
@@ -206,16 +226,16 @@ export default defineConfig(({ command }) => ({
   // Des adresses relatives (« ./assets/… » plutôt que « /assets/… ») : le site marche aussi
   // rangé dans un sous-dossier, comme sur GitHub Pages (patapain18.github.io/petits-gardiens/)
   base: './',
-  // Neuf pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
+  // Dix pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
   // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html),
   // la salle des sons (sons.html), l'atelier des lumières (lumieres.html), celui des
-  // textures (textures.html), la page pour revoir une partie enregistrée (revoir.html)
-  // et celle des visites (visites.html)
+  // textures (textures.html), celui des modèles (modeles.html), la page pour revoir une
+  // partie enregistrée (revoir.html) et celle des visites (visites.html)
   build: {
     rollupOptions: {
       input: {
         accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html',
-        lumieres: 'lumieres.html', textures: 'textures.html', revoir: 'revoir.html', visites: 'visites.html',
+        lumieres: 'lumieres.html', textures: 'textures.html', modeles: 'modeles.html', revoir: 'revoir.html', visites: 'visites.html',
       },
     },
   },

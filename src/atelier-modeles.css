@@ -1,0 +1,43 @@
+/* ─────────────────────────────────────────────────────────────
+   L'atelier des modèles (modeles.html) : le même look que les ateliers des
+   lumières et des textures (la vue à gauche, l'apparence à droite), avec la
+   bande des modèles en haut, et les mesures sous la vue.
+   ───────────────────────────────────────────────────────────── */
+@import './atelier-textures.css';
+
+/* ── la bande des modèles, rangés par famille ── */
+.bande-modeles { max-width: 1500px; margin: 4px auto 6px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.bande-modeles .vignette { width: 64px; }
+.bande-modeles .vignette canvas { width: 40px; height: 40px; }
+/* les trois niveaux d'un même gardien, serrés côte à côte */
+.trio { display: flex; gap: 2px; padding: 2px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); }
+.socle-icone { width: 40px; height: 40px; display: grid; place-items: center; }
+.socle-icone::before { content: ''; width: 30px; height: 14px; border-radius: 50%; background: #b4ac9c; box-shadow: inset 0 -4px 0 #7a7468, 0 0 0 2px #24161c; }
+
+/* ── la silhouette mesurée, par-dessus la vue ── */
+.vue .silhouette { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.filtres-svg { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* ── les mesures du modèle : un tableau, une ligne par ambiance ── */
+.mesures-modele { margin-top: 10px; }
+.mesures-modele table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.mesures-modele th, .mesures-modele td { padding: 4px 8px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.mesures-modele th { color: #ffd27a; font-weight: 500; }
+.mesures-modele td { font-variant-numeric: tabular-nums; color: #e9d6b8; }
+.mesures-modele td.attention { background: rgba(255, 180, 60, 0.18); }
+.mesures-modele td.trop { background: rgba(255, 70, 50, 0.28); }
+.mesures-modele .ressemble { margin: 8px 0 0; font-size: 0.82rem; color: #e9d6b8; }
+.mesures-modele .ressemble.attention { color: #ffd08a; }
+.mesures-modele .ressemble.trop { color: #ffb0a0; }
+
+/* ── l'apparence ── */
+.apparence .aide { margin: 0 0 6px; font-size: 0.72rem; line-height: 1.3; color: #a8988c; }
+.apparence .defaut { color: #a8988c; font-size: 0.7rem; }
+
+/* ── le tableau du tour complet ── */
+.tableau-tour { margin-top: 12px; overflow-x: auto; }
+.tableau-tour table { border-collapse: collapse; font-size: 0.75rem; }
+.tableau-tour th, .tableau-tour td { padding: 3px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); text-align: right; font-variant-numeric: tabular-nums; }
+.tableau-tour th:first-child, .tableau-tour td:first-child { text-align: left; }
+.tableau-tour td.attention { background: rgba(255, 180, 60, 0.18); }
+.tableau-tour td.trop { background: rgba(255, 70, 50, 0.28); }

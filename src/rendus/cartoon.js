@@ -14,7 +14,7 @@ import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
 import {
-  Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
+  Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier, ombrerVue,
 } from './outils3d.js';
 import TEXTURES from './textures.json';
 import { creerToile, peindreSol as peindreSolRecettes, peindreMatiere, FORMES, portee } from './peintures.js';
@@ -512,6 +512,12 @@ export default class RenduCartoon {
     // (le contour des feuillages bouge avec eux, dans le vent)
     this.matContourVent = this.venter(this.creerMatContour(0.028), 'position.y + 0.5');
     this.cache = new Map();
+    // les personnages cachés le temps d'une photo (l'atelier des modèles photographie la scène avec,
+    // puis sans eux, pour mesurer s'ils se détachent du sol) : 'tour:3' (le gardien du socle 3),
+    // 'ennemi:12' (le monstre numéro 12), 'heros', 'socle:3' (le socle 3, libre)
+    this.masques = new Set();
+    // les personnages photographiés sans leur ombre (même clés) : la photo « avec lui » de l'atelier
+    this.sansOmbre = new Set();
 
     this.creerLumieres();
     this.creerTerrain();
@@ -1175,7 +1181,8 @@ export default class RenduCartoon {
       this.scene.add(this.marqueHeros);
     }
     const vue = this.vueHeros;
-    vue.racine.visible = this.anneauHeros.visible = true;
+    vue.racine.visible = this.anneauHeros.visible = !this.masques.has('heros');
+    ombrerVue(vue, !this.sansOmbre.has('heros'));
     const y = this.sol(h.x, h.y);
     vue.racine.position.set(h.x, y + h.z, h.y); // (h.z : en l'air, pendant un Bond)
     // il se tourne vers où il va (ou vers le monstre qu'il frappe), mais sans jamais tourner le dos
@@ -1349,6 +1356,8 @@ export default class RenduCartoon {
 
   majVueTour(vue, tour) {
     const e = this.niveau.socles[tour.socle];
+    vue.racine.visible = !this.masques.has('tour:' + tour.socle);
+    ombrerVue(vue, !this.sansOmbre.has('tour:' + tour.socle));
     vue.racine.position.set(e.x, this.sol(e.x, e.y) + 0.27, e.y);
     let diff = versRotationY(tour.angle) - vue.racine.rotation.y;
     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -1405,6 +1414,7 @@ export default class RenduCartoon {
     const t = this.temps + e.id;
     const y = this.sol(e.x, e.y) - 0.04;
     vue.racine.position.set(e.x, y, e.y);
+    vue.racine.visible = !this.masques.has('ennemi:' + e.id);
     vue.racine.rotation.y = Math.atan2(e.dx, e.dy);
     // il arrive avec un petit « pop » élastique (il grandit, dépasse un peu, puis se pose)
     vue.apparition = Math.min(1, vue.apparition + this.dtReel * 3.5);
@@ -1412,6 +1422,7 @@ export default class RenduCartoon {
     vue.racine.scale.setScalar(TAILLE_MONSTRE * (a < 1 ? 1 - Math.cos(a * Math.PI * 2.5) * Math.pow(1 - a, 2) : 1));
     // sous terre (la Taupe) : on cache le monstre, on montre un tas de terre qui avance
     vue.corps.visible = vue.ombre.visible = !e.cache;
+    ombrerVue(vue, !this.sansOmbre.has('ennemi:' + e.id));
     if (e.cache && !vue.butte) {
       vue.butte = this.piece(vue.racine, new THREE.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.5, 1.3), this.toon('#8a6440'), 0, 0, 0);
     }
@@ -1989,7 +2000,7 @@ export default class RenduCartoon {
       // un socle bonus n'existe qu'une fois débloqué (bénédiction « Nouveau socle ») : il sort alors
       // de terre avec un petit « pop » élastique
       const existe = socleActif(etat, i);
-      s.groupe.visible = existe;
+      s.groupe.visible = existe && !this.masques.has('socle:' + i);
       if (!existe) { s.apparition = 0; return; }
       if (s.apparition !== undefined && s.apparition < 1) {
         s.apparition = Math.min(1, s.apparition + dtReel * 2.5);
@@ -2097,6 +2108,16 @@ export default class RenduCartoon {
     this.hauteur = this.conteneur.clientHeight || innerHeight;
     this.renderer.setSize(this.largeur, this.hauteur);
     this.cadrer();
+  }
+
+  // Les apparences ont changé (dans l'atelier des modèles) : chaque personnage sera refabriqué au
+  // prochain dessin (les gardiens et les monstres, en repartant de zéro côté affichage ; le héros aussi)
+  oublierPersonnages() {
+    this.partie = null;
+    if (this.vueHeros) {
+      for (const objet of [this.vueHeros.racine, this.anneauHeros, this.marqueHeros]) { this.scene.remove(objet); liberer(objet); }
+      this.vueHeros = null;
+    }
   }
 
   detruire() {
