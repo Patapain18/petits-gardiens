@@ -276,15 +276,22 @@ export function sauterHeros(etat, x, y) {
 
 // Le héros frappe ces monstres (sa frappe, ou l'Onde de choc) : il gagne la prime de ceux qu'il bat
 function frapperMonstres(etat, monstres, degats) {
-  const h = etat.heros;
   for (const e of monstres) {
     blesser(etat, e, degats, { par: 'heros' });
-    if (e.pv <= 0) h.xp += MONSTRES[e.type].prime;
+    if (e.pv <= 0) gagnerExperience(etat, MONSTRES[e.type].prime);
   }
+}
+
+// Le héros gagne de l'expérience : toute la prime des monstres qu'il bat lui-même (frapperMonstres),
+// et une part (HEROS.partage) de celle des monstres battus par les autres (voir blesser). Sans
+// cette part, un héros posté là où les gardiens battaient déjà tout ne gagnait jamais rien.
+function gagnerExperience(etat, xp) {
+  const h = etat.heros;
+  h.xp += xp;
   while (h.niveau < HEROS.niveaux.length && h.xp >= HEROS.niveaux[h.niveau].xp) {
     const vieAvant = ficheDuHeros(etat).vie;
     h.niveau++;
-    h.vie += ficheDuHeros(etat).vie - vieAvant; // sa vie grandit avec lui
+    if (!h.ko) h.vie += ficheDuHeros(etat).vie - vieAvant; // sa vie grandit avec lui (K.O., il se relèvera avec toute sa vie)
     etat.evenements.push({ type: 'herosNiveau', x: h.x, y: h.y, niveau: h.niveau });
   }
 }
@@ -752,6 +759,8 @@ function blesser(etat, ennemi, degats, { perce = false, flash = true, par = null
     const prime = Math.round(fiche.prime * (etat.bonus?.primes ?? 1)); // (la bénédiction « Butin »)
     etat.or += prime;
     etat.evenements.push({ type: 'mort', x: ennemi.x, y: ennemi.y, d: ennemi.d, quoi: ennemi.type, prime, par, gele: ennemi.gele > 0 });
+    // battu par un autre que le héros (un gardien, un pouvoir…) : le héros en gagne une part
+    if (etat.heros && par !== 'heros') gagnerExperience(etat, fiche.prime * HEROS.partage);
     if (fiche.enfants) faireNaitre(etat, ennemi, fiche.enfants);
   }
 }

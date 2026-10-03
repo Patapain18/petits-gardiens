@@ -238,7 +238,7 @@ Dans les niveaux dont la fiche dit `"heros": true` : un **Grand Gardien**, une f
 - **Pendant qu'il marche, il ne frappe pas et ne barre rien** : le déplacer au bon moment, c'est tout l'art.
 - **Il a de la vie.** Les monstres qu'il bloque le frappent : chacun lui enlève quelques points de vie par seconde (`coup` dans sa fiche : 5 pour un Gluant, 4 pour un Filou, 12 pour un Cuirassé), et un monstre renforcé frappe plus fort (son coup × la racine quatrième de sa force). Un monstre gelé ou assommé ne frappe pas. Loin des combats (aucun monstre à moins de 2 cases pendant 2 secondes), il se soigne de 8 % de sa vie par seconde, et entre deux vagues, il se repose. Une barre de vie s'affiche au-dessus de lui quand il est blessé, et il clignote en rouge pendant qu'on le frappe.
 - **À zéro, il est K.O. jusqu'à la vague suivante** : couché, gris, des étoiles au-dessus de la tête. Il ne frappe plus, ne barre plus la route, et on ne peut plus le déplacer. Au début de la vague suivante, il se relève avec toute sa vie.
-- **Il gagne des niveaux** (jusqu'au 6) avec la prime des monstres qu'il bat lui-même. Son bouton montre son niveau, sa vie et son expérience. Les bénédictions « pour tous les gardiens » (Entraînement, Furie, Œil de lynx) comptent aussi pour lui.
+- **Il gagne des niveaux** (jusqu'au 6) : toute la prime des monstres qu'il bat lui-même, et le quart de celle des monstres battus par les gardiens (et les pouvoirs). Son bouton montre son niveau, sa vie et son expérience. Les bénédictions « pour tous les gardiens » (Entraînement, Furie, Œil de lynx) comptent aussi pour lui.
 
 | Niveau | Dégâts d'une frappe | Vie | Expérience | Ce qu'il gagne |
 |---|---|---|---|---|
@@ -256,6 +256,16 @@ Ses chiffres sont dans `HEROS` (`src/jeu/donnees.js`), ses règles dans le moteu
 **Réglé avec deux vraies parties.** Avant, le héros n'avait pas de vie : dans les deux parties enregistrées d'un vrai joueur, il faisait **62 à 99 % des dégâts** des vagues 2 à 15, et il était au niveau 6 dès la vague 7. Le joueur trouvait aussi que ses niveaux ne changeaient pas grand-chose. Maintenant, il frappe moins fort au début (14 au lieu de 28), il faut le surveiller (le soigner, ne pas le laisser tomber), et ses niveaux arrivent tout au long de la partie : avec l'« expert » imaginaire qui le pilote comme ce joueur, il fait encore 53 % des dégâts au début, puis 40 %, puis 15 % ; il est au niveau 4 vers la vague 11 et au niveau 6 entre les vagues 22 et 25. Le héros étant moins fort, la montée des vagues est passée de 22 % à 20 %, pour que le bon joueur imaginaire tienne toujours 26 vagues. Le bon joueur imaginaire, lui, recule son héros pour le soigner quand il a moins d'un tiers de sa vie, lance l'Onde de choc dès que 3 monstres sont autour de lui, et le Bond quand un monstre arrive au château.
 
 **Ce que les joueurs imaginaires ont appris** : au premier essai, le bon joueur postait son héros au cœur de sa défense, là où le plus de gardiens tirent… et il ne frappait presque jamais : les monstres y mouraient avant d'arriver jusqu'à lui (0 frappe pendant 12 vagues, toujours niveau 1). Le bon réflexe, c'est l'inverse : le mettre **là où les monstres passent encore**. Le bon joueur retient où ils sont tombés à la vague d'avant, se poste vers le bout de cette zone, et court devant un monstre qui approche du château. Ainsi, un héros bien déplacé fait gagner 1 à 7 vagues selon la composition, contre 0 à 5 s'il ne bouge jamais.
+
+**Réglé ensuite avec la partie d'un nouveau joueur.** La première vraie partie avec ce héros (Cosmopolite : 26 vagues, 2e du classement) est tombée dans le même piège : son héros était posté entre 22 et 42 % du chemin, juste derrière la zone où les gardiens battaient tout (les monstres mouraient avant 21 % du chemin). Il n'a presque rien battu lui-même : niveau 3 en 26 vagues (358 points d'expérience, quand il en faut 800 pour l'Onde de choc), puis 6 K.O. quand les vagues sont devenues assez fortes pour arriver jusqu'à lui, sur un héros resté trop faible. Et les rejeux ont montré que même les bons joueurs imaginaires n'avaient presque jamais le niveau 4. Depuis, le héros gagne aussi **le quart de la prime des monstres battus par les gardiens** (`partage`, dans sa fiche). Mesuré avec les joueurs imaginaires, et un nouveau joueur imaginaire « comme Cosmopolite » (le héros planté au tiers du chemin) :
+
+| | Onde de choc (niveau 4) | Bond (niveau 6) | Vagues tenues |
+|---|---|---|---|
+| Bon joueur | vague 10 à 14 (avant : presque jamais) | vague 17 à 24 | 28 en moyenne (avant : 27,3) |
+| Héros mal placé | vague 15 (avant : jamais) | rarement | 27 (avant : 26,3) |
+| Expert | vague 8 (avant : 10-11) | vague 15 (avant : 16-22) | 34 (comme avant) |
+
+Le partage ne change presque rien à la difficulté (moins d'une vague) : il permet surtout à tout le monde de voir les pouvoirs du héros. (Le quart, plutôt que des niveaux plus faciles : avec des seuils plus bas, les bons joueurs avaient le Bond dès la vague 12, alors que les niveaux devaient rester lents.)
 
 ## Le classement en ligne
 

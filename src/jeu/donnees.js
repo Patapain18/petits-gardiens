@@ -460,8 +460,8 @@ export const POUVOIRS = {
 // moment, c'est tout l'art.
 // Il a de la VIE : les monstres qu'il bloque le frappent (« coup » dans leur fiche, plus fort pour un
 // monstre renforcé) ; loin des combats, il se soigne ; entre deux vagues, il se repose (toute sa vie).
-// À zéro, il est K.O. jusqu'à la vague suivante. Il gagne des niveaux en battant des monstres, et
-// certains niveaux lui donnent un POUVOIR.
+// À zéro, il est K.O. jusqu'à la vague suivante. Il gagne des niveaux avec les monstres qu'il bat (et
+// une part de ceux que battent les gardiens), et certains niveaux lui donnent un POUVOIR.
 // (Réglé en octobre 2026 avec deux parties enregistrées : avant, sans vie, il faisait 62 à 99 % des
 // dégâts des vagues 2 à 15, et il était au niveau 6 dès la vague 7.)
 export const HEROS = {
@@ -483,8 +483,15 @@ export const HEROS = {
   // (force 16 : × 2 ; force 1 296 : × 6). Une racine quatrième, c'est deux racines carrées :
   // Math.sqrt donne le même résultat dans tous les navigateurs (voir calcul.js), Math.pow non.
   soin: { attente: 2, part: 0.08 }, // 2 secondes sans monstre à moins de 2 cases : il reprend 8 % de sa vie par seconde
+  // L'expérience : toute la prime des monstres qu'il bat lui-même, et cette part (le quart) de la
+  // prime des monstres battus par les autres (les gardiens, les pouvoirs). Sans elle, un héros posté
+  // là où les gardiens battaient déjà tout ne gagnait rien : la première partie d'un nouveau joueur
+  // (Cosmopolite, 26 vagues) a fini au niveau 3, sans jamais voir l'Onde de choc ni le Bond, et même
+  // les bons joueurs imaginaires n'avaient presque jamais le niveau 4. Avec le quart : l'Onde de choc
+  // vers la vague 10 à 14 pour un bon joueur, vers la 15 pour un héros mal placé ; le Bond reste une
+  // récompense de fin de partie ; et l'expert imaginaire tient toujours 34 vagues.
+  partage: 0.25,
   // ses niveaux : les dégâts d'une frappe, sa vie, et l'expérience qu'il faut pour y arriver
-  // (il gagne la prime de chaque monstre qu'il bat lui-même)
   niveaux: [
     { degats: 14, vie: 120, xp: 0 },
     { degats: 20, vie: 160, xp: 100 },
