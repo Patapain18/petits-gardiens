@@ -1,12 +1,15 @@
 // ─────────────────────────────────────────────────────────────
 // LES RECETTES DES TEXTURES (src/rendus/textures.json) : les vérifier, les écrire
-// Le fichier range, pour chaque style, la recette de chacune de ses textures
-// (voir recettes.js). Le style voxel le lit au démarrage ; l'atelier des
-// textures (textures.html) le modifie et l'enregistre.
+// Le fichier range, pour chaque style, la recette de chacune de ses textures :
+// - le voxel et le pixel art : des petits carrés de 16 × 16 pixels (voir recettes.js) ;
+// - le cartoon : une toile peinte au pinceau (voir peintures.js).
+// Les trois styles le lisent au démarrage ; l'atelier des textures
+// (textures.html) le modifie et l'enregistre.
 // Ce petit module sert aux deux côtés : l'atelier, et le serveur de
 // développement (vite.config.js), qui revérifie tout avant d'écrire le fichier.
 // ─────────────────────────────────────────────────────────────
 import { COUCHES } from './recettes.js';
+import { PINCEAUX } from './peintures.js';
 
 const COULEUR = /^#[0-9a-f]{6}$/i;
 const NOM_RAMPE = /^[a-z][a-zA-Z0-9]{0,23}$/;
@@ -14,8 +17,14 @@ export const VARIANTES_MAX = 4;
 export const COUCHES_MAX = 12;
 export const COULEURS_MAX = 8;
 
-// Les problèmes d'une recette (une liste vide : tout va bien)
-export function problemesRecette(r, chemin) {
+// Les styles dont les textures sont peintes (les autres sont faites de petits carrés de 16 × 16)
+const STYLES_PEINTS = ['cartoon'];
+const estPeint = (style) => STYLES_PEINTS.includes(style);
+
+// Les problèmes d'une recette (une liste vide : tout va bien). peinte : une recette du style
+// cartoon (des coups de pinceau, sans variantes ni quarts de tour)
+export function problemesRecette(r, chemin, peinte = false) {
+  const SORTES = peinte ? PINCEAUX : COUCHES;
   const problemes = [];
   if (!r || typeof r !== 'object' || Array.isArray(r)) return [`${chemin} : il faut une recette`];
   const rampes = r.rampes && typeof r.rampes === 'object' && !Array.isArray(r.rampes) ? r.rampes : null;
@@ -31,7 +40,7 @@ export function problemesRecette(r, chemin) {
   } else {
     r.couches.forEach((couche, i) => {
       const ici = `${chemin}.couches[${i}]`;
-      const sorte = COUCHES[couche?.type];
+      const sorte = SORTES[couche?.type];
       if (!sorte) { problemes.push(`${ici} : sorte de couche inconnue « ${couche?.type} »`); return; }
       for (const [cle, borne] of Object.entries(sorte.reglages)) {
         const v = couche[cle];
@@ -47,10 +56,13 @@ export function problemesRecette(r, chemin) {
       for (const cle of Object.keys(couche)) if (cle !== 'type' && !(cle in sorte.reglages)) problemes.push(`${ici}.${cle} : réglage inconnu`);
     });
   }
-  if (!Number.isInteger(r.variantes) || r.variantes < 1 || r.variantes > VARIANTES_MAX) problemes.push(`${chemin}.variantes : il faut un nombre entier de 1 à ${VARIANTES_MAX}`);
-  if (typeof r.tourner !== 'boolean') problemes.push(`${chemin}.tourner : il faut true ou false`);
-  if (typeof r.miroir !== 'boolean') problemes.push(`${chemin}.miroir : il faut true ou false`);
-  for (const cle of Object.keys(r)) if (!['rampes', 'couches', 'variantes', 'tourner', 'miroir'].includes(cle)) problemes.push(`${chemin}.${cle} : réglage inconnu`);
+  if (!peinte) {
+    if (!Number.isInteger(r.variantes) || r.variantes < 1 || r.variantes > VARIANTES_MAX) problemes.push(`${chemin}.variantes : il faut un nombre entier de 1 à ${VARIANTES_MAX}`);
+    if (typeof r.tourner !== 'boolean') problemes.push(`${chemin}.tourner : il faut true ou false`);
+    if (typeof r.miroir !== 'boolean') problemes.push(`${chemin}.miroir : il faut true ou false`);
+  }
+  const permis = peinte ? ['rampes', 'couches'] : ['rampes', 'couches', 'variantes', 'tourner', 'miroir'];
+  for (const cle of Object.keys(r)) if (!permis.includes(cle)) problemes.push(`${chemin}.${cle} : réglage inconnu`);
   return problemes;
 }
 
@@ -66,7 +78,7 @@ export function problemesTextures(proposees, modele) {
     for (const nom of Object.keys(textures)) if (!(nom in p)) problemes.push(`${style}.${nom} manque (le jeu s’en sert)`);
     for (const [nom, recette] of Object.entries(p)) {
       if (!(nom in textures)) problemes.push(`${style}.${nom} : texture inconnue`);
-      else problemes.push(...problemesRecette(recette, `${style}.${nom}`));
+      else problemes.push(...problemesRecette(recette, `${style}.${nom}`, estPeint(style)));
     }
   }
   return problemes;

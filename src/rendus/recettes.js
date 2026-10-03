@@ -21,14 +21,14 @@ import { creerAleatoire } from '../jeu/aleatoire.js';
 export const TAILLE = 16; // une texture fait 16 × 16 pixels, comme dans Minecraft
 
 const lisser = (t) => t * t * (3 - 2 * t);
-const enRVB = (couleur) => [1, 3, 5].map((i) => parseInt(couleur.slice(i, i + 2), 16));
+export const enRVB = (couleur) => [1, 3, 5].map((i) => parseInt(couleur.slice(i, i + 2), 16));
 // La clarté d'une couleur, de 0 (noir) à 1 (blanc) : l'œil voit le vert bien plus clair que le bleu
 export const clarte = (r, g, b) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 
 // Le nombre de départ du hasard, tiré du nom de la texture, de sa variante et du numéro de la
 // couche : chaque couche a son propre hasard. Changer le réglage d'une couche ne change donc pas
 // les autres (sinon, toute la texture bougerait pendant qu'on règle un curseur).
-function graine(...morceaux) {
+export function graine(...morceaux) {
   let h = 2166136261;
   for (const lettre of morceaux.join(':')) h = Math.imul(h ^ lettre.charCodeAt(0), 16777619);
   return h >>> 0;
@@ -291,6 +291,24 @@ export const COUCHES = {
         const x = Math.floor(o.hasard() * TAILLE), y = Math.floor(o.hasard() * TAILLE);
         for (let k = 0; k < longueur; k++) img.poser(x, y + k, couleurs[0]);
         img.poser(x, y - 1, couleurs[couleurs.length - 1]);
+      }
+    },
+  },
+  touffes: {
+    nom: 'Touffes en V',
+    aide: 'De petites touffes d’herbe en V, comme dans les jeux 16 bits : deux brins qui s’écartent d’un même pied, de la première couleur de la rampe (la plus sombre), avec la pointe éclairée (la dernière couleur). « Hauteur » : la hauteur d’un brin, en pixels.',
+    reglages: { rampe: 'rampe', nombre: [0, 30, 1], hauteur: [1, 4, 1] },
+    neuve: { nombre: 5, hauteur: 2 },
+    fabriquer(img, { rampe, nombre, hauteur }, o) {
+      const couleurs = o.rampe(rampe), sombre = couleurs[0], pointe = couleurs[couleurs.length - 1];
+      for (let i = 0; i < nombre; i++) {
+        const x = Math.floor(o.hasard() * TAILLE), y = Math.floor(o.hasard() * TAILLE);
+        img.poser(x, y, sombre); // le pied
+        for (let k = 1; k <= hauteur; k++) {
+          const ecart = Math.ceil(k / 2), bout = k === hauteur; // les brins s'écartent en montant
+          img.poser(x - ecart, y - k, bout ? pointe : sombre);
+          img.poser(x + ecart, y - k, bout ? pointe : sombre);
+        }
       }
     },
   },

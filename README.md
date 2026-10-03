@@ -658,7 +658,7 @@ Le tour complet final de l'atelier : 168 images (15 niveaux, dans les trois styl
 
 ### Des recettes plutôt que des dessins
 
-Dans le style voxel, chaque texture fait **16 × 16 pixels**, comme dans Minecraft. Personne ne les dessine à la main : chacune est fabriquée par le code d'après une **recette**, rangée dans `src/rendus/textures.json` (des données, comme les fiches de niveau). Une recette a trois parties :
+Dans le style voxel, chaque texture fait **16 × 16 pixels**, comme dans Minecraft (le pixel art utilise les mêmes recettes, case par case, et le cartoon des recettes peintes au pinceau : voir plus bas). Personne ne les dessine à la main : chacune est fabriquée par le code d'après une **recette**, rangée dans `src/rendus/textures.json` (des données, comme les fiches de niveau). Une recette a trois parties :
 
 - **les rampes** : des listes de couleurs, si possible rangées du plus sombre au plus clair (« vert » : cinq verts, « terre » : quatre bruns…) ;
 - **les couches**, posées l'une après l'autre : d'abord un fond, puis des taches, des joints, des brins d'herbe, la lumière d'en haut… ;
@@ -701,6 +701,7 @@ Par exemple, l'herbe. Au début, chaque pixel prenait un des cinq verts au hasar
 | Vagues (`vagues`), Dégradé (`degrade`) | des vaguelettes qui font le tour ; le haut plus clair que le bas |
 | Lumière d'en haut (`relief`) | le haut de chaque bosse s'éclaire, le bas s'assombrit, comme sous le soleil |
 | Brins, Cailloux, Fissures | des brins d'herbe à la pointe éclairée, de petits cailloux avec leur ombre, des fissures qui serpentent |
+| Touffes en V (`touffes`) | de petites touffes d'herbe comme dans les jeux 16 bits : deux brins qui s'écartent d'un même pied, la pointe éclairée (ajoutée pour le pixel art) |
 
 Le code est dans `src/rendus/recettes.js`. Il ne connaît ni Three.js ni le navigateur : il remplit un tableau de pixels, que le style voxel transforme en textures. Quelques idées à retenir :
 
@@ -715,11 +716,11 @@ Le passage aux recettes n'a pas changé l'allure du jeu : les recettes refont le
 
 ### L'atelier des textures
 
-La page `textures.html` (un outil d'atelier, à côté de l'atelier des lumières) sert à **voir** les textures, puis à les régler :
+La page `textures.html` (un outil d'atelier, à côté de l'atelier des lumières) sert à **voir** les textures, puis à les régler. On y choisit d'abord **le style** (voxel, cartoon ou pixel art) :
 
-- **la bande des textures**, rangées par famille (le sol, les arbres et le bois, le château et les objets, les personnages). Une pastille dorée marque celles qu'on a modifiées ;
-- **un vrai niveau en 3D**, dans le style voxel : on choisit le niveau, l'ambiance, et la vue (la vue de jeu, le cinéma, ou **de près** : le chemin, un socle, le château, un arbre, l'étang). L'atelier dit combien de pixels d'écran fait un pixel de texture au centre de la vue (environ 1 en vue de jeu, 9 de près) ;
-- **les gros plans** de la texture choisie, avant (le fichier) et après (tes réglages), et **un grand sol** de 4 × 4 blocs avec ses variantes tournées ;
+- **la bande des textures** du style, rangées par famille (pour le voxel : le sol, les arbres et le bois, le château et les objets, les personnages). Une pastille dorée marque celles qu'on a modifiées ;
+- **un vrai niveau**, dans le style choisi : on choisit le niveau, l'ambiance, et la vue (la vue de jeu, le cinéma en voxel, ou **de près** : le chemin, un socle, le château, un arbre, l'étang). Le cartoon resserre sa caméra sur le point regardé ; le pixel art, qui n'a pas de caméra, agrandit son image 3 fois, sans flou. L'atelier dit combien de pixels d'écran fait un pixel de texture au centre de la vue (en voxel : environ 1 en vue de jeu, 9 de près) ;
+- **les gros plans** de la texture choisie, avant (le fichier) et après (tes réglages), et **en grand** : un sol de 4 × 4 blocs (ou cases) avec ses variantes tournées, ou, pour le cartoon, un morceau de toile de 6,4 × 6,4 cases où la matière a sa forme habituelle (un chemin qui tourne, des socles, un étang, la cour) ;
 - **la recette**, avec des curseurs : les couleurs de chaque rampe (et des boutons + et − pour en ajouter), les couches (on les règle, on les déplace, on en retire, on en ajoute), les variantes, les tours et le miroir. Tout s'applique tout de suite, même dans la 3D ; seul un changement de variantes oblige à reconstruire le niveau (une demi-seconde) ;
 - **« Montrer l'avant »** : la 3D avec les recettes du fichier, pour comparer.
 
@@ -735,10 +736,10 @@ Pour ne pas se fier seulement à ses yeux, l'atelier mesure la texture choisie (
 
 Les alertes ne concernent que les sols vus de dessus (l'herbe, la terre, le chemin, le sable, la neige, la pierre), là où le bruit, les coutures et la répétition se voient le plus.
 
-- **Planche des textures** : toutes les textures en gros plan (avant, après) et sur un grand sol, avec leurs mesures, dans `captures/textures-planche.png`.
-- **Banc d'essai (3D)** : le niveau sous les quatre ambiances, de loin et de près (le chemin, un socle, un arbre), dans `captures/textures-banc-<niveau>.jpg`.
-- **Avant / après (3D)** : les mêmes vues avec les recettes du fichier, puis les tiennes, dans `captures/textures-avant-apres-<niveau>.jpg`.
-- **Enregistrer dans le jeu** (avec `npm run dev`) : les recettes sont écrites dans `src/rendus/textures.json`, après avoir été revérifiées par le serveur de développement (`format-textures.js` : les mêmes textures, des couches connues, des réglages dans leurs bornes, des couleurs « #rrggbb »).
+- **Planche des textures** : toutes les textures du style en gros plan (avant, après) et en grand, avec leurs mesures, dans `captures/textures-planche-<style>.png`.
+- **Banc d'essai** : le niveau sous les quatre ambiances, de loin et de près (le chemin, un socle, un arbre en voxel, l'étang dans les deux autres styles), dans `captures/textures-banc-<style>-<niveau>.jpg`.
+- **Avant / après** : les mêmes vues avec les recettes du fichier, puis les tiennes, dans `captures/textures-avant-apres-<style>-<niveau>.jpg`.
+- **Enregistrer dans le jeu** (avec `npm run dev`) : les recettes des trois styles sont écrites dans `src/rendus/textures.json`, après avoir été revérifiées par le serveur de développement (`format-textures.js` : les mêmes textures, des couches connues du bon moteur, des réglages dans leurs bornes, des couleurs « #rrggbb »).
 
 ### Ce que l'atelier a montré tout de suite
 
@@ -767,6 +768,64 @@ Les 19 recettes ont été redessinées une famille après l'autre (le sol, l'eau
 
 **Ce qui se voit** : en vue de jeu, le changement est discret (plus propre, le chemin ressort mieux) ; de près (la caméra « Cinéma »), le chemin devient du sable tassé avec ses cailloux, l'herbe a des brins, les feuilles des trous groupés comme un vrai feuillage, les briques une nuance et un relief chacune, le toit des tuiles, et l'eau des reflets irréguliers au lieu de rangées qui se répètent.
 
+### Le pixel art : les mêmes recettes, case par case
+
+Le sol du pixel art était peint pixel par pixel avec quelques couleurs fixes : trois verts en grandes taches pour l'herbe, plus des points isolés tirés au hasard (le même « sel et poivre » sur le chemin), et des aplats tout plats pour le sable, la terre des socles et le bord du chemin. Or, dans ce style, **une case fait justement 16 × 16 pixels** : le sol utilise maintenant les mêmes recettes que les blocs du voxel (`textures.json`, partie « pixel »), une tuile par case, avec ses variantes. `pixel.js` décide toujours *quelle matière* va où (l'eau, le sable des berges, le chemin, son bord, l'ombre de l'herbe, la terre sous les socles), puis prend la couleur dans la tuile de la case (`pixelTuile`).
+
+- **Les grandes taches de l'herbe restent** : elles viennent d'un bruit à l'échelle du monde, plus grand qu'une case, qu'une tuile de 16 pixels ne pourrait pas faire sans se répéter. Elles éclaircissent ou foncent la couleur de la tuile (`TACHES_HERBE`), exactement comme avant.
+- **La lumière vient toujours d'en haut à gauche** : les cailloux ont leur reflet en haut à gauche et leur ombre en bas à droite, les touffes leur pointe en haut. L'herbe, le chemin et la terre ne tournent donc pas d'une case à l'autre (l'herbe a seulement le droit au miroir, qui garde les touffes debout).
+- L'eau qui bouge et la cour du château (cachée sous le château) gardent leur dessin à elles.
+
+### Le cartoon : des recettes peintes au pinceau
+
+Le sol du cartoon n'est pas fait de petits carrés : c'est **une grande toile peinte** (40 pixels par case), collée sur le terrain. Elle est maintenant peinte d'après des recettes, elles aussi (`textures.json`, partie « cartoon »), avec les mêmes rampes de couleurs, mais d'autres couches : des coups de pinceau. Le moteur est dans `src/rendus/peintures.js` ; comme `recettes.js`, il ne connaît ni Three.js ni le navigateur.
+
+Chaque matière a une **forme**, donnée par le niveau : l'herbe est partout, le chemin suit sa ligne, la terre fait un disque sous chaque socle, la berge entoure chaque étang, la cour est un rectangle. Une couche peint « jusqu'à une certaine distance » de cette forme (la moitié de la largeur du chemin, le rayon du disque) : c'est son réglage **largeur**. Tout se mesure en cases, jamais en pixels : la même recette donne la même image dans l'atelier (en petit) et dans le jeu (en grand).
+
+| Couche (pinceau) | Ce qu'elle fait |
+|---|---|
+| Aplat (`aplat`) | une couleur jusqu'à « largeur » cases de la forme, avec un bord qui **ondule** comme tracé à la main ; deux aplats qui ondulent pareil gardent des bords parallèles (une bordure toujours aussi large) |
+| Taches (`taches`) | des taches aux formes libres, là où un bruit dépasse un seuil, au bord net ou fondu ; avec plusieurs couleurs, chaque tache a un cœur plus clair |
+| Ronds, Traits | des ronds et de petits coups de pinceau semés au hasard (ce que faisait l'ancien sol) |
+| Touffes (`touffes`) | trois brins en éventail, partis d'un même pied |
+| Cailloux (`cailloux`) | des ovales avec leur ombre en bas à droite et un reflet en haut à gauche |
+| Liseré (`lisere`) | un trait qui suit la forme, qui va et vient : les ornières du chemin |
+| Ombre du bord (`ombre`) | un dégradé sombre depuis le bord vers l'intérieur : le chemin un peu creusé |
+| Dalles (`dalles`) | des dalles de pierre aux formes irrégulières, séparées par des joints : la cour du château |
+
+Quelques idées à retenir :
+
+- **le hasard vient de la place des choses dans le monde** (une case, un coin de la grille du bruit), pas de l'ordre où on les peint. Repeindre un petit morceau de la toile donne exactement le même dessin que repeindre toute la toile : c'est ainsi qu'on ajoute la terre sous un socle bonus quand il se réveille (`majTerreSocles`, un disque 0,85 fois plus petit, comme avant) ;
+- **chaque matière ne regarde que les pixels qu'elle peut toucher** : la distance à la forme est calculée une seule fois, et seulement près d'elle (le chemin ne touche qu'une petite partie de son grand rectangle). Toute la toile d'un niveau (2 080 × 1 520 pixels) se peint en 0,2 à 0,3 seconde ;
+- **le décor du cartoon repart toujours du même hasard** (comme le voxel) : les arbres autour de la carte ont changé de place une fois, puis ne bougent plus d'un rendu à l'autre.
+
+### Les nouvelles textures du pixel et du cartoon
+
+Comme pour le voxel, on a d'abord écrit des recettes **« avant »** qui refont le sol d'avant avec les nouveaux moteurs (même photo, à quelques pixels près), pour comparer à décor égal. Puis chaque texture a été redessinée : des essais côte à côte en gros plan, puis l'atelier, dans les huit niveaux des deux mondes.
+
+**Pixel art** : l'herbe a des touffes en V (deux brins sombres, la pointe claire) au lieu de points isolés, le chemin de petits cailloux ombrés et une terre tachetée, le sable des grains clairs, la terre des socles ses taches et ses cailloux.
+
+| Mesure (pixel art) | Avant | Après |
+|---|---|---|
+| Taches du chemin (0 = une télé sans signal) | 0,00 | 0,29 |
+| Taches du sable, de la terre, du bord (1 = un aplat) | 1 ; 1 ; 1 | 0,28 ; 0,30 ; 0,47 |
+| Coutures des sols (vers 1 : on ne voit pas les bords des cases) | — | 0,4 à 0,9 |
+| Clarté de l'herbe, du chemin | 0,544 ; 0,706 | 0,536 ; 0,692 |
+| Écart de clarté chemin / herbe | 0,161 | 0,156 |
+
+Une mesure trompe ici : les « taches » de l'herbe baissent (−0,11), parce qu'une touffe met un pixel sombre à côté d'un pixel clair, comme le ferait du bruit. Mais l'œil, lui, voit des brins d'herbe : les mesures aident, elles ne décident pas seules (c'est pour ça que l'atelier montre aussi tout en gros plan).
+
+**Cartoon** : l'herbe a de grandes taches libres plus claires et plus sombres (au lieu de ronds transparents presque invisibles), des touffes et quelques brins clairs ; le chemin, la terre des socles et la berge des étangs ont des bords qui ondulent comme tracés à la main, une bordure sombre, des taches et des cailloux ombrés ; le chemin a des ornières et un milieu plus clair, là où l'on marche ; la cour du château est dallée.
+
+| Mesure (cartoon) | Avant | Après |
+|---|---|---|
+| Contraste de l'herbe (0 = un aplat) | 0,025 | 0,032 |
+| Contraste de la terre, de la berge, de la cour | 0 ; 0 ; 0 | 0,017 ; 0,034 ; 0,039 |
+| Clarté de l'herbe, du chemin | 0,675 ; 0,784 | 0,681 ; 0,789 |
+| Écart de clarté chemin / herbe | 0,109 | 0,108 |
+
+**Les ambiances n'ont pas bougé**, dans les deux styles : les 32 images de l'atelier des lumières (les 8 niveaux des mondes 1 et 2, aux 4 moments de la journée) ont été remesurées avant et après. Les zones brûlées restent sous 0,07 % de l'image, le total des points brûlés ne bouge pas (55 en pixel, 66 en cartoon), la luminosité moyenne bouge d'au plus 0,005 en pixel et 0,011 en cartoon (le cartoon est un peu plus sombre la nuit : 2 % de l'image « bouchée » au lieu de 1,6 %, très loin de l'alerte, à 35 %).
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -778,7 +837,7 @@ editeur.html           l'éditeur de niveaux
 personnages.html       la galerie des personnages, chacun dans les trois styles
 sons.html              la salle des sons : le thème et les bruitages, dans les trois époques
 lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
-textures.html          l'atelier des textures : voir les textures voxel en grand, les mesurer, régler leurs recettes
+textures.html          l'atelier des textures : voir les textures des trois styles en grand, les mesurer, régler leurs recettes
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
 src/
@@ -787,7 +846,7 @@ src/
 ├── personnages.js     la galerie des personnages (+ personnages.css)
 ├── sons.js           la salle des sons (+ sons.css)
 ├── atelier-lumieres.js l'atelier des lumières : la partie automatique, les curseurs, les mesures (+ atelier-lumieres.css)
-├── atelier-textures.js l'atelier des textures : gros plans, grand sol, niveau en 3D, mesures, recettes (+ atelier-textures.css)
+├── atelier-textures.js l'atelier des textures : gros plans, grand sol, vrai niveau, mesures, recettes (+ atelier-textures.css)
 ├── main.js            le chef d'orchestre du jeu : boucle, boutons, menu, cartes de début et de fin
 ├── didacticiel.js     les leçons, les fiches de présentation et la flèche
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
@@ -835,8 +894,9 @@ src/
     ├── pixel.js       style 3 : vrai pixel art 16 bits, dessiné en Canvas 2D
     ├── ambiances.json les réglages des quatre ambiances de chaque style (l'atelier des lumières les modifie)
     ├── format-ambiances.js  vérifier et écrire ambiances.json
-    ├── textures.json  les recettes des textures du voxel (l'atelier des textures les modifie)
-    ├── recettes.js    la fabrique des textures : d'une recette à 16 × 16 pixels, et les mesures
+    ├── textures.json  les recettes des textures des trois styles (l'atelier des textures les modifie)
+    ├── recettes.js    la fabrique des textures du voxel et du pixel : d'une recette à 16 × 16 pixels, et les mesures
+    ├── peintures.js   les recettes peintes du cartoon : la toile du sol, matière par matière, et les mesures
     ├── format-textures.js  vérifier et écrire textures.json
     ├── lumieres.js    les lumières du jeu, à chaque instant (lanternes, feu, explosions…), pour les trois styles
     ├── carte-lumieres.js  la carte des lumières des styles 3D (toutes les lumières dans une petite image vue de dessus)
@@ -887,8 +947,8 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 ### Les trois styles, techniquement
 
 - **Voxel doré** (Three.js). Le monde est fait d'environ 50 000 cubes, assemblés face par face (seulement les faces visibles, avec leur occlusion ambiante) en quelques grands objets, un par matériau. Les textures 16 × 16 sont dessinées par le code. L'éclairage vient d'un soleil bas qui projette de vraies ombres. Par-dessus, un post-traitement ajoute le halo des lumières (*bloom*), les rayons de soleil, la chaleur des couleurs et la vignette. Il y a 4 ambiances et 2 caméras.
-- **Diorama cartoon** (Three.js). Il utilise un *toon shading*, c'est-à-dire 3 tons seulement au lieu d'un dégradé. Les contours sombres viennent d'une copie de l'objet légèrement gonflée et vue de l'intérieur. La caméra est orthographique, donc sans perspective, ce qui donne l'effet maquette. Le sol est peint dans un canvas puis collé sur le terrain. Ses 4 ambiances changent la couleur et la position du soleil, la lumière du ciel, la couleur de l'eau, le vent et les ombres des nuages ; les lumières du jeu passent par la carte des lumières.
-- **Pixel art** (Canvas 2D, sans Three.js). Chaque sprite est dessiné case par case par le code, et le contour sombre est ajouté automatiquement. La scène est dessinée en petite résolution (une case = 16 pixels), puis agrandie d'un nombre entier de fois sans lissage, pour garder des pixels bien carrés. L'ordre d'une image : le sol (le fond peint d'avance, l'eau, l'herbe, les socles), le calque des ombres, les ombres des nuages, tout ce qui a de la hauteur trié du haut vers le bas de l'écran, la vie (papillons, feuilles, oiseaux), puis la lumière. Ses 4 ambiances sont des voiles de couleur posés sur l'image ; la nuit, tout s'assombrit en bleu (« multiply ») et les lumières du jeu ajoutent des halos (« lighter »), avec des lucioles.
+- **Diorama cartoon** (Three.js). Il utilise un *toon shading*, c'est-à-dire 3 tons seulement au lieu d'un dégradé. Les contours sombres viennent d'une copie de l'objet légèrement gonflée et vue de l'intérieur. La caméra est orthographique, donc sans perspective, ce qui donne l'effet maquette. Le sol est peint d'après ses recettes (`peintures.js`) sur une grande toile, puis collé sur le terrain. Ses 4 ambiances changent la couleur et la position du soleil, la lumière du ciel, la couleur de l'eau, le vent et les ombres des nuages ; les lumières du jeu passent par la carte des lumières.
+- **Pixel art** (Canvas 2D, sans Three.js). Chaque sprite est dessiné case par case par le code, et le contour sombre est ajouté automatiquement. La scène est dessinée en petite résolution (une case = 16 pixels, et le sol prend la tuile de 16 × 16 de chaque case, d'après ses recettes), puis agrandie d'un nombre entier de fois sans lissage, pour garder des pixels bien carrés. L'ordre d'une image : le sol (le fond peint d'avance, l'eau, l'herbe, les socles), le calque des ombres, les ombres des nuages, tout ce qui a de la hauteur trié du haut vers le bas de l'écran, la vie (papillons, feuilles, oiseaux), puis la lumière. Ses 4 ambiances sont des voiles de couleur posés sur l'image ; la nuit, tout s'assombrit en bleu (« multiply ») et les lumières du jeu ajoutent des halos (« lighter »), avec des lucioles.
 
 ## Les fiches des personnages
 
@@ -1130,3 +1190,4 @@ Dans la console du navigateur (F12) :
 9. ~~Le classement en ligne, pour comparer les scores entre amis~~ (fait : une fonction Vercel et une base Upstash Redis ; si le serveur ne répond pas, le score est gardé sur l'ordinateur).
 10. ~~Enregistrer les parties, pour les revoir et régler le jeu avec de vraies parties~~ (fait : `revoir.html` et `npm run parties`).
 11. ~~Le héros, plus vivant : de la vie (à zéro, K.O. jusqu'à la vague suivante) et des pouvoirs gagnés avec ses niveaux~~ (fait : la Peau de pierre au niveau 2, l'Onde de choc au 4, le Bond au 6 ; réglé avec les parties enregistrées).
+12. ~~Un atelier des textures, et des textures refaites dans les trois styles~~ (fait : des recettes réglables et mesurées ; le voxel, puis le pixel art et le cartoon).

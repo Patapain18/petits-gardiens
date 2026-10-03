@@ -16,8 +16,12 @@ import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier,
 } from './outils3d.js';
+import TEXTURES from './textures.json';
+import { creerToile, peindreSol as peindreSolRecettes, peindreMatiere, FORMES, portee } from './peintures.js';
 
-const alea = creerAleatoire(21);
+// Le hasard du décor (où poussent les arbres, les fleurs…) : il repart de la même graine à chaque
+// nouveau rendu (voir le constructeur), pour que le décor soit toujours le même
+let alea = creerAleatoire(21);
 const choisir = (liste) => liste[Math.floor(alea() * liste.length)];
 const TAILLE_GARDIEN = 1.5;
 const TAILLE_MONSTRE = 1.45;
@@ -28,6 +32,10 @@ const TAILLE_MONSTRE = 1.45;
 // rapport au centre de la carte, en cases), la lumière du ciel et du sol, la couleur
 // du fond, et la nuit (les lanternes et la porte du château éclairent autour d'elles).
 const AMBIANCES_CARTOON = REGLAGES_AMBIANCES.cartoon;
+// Les recettes du sol (l'herbe, le chemin, la terre des socles, la berge des étangs, la cour) : rangées
+// dans textures.json (partie « cartoon ») et peintes au pinceau (voir peintures.js). L'atelier des
+// textures (textures.html) les règle et les voit ici, en direct.
+const RECETTES = TEXTURES.cartoon;
 
 // Une forme plate dessinée point par point (vue de dessus), épaissie pour avoir un vrai
 // contour. Les points (x, z) sont posés à plat : z > 0 = vers l'avant du personnage.
@@ -461,6 +469,7 @@ export default class RenduCartoon {
   // reglages.ambiance = le moment de la journée (sinon celui de la fiche du niveau)
   constructor(conteneur, niveau, reglages = {}) {
     verifierApparences(GARDIENS, MONSTRES);
+    alea = creerAleatoire(21);
     this.conteneur = conteneur;
     this.niveau = niveau;
     this.temps = 0;
@@ -696,7 +705,8 @@ export default class RenduCartoon {
     m.customProgramCacheKey = () => `${cle}|nuages`;
   }
 
-  // On peint le sol comme une illustration : herbe tachetée, chemin avec bordure et cailloux…
+  // On peint le sol comme une illustration (l'herbe tachetée, le chemin avec sa bordure et ses
+  // cailloux…), d'après ses recettes : 40 pixels par case, sur une grande toile (voir peintures.js)
   peindreSol(x0, x1, z0, z1) {
     const ppc = 40; // pixels par case
     const c = document.createElement('canvas');
@@ -704,70 +714,33 @@ export default class RenduCartoon {
     c.height = (z1 - z0) * ppc;
     const ctx = c.getContext('2d');
     const X = (x) => (x - x0) * ppc, Z = (z) => (z - z0) * ppc; // case → pixel
-    const rond = (x, z, r, couleur) => { ctx.fillStyle = couleur; ctx.beginPath(); ctx.arc(X(x), Z(z), r * ppc, 0, Math.PI * 2); ctx.fill(); };
-
-    // 1. l'herbe : une base + des grandes taches plus claires et plus sombres
-    ctx.fillStyle = '#7cc443';
-    ctx.fillRect(0, 0, c.width, c.height);
-    for (let i = 0; i < 900; i++) {
-      ctx.globalAlpha = 0.18;
-      rond(x0 + alea() * (x1 - x0), z0 + alea() * (z1 - z0), 0.5 + alea() * 1.8, alea() < 0.5 ? '#94d856' : '#68ae38');
-    }
-    ctx.globalAlpha = 1;
-    // petits traits d'herbe (donne de la matière)
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 9000; i++) {
-      const x = X(x0 + alea() * (x1 - x0)), z = Z(z0 + alea() * (z1 - z0));
-      ctx.strokeStyle = alea() < 0.6 ? 'rgba(70,130,40,0.55)' : 'rgba(170,230,110,0.5)';
-      ctx.beginPath(); ctx.moveTo(x, z); ctx.lineTo(x + (alea() - 0.5) * 6, z - 5 - alea() * 4); ctx.stroke();
-    }
-
-    // 2. sous les socles : un carré de terre (comme un emplacement de chantier)
-    const niv = this.niveau;
-    // (pas sous les socles bonus encore endormis : leur terre sera peinte au déblocage, voir majTerreSocles)
-    for (const e of niv.socles) { if (!e.bonus) { rond(e.x, e.y, 0.78, '#5c9c34'); rond(e.x, e.y, 0.7, '#a8865a'); } }
-
-    // 3. la cour du château et la berge des étangs
-    ctx.fillStyle = '#c9bda4';
-    ctx.fillRect(X(niv.chateau.x - 1.9), Z(niv.chateau.y - 2.7), 3.6 * ppc, 5.4 * ppc);
-    for (const e of niv.etangs) {
-      rond(e.x, e.y, e.rayon + 0.5, '#b89a5c');
-      rond(e.x, e.y, e.rayon + 0.38, '#e2cc94');
-    }
-
-    // 4. le chemin : plusieurs traits de plus en plus fins, du plus sombre au plus clair
-    const trace = niv.cheminVisuel;
-    const tracer = (largeur, couleur, alpha = 1) => {
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = couleur;
-      ctx.lineWidth = largeur * ppc;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      trace.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Z(p.y)) : ctx.moveTo(X(p.x), Z(p.y))));
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    };
-    tracer(1.32, '#5c9c34');   // ombre de l'herbe au bord du chemin
-    tracer(1.08, '#9a6a3a');   // bordure brune
-    tracer(0.94, '#e6c283');   // sable
-    tracer(0.5, '#f2d9a0', 0.7); // milieu plus clair (là où l'on marche le plus)
-    // cailloux sur le chemin
-    for (let i = 0; i < 700; i++) {
-      const t = alea();
-      const seg = Math.floor(t * (trace.length - 1));
-      const a = trace[seg], b = trace[seg + 1], f = t * (trace.length - 1) - seg;
-      const x = a.x + (b.x - a.x) * f + (alea() - 0.5) * 0.8, z = a.y + (b.y - a.y) * f + (alea() - 0.5) * 0.8;
-      if (niv.distanceAuChemin(x, z) > 0.42) continue;
-      ctx.fillStyle = alea() < 0.5 ? '#c79d62' : '#d8b478';
-      ctx.beginPath();
-      ctx.ellipse(X(x), Z(z), 2 + alea() * 4, 1.5 + alea() * 3, alea() * 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    this.toileSol = { ctx, X, Z, ppc, x0, z0 };
+    this.repeindreSol();
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
-    this.toileSol = { ctx, X, Z, ppc }; // pour y peindre plus tard l'ombre douce au pied des arbres
     return t;
+  }
+
+  // Peint (ou repeint) toute la toile du sol d'après les recettes, puis l'ombre douce au pied des
+  // arbres (une fois qu'ils sont plantés) ; la terre des socles bonus déjà débloqués sera repeinte
+  // au prochain dessin (voir majTerreSocles)
+  repeindreSol() {
+    const { ctx, ppc, x0, z0 } = this.toileSol;
+    const toile = creerToile(ctx.canvas.width, ctx.canvas.height, ppc, x0, z0);
+    peindreSolRecettes(toile, this.niveau, RECETTES);
+    ctx.putImageData(new ImageData(toile.pixels, toile.largeur, toile.hauteur), 0, 0);
+    if (this.pieds) this.peindrePieds();
+    this.terresSocles = new Map();
+    this.cleSocles = '';
+    if (this.texSol) this.texSol.needsUpdate = true;
+  }
+
+  // Une recette a changé (dans l'atelier des textures) : on repeint le sol. Renvoie false si cette
+  // texture n'est pas une texture du style cartoon.
+  majTexture(nom) {
+    if (!(nom in RECETTES)) return false;
+    this.repeindreSol();
+    return true;
   }
 
   // Hauteur du sol, adoucie : dans ce style on ne veut pas de grande montagne, juste des collines
@@ -982,11 +955,17 @@ export default class RenduCartoon {
     }, { contour: null, ombre: false });
     this.fleursPourPapillons = fleurs.filter((f, i) => i % 3 === 0);
 
-    // une ombre douce au pied de chaque arbre et de chaque rocher, peinte dans la texture du sol :
-    // sous un feuillage, la lumière du ciel arrive moins (les dessinateurs appellent ça
-    // l'« occlusion ambiante »). Ça pose les arbres sur le sol.
+    this.pieds = pieds;
+    this.peindrePieds();
+    this.texSol.needsUpdate = true;
+  }
+
+  // Une ombre douce au pied de chaque arbre et de chaque rocher, peinte dans la texture du sol :
+  // sous un feuillage, la lumière du ciel arrive moins (les dessinateurs appellent ça
+  // l'« occlusion ambiante »). Ça pose les arbres sur le sol.
+  peindrePieds() {
     const { ctx, X, Z, ppc } = this.toileSol;
-    for (const pied of pieds) {
+    for (const pied of this.pieds) {
       const r = pied.r * ppc;
       const g = ctx.createRadialGradient(X(pied.x), Z(pied.z), 0, X(pied.x), Z(pied.z), r);
       g.addColorStop(0, 'rgba(20,44,12,0.4)');
@@ -995,7 +974,6 @@ export default class RenduCartoon {
       ctx.fillStyle = g;
       ctx.fillRect(X(pied.x) - r, Z(pied.z) - r, r * 2, r * 2);
     }
-    this.texSol.needsUpdate = true;
   }
 
   // ── Les moulins à vent ─────────────────────────────────────
@@ -1262,12 +1240,14 @@ export default class RenduCartoon {
     for (const i of etat.soclesDebloques) {
       if (this.terresSocles.has(i)) continue;
       const e = this.niveau.socles[i];
-      const r = Math.ceil(0.7 * ppc), x = Math.round(X(e.x)) - r, y = Math.round(Z(e.y)) - r;
-      this.terresSocles.set(i, { x, y, pixels: ctx.getImageData(x, y, r * 2, r * 2) });
-      for (const [rayon, couleur] of [[0.66, '#5c9c34'], [0.6, '#a8865a']]) {
-        ctx.fillStyle = couleur;
-        ctx.beginPath(); ctx.arc(X(e.x), Z(e.y), rayon * ppc, 0, Math.PI * 2); ctx.fill();
-      }
+      // la terre de la recette, un peu plus petite (0,85) : un socle bonus est souvent plus près du chemin
+      const r = Math.ceil(portee(RECETTES.terre) * 0.85 * ppc) + 2, x = Math.round(X(e.x)) - r, y = Math.round(Z(e.y)) - r;
+      const dessous = ctx.getImageData(x, y, r * 2, r * 2); // gardé, pour le remettre si le socle se rendort
+      this.terresSocles.set(i, { x, y, pixels: dessous });
+      const morceau = new ImageData(new Uint8ClampedArray(dessous.data), r * 2, r * 2); // une copie, peinte puis reposée
+      const toile = { largeur: r * 2, hauteur: r * 2, ppc, x0: this.toileSol.x0 + x / ppc, z0: this.toileSol.z0 + y / ppc, pixels: morceau.data };
+      peindreMatiere(toile, RECETTES.terre, 'terre', FORMES.disques([e], 0.85));
+      ctx.putImageData(morceau, x, y);
     }
     this.texSol.needsUpdate = true;
   }

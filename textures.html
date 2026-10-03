@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Atelier des textures — Petits Gardiens</title>
-  <meta name="description" content="Un outil d'atelier de Petits Gardiens : voir les textures du style voxel en grand, les mesurer et régler leurs recettes." />
+  <meta name="description" content="Un outil d'atelier de Petits Gardiens : voir les textures des trois styles en grand, les mesurer et régler leurs recettes." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&family=Lilita+One&display=swap" rel="stylesheet" />
@@ -13,7 +13,7 @@
 <body>
   <header class="entete">
     <h1>Atelier des textures</h1>
-    <p>Les textures du style voxel sont fabriquées d'après des <strong>recettes</strong> : des couleurs, puis des couches (des taches, des joints, des brins d'herbe, la lumière d'en haut…). Choisis une texture : tu la vois en gros plan, sur un grand sol et dans un vrai niveau, avec des mesures, et tu règles sa recette avec les curseurs.</p>
+    <p>Les textures des trois styles sont fabriquées d'après des <strong>recettes</strong> : des couleurs, puis des couches (des taches, des joints, des brins d'herbe, des cailloux, la lumière d'en haut…). Le voxel et le pixel art posent de petits carrés de 16 × 16 pixels ; le cartoon peint une grande toile au pinceau. Choisis un style et une texture : tu la vois en gros plan, en grand et dans un vrai niveau, avec des mesures, et tu règles sa recette avec les curseurs.</p>
     <nav class="filtres" aria-label="Autres pages">
       <a href="./lumieres.html">Atelier des lumières</a>
       <a href="./personnages.html">Galerie des personnages</a>
@@ -45,7 +45,7 @@
         </figure>
         <figure>
           <canvas id="grand-sol" width="256" height="256"></canvas>
-          <figcaption>Un grand sol : 4 × 4 blocs</figcaption>
+          <figcaption id="legende-grand-sol">Un grand sol : 4 × 4 blocs</figcaption>
         </figure>
       </div>
       <div class="mesures" id="mesures" aria-live="polite"></div>

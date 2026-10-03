@@ -12,6 +12,8 @@ import { socleProche } from './outils3d.js';
 import REGLAGES_AMBIANCES from './ambiances.json';
 import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
+import TEXTURES from './textures.json';
+import { fabriquerTexture, aspectDeLaFace, placerUV, enRVB } from './recettes.js';
 
 const T = 16; // taille d'une case en pixels
 const CONTOUR = '#24161c';
@@ -882,6 +884,41 @@ function spriteChateau() {
   });
 }
 
+// ── Les textures du sol ──
+// L'herbe, le chemin, son bord, le sable des berges et la terre sous les socles sont fabriqués
+// d'après des recettes (textures.json, partie « pixel » ; voir recettes.js), comme les blocs du
+// style voxel : une case du sol = une tuile de 16 × 16 pixels. Chaque case prend une variante de
+// sa tuile (tournée ou retournée, si la recette le permet) : sur un grand sol, l'œil ne voit pas
+// la répétition.
+// L'atelier des textures (textures.html) règle ces recettes et les voit ici, en direct.
+const RECETTES = TEXTURES.pixel;
+// Par-dessus l'herbe, de grandes taches plus claires et plus sombres (un bruit à l'échelle du monde,
+// plus grand qu'une case) : pour chaque couleur de la tuile, combien multiplier le rouge, le vert et le bleu
+const TACHES_HERBE = { clair: [1.33, 1.16, 1.23], sombre: [0.7, 0.78, 0.8] };
+
+// Les tuiles d'une texture (ses variantes), fabriquées d'après sa recette. Un pixel resté
+// transparent (une recette qui ne remplit pas tout) prend la première couleur de la recette.
+function fabriquerTuiles(nom) {
+  const recette = RECETTES[nom];
+  const fond = enRVB(Object.values(recette.rampes)[0][0]);
+  const images = Array.from({ length: recette.variantes }, (_, v) => {
+    const p = fabriquerTexture(recette, nom, v).pixels;
+    for (let i = 0; i < p.length; i += 4) if (!p[i + 3]) p.set(fond, i);
+    return p;
+  });
+  return { recette, images };
+}
+// La couleur d'une texture au pixel (wx, wy) du monde : la tuile de sa case, avec l'aspect de la
+// case (sa variante, ses quarts de tour, son miroir), comme le dessus d'un bloc du style voxel.
+// Renvoie [rouge, vert, bleu] (un morceau du tableau de la tuile : à lire, pas à modifier).
+function pixelTuile({ recette, images }, wx, wy) {
+  const bx = Math.floor(wx / T), by = Math.floor(wy / T);
+  const aspect = aspectDeLaFace(recette, bx, 0, by, 2);
+  const [u, v] = placerUV((wx - bx * T + 0.5) / T, (wy - by * T + 0.5) / T, aspect);
+  const k = (Math.floor(v * T) * T + Math.floor(u * T)) * 4;
+  return images[aspect.variante].subarray(k, k + 3);
+}
+
 // ── Les ambiances (le moment de la journée) ──
 // Elles sont rangées dans ambiances.json (partie « pixel ») et se règlent dans l'atelier
 // des lumières. voile : les couleurs posées en « lumière douce » sur toute l'image (du coin
@@ -969,8 +1006,18 @@ export default class RenduPixel {
     // les socles bonus débloqués (bénédiction « Nouveau socle ») : la terre n'est peinte que sous eux
     this.debloques = new Set();
     this.cleSocles = '';
+    this.tuilesSol = Object.fromEntries(Object.keys(RECETTES).map((nom) => [nom, fabriquerTuiles(nom)]));
     this.creerNuages();
     this.redimensionner();
+  }
+
+  // Une recette a changé (dans l'atelier des textures) : on refait ses tuiles, et on repeint le sol.
+  // Renvoie false si cette texture n'est pas une texture du style pixel.
+  majTexture(nom) {
+    if (!(nom in RECETTES)) return false;
+    this.tuilesSol[nom] = fabriquerTuiles(nom);
+    this.peindreSol();
+    return true;
   }
 
   // ── Le sol, peint pixel par pixel une fois pour toutes (à chaque redimensionnement) ──
@@ -984,35 +1031,33 @@ export default class RenduPixel {
     const fctx = fond.getContext('2d');
     const image = fctx.createImageData(l, h);
     const px = image.data;
+    // (l'eau, la cour du château et l'ombre de l'herbe au bord du chemin gardent leurs couleurs :
+    // l'eau qui bouge et le château sont dessinés par-dessus, et l'ombre est un trait d'un pixel ou deux)
     const C = {
-      herbe: hex('#5aa23c'), herbeClair: hex('#78bc4a'), herbeFonce: hex('#3f7e30'), herbeOmbre: hex('#2f6428'),
-      chemin: hex('#dcb06c'), cheminClair: hex('#ecca8c'), cheminFonce: hex('#bc8c4c'), bord: hex('#8a5c34'),
-      eau: hex('#3c8cc8'), eauClair: hex('#78c4ec'), eauFonce: hex('#2a62a0'), sable: hex('#e8d098'),
-      cour: hex('#c4b89c'), terre: hex('#a07c50'),
+      herbeOmbre: hex('#2f6428'), eau: hex('#3c8cc8'), eauClair: hex('#78c4ec'), eauFonce: hex('#2a62a0'), cour: hex('#c4b89c'),
     };
+    const tuiles = this.tuilesSol, teinte = [0, 0, 0];
     for (let j = 0; j < h; j++) {
       for (let i = 0; i < l; i++) {
         const wx = i - this.ox, wy = j - this.oy; // position dans le monde (en pixels)
         const x = wx / T, y = wy / T;             // position en cases
-        const g = grain(wx, wy);
         let c;
         const bordEtang = niv.distanceEtang(x, y); // négatif = dans l'eau
         const dChemin = niv.distanceAuChemin(x, y);
         if (bordEtang < 0) {
-          c = bordEtang > -0.18 ? C.eauFonce : ((wy + Math.floor(wx / 6)) % 7 === 0 && g > 0.5 ? C.eauClair : C.eau);
-        } else if (bordEtang < 0.32) c = C.sable;
+          c = bordEtang > -0.18 ? C.eauFonce : ((wy + Math.floor(wx / 6)) % 7 === 0 && grain(wx, wy) > 0.5 ? C.eauClair : C.eau);
+        } else if (bordEtang < 0.32) c = pixelTuile(tuiles.sable, wx, wy);
         else if (x > ch.x - 1.8 && x < ch.x + 1.7 && y > ch.y - 2.7 && y < ch.y + 2.8) c = C.cour;
-        else if (dChemin < 0.43) c = g > 0.93 ? C.cheminFonce : g > 0.85 ? C.cheminClair : C.chemin;
-        else if (dChemin < 0.52) c = C.bord;
+        else if (dChemin < 0.43) c = pixelTuile(tuiles.chemin, wx, wy);
+        else if (dChemin < 0.52) c = pixelTuile(tuiles.bord, wx, wy);
         else if (dChemin < 0.62) c = C.herbeOmbre;
+        else if (soclesPeints.some((e) => Math.hypot(x - e.x, y - e.y) < 0.68)) c = pixelTuile(tuiles.terre, wx, wy); // la terre sous les socles
         else {
+          c = pixelTuile(tuiles.herbe, wx, wy);
+          // les grandes taches de l'herbe, plus claires ou plus sombres
           const tache = bruit2D(x * 0.6, y * 0.6);
-          c = tache > 0.62 ? C.herbeClair : tache < 0.3 ? C.herbeFonce : C.herbe;
-          if (g > 0.965) c = C.herbeFonce;            // brins d'herbe
-          else if (g < 0.03) c = C.herbeClair;
-          for (const e of soclesPeints) {             // terre sous les socles
-            if (Math.hypot(x - e.x, y - e.y) < 0.68) c = C.terre;
-          }
+          const f = tache > 0.62 ? TACHES_HERBE.clair : tache < 0.3 ? TACHES_HERBE.sombre : null;
+          if (f) { for (let n = 0; n < 3; n++) teinte[n] = c[n] * f[n]; c = teinte; }
         }
         const k = (j * l + i) * 4;
         px[k] = c[0]; px[k + 1] = c[1]; px[k + 2] = c[2]; px[k + 3] = 255;

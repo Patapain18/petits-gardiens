@@ -289,5 +289,311 @@
       "tourner": true,
       "miroir": false
     }
+  },
+  "pixel": {
+    "herbe": {
+      "rampes": {
+        "base": ["#5aa23c"],
+        "sombre": ["#529a37"],
+        "touffes": ["#3f7e30", "#86c454"],
+        "brins": ["#468a36", "#7cbf4e"]
+      },
+      "couches": [
+        { "type": "hasard", "rampe": "base", "part": 1 },
+        { "type": "taches", "rampe": "sombre", "taille": 2, "seuil": 0.66, "haut": 0 },
+        { "type": "touffes", "rampe": "touffes", "nombre": 4, "hauteur": 2 },
+        { "type": "brins", "rampe": "brins", "nombre": 3, "longueur": 1 }
+      ],
+      "variantes": 4,
+      "tourner": false,
+      "miroir": true
+    },
+    "chemin": {
+      "rampes": {
+        "base": ["#dcb06c"],
+        "sombre": ["#d2a462"],
+        "cailloux": ["#b4844c", "#c79a5e", "#f0d4a0"],
+        "petits": ["#c2945a", "#e9c88e"]
+      },
+      "couches": [
+        { "type": "hasard", "rampe": "base", "part": 1 },
+        { "type": "taches", "rampe": "sombre", "taille": 2, "seuil": 0.62, "haut": 0 },
+        { "type": "cailloux", "rampe": "cailloux", "nombre": 2, "taille": 2 },
+        { "type": "cailloux", "rampe": "petits", "nombre": 2, "taille": 1 }
+      ],
+      "variantes": 4,
+      "tourner": false,
+      "miroir": false
+    },
+    "bord": {
+      "rampes": { "base": ["#8a5c34"], "sombre": ["#7e5430"] },
+      "couches": [
+        { "type": "hasard", "rampe": "base", "part": 1 },
+        { "type": "taches", "rampe": "sombre", "taille": 2, "seuil": 0.6, "haut": 0 }
+      ],
+      "variantes": 4,
+      "tourner": true,
+      "miroir": true
+    },
+    "sable": {
+      "rampes": { "base": ["#e8d098"], "sombre": ["#ddc48b"], "clair": ["#f3e0b2"] },
+      "couches": [
+        { "type": "hasard", "rampe": "base", "part": 1 },
+        { "type": "taches", "rampe": "sombre", "taille": 2, "seuil": 0.64, "haut": 0 },
+        { "type": "hasard", "rampe": "clair", "part": 0.04 }
+      ],
+      "variantes": 4,
+      "tourner": true,
+      "miroir": true
+    },
+    "terre": {
+      "rampes": { "base": ["#a07c50"], "sombre": ["#93714a"], "cailloux": ["#76563a", "#b08a5e", "#ccaa7c"] },
+      "couches": [
+        { "type": "hasard", "rampe": "base", "part": 1 },
+        { "type": "taches", "rampe": "sombre", "taille": 2, "seuil": 0.6, "haut": 0 },
+        { "type": "cailloux", "rampe": "cailloux", "nombre": 2, "taille": 1 }
+      ],
+      "variantes": 4,
+      "tourner": false,
+      "miroir": false
+    }
+  },
+  "cartoon": {
+    "herbe": {
+      "rampes": {
+        "base": ["#79c143"],
+        "sombre": ["#6eb73e"],
+        "clair": ["#87cb4d", "#92d156"],
+        "touffes": ["#58a034", "#5fa837"],
+        "brins": ["#a6dc6c"]
+      },
+      "couches": [
+        { "type": "aplat", "rampe": "base", "largeur": 3, "ondulation": 0, "taille": 1, "opacite": 1 },
+        {
+          "type": "taches",
+          "rampe": "sombre",
+          "taille": 2.2,
+          "seuil": 0.58,
+          "douceur": 0.03,
+          "opacite": 1,
+          "largeur": 3
+        },
+        {
+          "type": "taches",
+          "rampe": "clair",
+          "taille": 1.6,
+          "seuil": 0.63,
+          "douceur": 0.03,
+          "opacite": 1,
+          "largeur": 3
+        },
+        {
+          "type": "touffes",
+          "rampe": "touffes",
+          "densite": 1.6,
+          "taille": 0.13,
+          "epaisseur": 0.028,
+          "ecart": 0.5,
+          "opacite": 0.9,
+          "largeur": 3
+        },
+        {
+          "type": "traits",
+          "rampe": "brins",
+          "densite": 1.5,
+          "longueur": 0.1,
+          "epaisseur": 0.025,
+          "penche": 0.4,
+          "opacite": 0.7,
+          "largeur": 3
+        }
+      ]
+    },
+    "chemin": {
+      "rampes": {
+        "ombre": ["#5e9f37"],
+        "bord": ["#8f6237"],
+        "sable": ["#e9c689"],
+        "sombre": ["#deb777"],
+        "milieu": ["#f2d9a4"],
+        "ornieres": ["#d4ab6f"],
+        "cailloux": ["#c2945c", "#d0a56c", "#b98b54"]
+      },
+      "couches": [
+        {
+          "type": "aplat",
+          "rampe": "ombre",
+          "largeur": 0.66,
+          "ondulation": 0.035,
+          "taille": 0.7,
+          "opacite": 1
+        },
+        {
+          "type": "aplat",
+          "rampe": "bord",
+          "largeur": 0.55,
+          "ondulation": 0.035,
+          "taille": 0.7,
+          "opacite": 1
+        },
+        {
+          "type": "aplat",
+          "rampe": "sable",
+          "largeur": 0.48,
+          "ondulation": 0.035,
+          "taille": 0.7,
+          "opacite": 1
+        },
+        {
+          "type": "ombre",
+          "largeur": 0.48,
+          "epaisseur": 0.12,
+          "force": -0.1,
+          "ondulation": 0.035,
+          "taille": 0.7
+        },
+        {
+          "type": "taches",
+          "rampe": "sombre",
+          "taille": 0.45,
+          "seuil": 0.6,
+          "douceur": 0.2,
+          "opacite": 1,
+          "largeur": 0.46
+        },
+        {
+          "type": "aplat",
+          "rampe": "milieu",
+          "largeur": 0.2,
+          "ondulation": 0.07,
+          "taille": 1.2,
+          "opacite": 0.6
+        },
+        {
+          "type": "lisere",
+          "rampe": "ornieres",
+          "rayon": 0.24,
+          "epaisseur": 0.035,
+          "ondulation": 0.03,
+          "taille": 0.9,
+          "trous": 0.45,
+          "opacite": 0.45
+        },
+        {
+          "type": "cailloux",
+          "rampe": "cailloux",
+          "densite": 5,
+          "taille": 0.09,
+          "relief": 0.8,
+          "largeur": 0.44
+        }
+      ]
+    },
+    "terre": {
+      "rampes": {
+        "ombre": ["#5e9f37"],
+        "bord": ["#86603a"],
+        "terre": ["#a8865a"],
+        "sombre": ["#9b7a50"],
+        "cailloux": ["#bca07a", "#94764e"]
+      },
+      "couches": [
+        { "type": "aplat", "rampe": "ombre", "largeur": 0.8, "ondulation": 0.04, "taille": 0.5, "opacite": 1 },
+        { "type": "aplat", "rampe": "bord", "largeur": 0.72, "ondulation": 0.04, "taille": 0.5, "opacite": 1 },
+        {
+          "type": "aplat",
+          "rampe": "terre",
+          "largeur": 0.67,
+          "ondulation": 0.04,
+          "taille": 0.5,
+          "opacite": 1
+        },
+        {
+          "type": "taches",
+          "rampe": "sombre",
+          "taille": 0.35,
+          "seuil": 0.6,
+          "douceur": 0.2,
+          "opacite": 1,
+          "largeur": 0.64
+        },
+        {
+          "type": "ombre",
+          "largeur": 0.67,
+          "epaisseur": 0.12,
+          "force": -0.12,
+          "ondulation": 0.04,
+          "taille": 0.5
+        },
+        {
+          "type": "cailloux",
+          "rampe": "cailloux",
+          "densite": 4,
+          "taille": 0.06,
+          "relief": 0.8,
+          "largeur": 0.6
+        }
+      ]
+    },
+    "berge": {
+      "rampes": {
+        "bord": ["#a98a52"],
+        "sable": ["#e2cc94"],
+        "sombre": ["#d8c086"],
+        "mouille": ["#cbb37b"],
+        "cailloux": ["#c9b383", "#b39c6c"]
+      },
+      "couches": [
+        { "type": "aplat", "rampe": "bord", "largeur": 0.5, "ondulation": 0.06, "taille": 0.6, "opacite": 1 },
+        {
+          "type": "aplat",
+          "rampe": "sable",
+          "largeur": 0.42,
+          "ondulation": 0.06,
+          "taille": 0.6,
+          "opacite": 1
+        },
+        {
+          "type": "taches",
+          "rampe": "sombre",
+          "taille": 0.4,
+          "seuil": 0.6,
+          "douceur": 0.2,
+          "opacite": 1,
+          "largeur": 0.4
+        },
+        {
+          "type": "aplat",
+          "rampe": "mouille",
+          "largeur": 0.22,
+          "ondulation": 0.04,
+          "taille": 0.4,
+          "opacite": 1
+        },
+        {
+          "type": "cailloux",
+          "rampe": "cailloux",
+          "densite": 3,
+          "taille": 0.05,
+          "relief": 0.7,
+          "largeur": 0.4
+        }
+      ]
+    },
+    "cour": {
+      "rampes": { "base": ["#c9bda4"], "dalles": ["#d2c6ad", "#c7baa0", "#bfb298"], "joints": ["#a99c84"] },
+      "couches": [
+        { "type": "aplat", "rampe": "base", "largeur": 0, "ondulation": 0, "taille": 1, "opacite": 1 },
+        {
+          "type": "dalles",
+          "rampe": "dalles",
+          "joints": "joints",
+          "taille": 0.55,
+          "joint": 0.035,
+          "nuances": 0.06,
+          "largeur": 0
+        }
+      ]
+    }
   }
 }
