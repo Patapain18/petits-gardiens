@@ -39,6 +39,10 @@ const valide = (cle, valeur) => {
 
 let enMemoire = null; // si le navigateur refuse de les garder, elles restent ici le temps de la visite
 
+// Un téléphone (un petit écran tactile) : il a moins de force qu'un ordinateur
+const petitEcranTactile = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+  && Math.min(screen.width, screen.height) <= 520;
+
 export function lireOptions() {
   let gardees = enMemoire;
   try {
@@ -47,7 +51,8 @@ export function lireOptions() {
     // avant l'écran d'options, les volumes étaient gardés à part (« pg-son ») : on les reprend
     else gardees ??= JSON.parse(localStorage.getItem('pg-son') || 'null');
   } catch { /* stockage refusé ou illisible : on garde ce qu'on a */ }
-  const options = { ...OPTIONS_DE_BASE };
+  // sur un téléphone, des graphismes économes par défaut (tant qu'on n'a pas choisi)
+  const options = { ...OPTIONS_DE_BASE, ...(petitEcranTactile() ? { qualite: 'econome' } : {}) };
   for (const cle of Object.keys(OPTIONS_DE_BASE)) {
     if (gardees && valide(cle, gardees[cle])) options[cle] = gardees[cle];
   }

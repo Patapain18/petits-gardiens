@@ -14,7 +14,7 @@ import {
 } from './jeu/moteur.js';
 import { NIVEAU_MAX, POUVOIRS, HEROS, MONSTRES, caracteristiques } from './jeu/donnees.js';
 import { apercuVague } from './jeu/apercu.js';
-import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe, ficheDuHeros } from './jeu/benedictions.js';
+import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe, ficheDuHeros, socleActif } from './jeu/benedictions.js';
 import { nouvelEnregistrement, agir as agirEtNoter, noterControle } from './jeu/enregistrement.js';
 import { VERSION, preparerEnvoi, garderEtEnvoyer, garderEnAttente, envoyerPartiesEnAttente } from './parties.js';
 import { compterVisite, compterPartie } from './compteur.js';
@@ -27,6 +27,8 @@ import { creerSon } from './son/son.js';
 import { lireOptions, changerOptions, quandOptionsChangent } from './options.js';
 import { creerFenetreOptions } from './fenetre-options.js';
 import { insecables } from './typographie.js';
+import { TACTILE, estUnTelephone, auDoigt } from './doigt.js';
+import { CADRE } from './rendus/cadre.js';
 
 // Toutes les fiches de src/niveaux/ (Vite les rassemble ici automatiquement)
 const FICHES = import.meta.glob('./niveaux/*.json', { eager: true, import: 'default' });
@@ -234,7 +236,7 @@ function traiterEvenements() {
       bulle(`${HEROS.nom} : niveau ${ev.niveau} !`, ev.x, ev.y, 1.9, 'bulle-niveau');
       // ce niveau lui donne un pouvoir : on le dit, plus longtemps (le temps de lire)
       const pouvoir = Object.values(HEROS.pouvoirs).find((p) => p.niveau === ev.niveau);
-      if (pouvoir) bulle(`Nouveau pouvoir : ${pouvoir.nom}${pouvoir.touche ? ` (touche ${pouvoir.touche.toUpperCase()})` : ''} !`, ev.x, ev.y, 2.6, 'bulle-niveau bulle-longue');
+      if (pouvoir) bulle(auDoigt(`Nouveau pouvoir : ${pouvoir.nom}${pouvoir.touche ? ` (touche ${pouvoir.touche.toUpperCase()})` : ''} !`), ev.x, ev.y, 2.6, 'bulle-niveau bulle-longue');
     }
     if (ev.type === 'herosKO') bulle('K.O. ! Il revient à la vague suivante', ev.x, ev.y, 1.9, 'bulle-ko bulle-longue');
   }
@@ -277,6 +279,7 @@ function majInterface() {
   if (etat.pouvoirs) majPouvoirs();
   if (niveau.benedictions) majBenedictions();
   if (etat.heros) { majBoutonHeros(); majPouvoirsHeros(); }
+  majRoue(); // (au doigt : la roue ouverte suit l'or et son socle)
   // Le menu ouvert se met à jour si l'or change, ou si un gardien arrive (boutons grisés ou non)
   if (!menu.hidden) {
     menu.querySelectorAll('[data-prix]').forEach((b) => {
@@ -322,7 +325,11 @@ function majApercu() {
   zone.hidden = !apercu;
   if (!apercu) return;
   const titre = element('p', 'titre-apercu', `Vague ${apercu.numero}${niveau.survie ? '' : ` / ${niveau.vagues.length}`} :`);
-  zone.replaceChildren(titre, listeApercu(apercu), ...apercu.alertes.map((a) => element('p', `alerte-apercu${a.fort ? ' forte' : ''}`, a.texte)));
+  zone.replaceChildren(titre, listeApercu(apercu), ...apercu.alertes.map((a) => {
+    const p = element('p', `alerte-apercu${a.fort ? ' forte' : ''}`);
+    p.append(element('span', 'longue', a.texte), element('span', 'courte', a.court)); // (la courte : sur un téléphone)
+    return p;
+  }));
 }
 // La liste des monstres de l'aperçu : portrait, nombre, nom, « Nouveau ! » et ce qu'ils ont de spécial
 function listeApercu(apercu) {
@@ -482,8 +489,150 @@ function placerMenu(index) {
 
 function fermerMenu() {
   menu.hidden = true;
+  roue.hidden = true;
+  document.body.classList.remove('roue-ouverte');
+  choixRoue = null;
   ui.selection = -1;
   ui.apercuPortee = null;
+}
+
+// ── La roue des gardiens (au doigt) ──────────────────────────
+// Toucher un socle ouvre une roue autour de lui, comme dans Kingdom Rush : un bouton par gardien (son
+// portrait dessiné par le style de l'époque, et son prix), ou, sur un gardien déjà posé, « Améliorer »
+// et « Revendre ». Un premier toucher montre le choix (son nom, ce qu'il fait, sa portée sur le
+// plateau) ; un second le fait. Ainsi, un doigt qui glisse ne pose jamais un gardien par erreur.
+const roue = $('#roue');
+let choixRoue = null;     // le bouton touché une première fois (on attend le second toucher)
+let signatureRoue = '';   // ce que montre la roue (on ne la refait que si ça change)
+const portraitsGardiens = new Map(); // « style:gardien:niveau » → son portrait
+
+function portraitGardien(type, niveauGardien) {
+  const cle = `${styleActif}:${type}:${niveauGardien}`;
+  if (!portraitsGardiens.has(cle)) portraitsGardiens.set(cle, rendu?.portrait?.(caracteristiques(type, niveauGardien).apparence) || null);
+  const image = portraitsGardiens.get(cle);
+  if (!image) return null;
+  const copie = document.createElement('canvas');
+  copie.width = image.width;
+  copie.height = image.height;
+  copie.getContext('2d').drawImage(image, 0, 0);
+  return copie;
+}
+
+// Les boutons de la roue : { cle, portrait, prix (texte), nom, texte, chiffres, portee, raison
+// (pourquoi c'est impossible, ou ''), faire() }
+function choixDeLaRoue(index) {
+  const tour = tourSur(etat, index);
+  if (!tour) {
+    return Object.keys(niveau.gardiens).map((type) => { // seulement les gardiens que ce niveau propose
+      const c = caracteristiques(type, 1), manque = c.cout - etat.or;
+      return {
+        cle: type, type, niveau: 1, prix: String(c.cout), nom: c.nom, texte: c.role, chiffres: chiffresDe(c), portee: c.portee || 0,
+        raison: !estDisponible(etat, type) ? `Arrive à la vague ${niveau.gardiens[type]}` : manque > 0 ? `Il te manque ${manque} pièces` : '',
+        faire: () => agir('construire', index, type),
+      };
+    });
+  }
+  const c = ficheDe(etat, tour.type, tour.niveau), choix = [];
+  const prix = prixAmelioration(tour);
+  if (prix !== null) {
+    const suivant = ficheDe(etat, tour.type, tour.niveau + 1), manque = prix - etat.or;
+    choix.push({
+      cle: 'ameliorer', type: tour.type, niveau: tour.niveau + 1, prix: String(prix), marque: '↑', nom: `Améliorer : ${suivant.nom}`,
+      texte: differences(c, suivant), portee: suivant.portee || 0, raison: manque > 0 ? `Il te manque ${manque} pièces` : '',
+      faire: () => agir('ameliorer', index),
+    });
+  }
+  choix.push({
+    cle: 'vendre', prix: `+${prixRevente(tour)}`, nom: 'Revendre', texte: `Tu récupères ${prixRevente(tour)} pièces (une part de tout ce que tu as dépensé pour lui).`,
+    portee: 0, raison: '', faire: () => agir('vendre', index),
+  });
+  return choix;
+}
+
+function ouvrirRoue(index) {
+  fermerMenu();
+  ui.selection = index;
+  signatureRoue = '';
+  roue.hidden = false;
+  document.body.classList.add('roue-ouverte');
+  roue.classList.add('ouvre'); // les boutons s'ouvrent en éventail (une fois : pas à chaque toucher)
+  setTimeout(() => roue.classList.remove('ouvre'), 250);
+  majRoue();
+}
+
+// Refait la roue si ce qu'elle montre a changé (l'or, le choix, le gardien du socle), et la place
+function majRoue() {
+  if (roue.hidden || ui.selection < 0 || !rendu) return;
+  const index = ui.selection, tour = tourSur(etat, index);
+  const choix = choixDeLaRoue(index);
+  const signature = `${styleActif}|${index}|${tour ? tour.type + tour.niveau : ''}|${choixRoue}|${choix.map((o) => o.raison).join('/')}`;
+  if (signature !== signatureRoue) {
+    signatureRoue = signature;
+    const elu = choix.find((o) => o.cle === choixRoue);
+    ui.apercuPortee = elu ? elu.portee || null : null;
+    const n = choix.length, rayon = n <= 2 ? 52 : n <= 5 ? 62 : n <= 6 ? 70 : 78; // (plus il y a de gardiens, plus la roue est grande)
+    const boutons = choix.map((o, k) => {
+      const angle = n === 2 ? (k === 0 ? -0.65 : 0.65) * Math.PI - Math.PI / 2 : -Math.PI / 2 + (2 * Math.PI * k) / n;
+      const b = element('button', `choix-roue${o.cle === choixRoue ? ' choisi' : ''}${o.raison ? ' impossible' : ''}${o.cle === 'vendre' ? ' vendre' : ''}`);
+      b.type = 'button';
+      b.style.left = `${Math.round(Math.cos(angle) * rayon)}px`;
+      b.style.top = `${Math.round(Math.sin(angle) * rayon)}px`;
+      b.setAttribute('aria-label', `${o.nom}, ${o.prix} pièces`);
+      const image = element('span', 'portrait-roue');
+      const portrait = o.type ? portraitGardien(o.type, o.niveau) : null;
+      if (portrait) image.append(portrait); else image.append(element('span', 'piece grosse-piece'));
+      if (o.marque) image.append(element('span', 'marque-roue', o.marque));
+      if (o.cle === choixRoue && !o.raison) image.append(element('span', 'confirmer-roue', '✔'));
+      const prixRoue = element('span', 'prix-roue');
+      prixRoue.append(element('span', 'piece'), document.createTextNode(o.prix));
+      b.append(image, prixRoue);
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (choixRoue !== o.cle) { choixRoue = o.cle; majRoue(); return; } // le premier toucher : on montre
+        if (o.raison) return; // (la bulle dit pourquoi ce n'est pas possible)
+        if (o.faire()) {
+          // après une amélioration, la roue reste ouverte sur le nouveau niveau ; sinon, elle se ferme
+          if (o.cle === 'ameliorer') { choixRoue = null; signatureRoue = ''; majRoue(); } else fermerMenu();
+        }
+      });
+      return b;
+    });
+    // la bulle : le choix touché une première fois, ou le gardien posé sur le socle
+    const bulle = element('div', 'bulle-roue');
+    if (elu) {
+      bulle.append(element('strong', '', elu.nom), element('p', '', elu.texte));
+      if (elu.chiffres) bulle.append(element('p', 'chiffres-roue', elu.chiffres.map(([nom, v]) => `${nom} ${v}`).join(' · ')));
+      bulle.append(element('p', elu.raison ? 'raison-roue' : 'aide-roue', elu.raison || (elu.cle === 'vendre' ? 'Touche encore pour le revendre.' : elu.cle === 'ameliorer' ? 'Touche encore pour l’améliorer.' : 'Touche encore pour le poser.')));
+    } else if (tour) {
+      const c = ficheDe(etat, tour.type, tour.niveau);
+      bulle.append(element('strong', '', `${c.nom} · niveau ${tour.niveau}/${NIVEAU_MAX}`), element('p', 'chiffres-roue', chiffresDe(c).map(([nom, v]) => `${nom} ${v}`).join(' · ')));
+      if (prixAmelioration(tour) === null) bulle.append(element('p', 'aide-roue', 'Niveau maximum atteint.'));
+    } else {
+      bulle.append(element('p', 'aide-roue', 'Touche un gardien pour le voir, puis encore une fois pour le poser.'));
+    }
+    // (les textes de differences() ont une flèche dans un <span> : on la garde)
+    if (elu?.cle === 'ameliorer') bulle.querySelector('p').innerHTML = insecables(elu.texte);
+    roue.replaceChildren(...boutons, bulle);
+    roue.dataset.rayon = String(rayon);
+  }
+  placerRoue();
+}
+
+// La roue suit son socle (et ne sort pas de l'écran) ; la bulle se met au-dessus ou en dessous
+function placerRoue() {
+  const s = niveau.socles[ui.selection];
+  if (!s) return;
+  const p = rendu.versEcran(s.x, s.y, 0.3), rayon = Number(roue.dataset.rayon || 62), marge = rayon + 34;
+  const x = Math.max(marge, Math.min(innerWidth - marge, p.x)), y = Math.max(marge, Math.min(innerHeight - marge, p.y));
+  roue.style.left = `${x}px`;
+  roue.style.top = `${y}px`;
+  const bulle = roue.querySelector('.bulle-roue');
+  if (!bulle) return;
+  const enHaut = y > innerHeight / 2;
+  bulle.style.top = enHaut ? '' : `${rayon + 34}px`;
+  bulle.style.bottom = enHaut ? `${rayon + 34}px` : '';
+  const demi = bulle.offsetWidth / 2;
+  bulle.style.left = `${Math.max(8 + demi - x, Math.min(innerWidth - 8 - demi - x, 0))}px`;
 }
 
 // ── Les pouvoirs du château ──────────────────────────────────
@@ -575,10 +724,10 @@ function herosSous(px, py) {
   const h = etat.heros;
   if (!h || h.ko || !rendu) return false; // (K.O., on ne peut pas le choisir : un clic va au socle d'à côté)
   const pied = rendu.versEcran(h.x, h.y, 0), corps = rendu.versEcran(h.x, h.y, 0.5), cote = rendu.versEcran(h.x + 0.7, h.y, 0);
-  const rayon = Math.max(22, Math.hypot(cote.x - pied.x, cote.y - pied.y));
+  const rayon = Math.max(auDoigtMaintenant ? 34 : 22, Math.hypot(cote.x - pied.x, cote.y - pied.y)); // (au doigt, un peu plus large)
   const dHeros = Math.hypot(px - corps.x, py - corps.y);
   if (dHeros >= rayon) return false;
-  const i = rendu.socleSous(px, py);
+  const i = socleSous(px, py);
   if (i < 0) return true;
   const s = niveau.socles[i], ps = rendu.versEcran(s.x, s.y, 0.3);
   return dHeros < Math.hypot(px - ps.x, py - ps.y);
@@ -720,14 +869,14 @@ function afficherIntro() {
   regle.append(element('strong', '', niveau.survie ? 'Un seul monstre dans le château, et la partie s’arrête.' : 'si un seul entre, c’est perdu.'));
   carte.append(regle);
   if (niveau.heros) {
-    carte.append(element('p', 'mention-heros', `Le ${HEROS.nom} t’aide : clique sur lui, puis sur la carte (touche H). Il frappe et barre la route… mais les monstres le frappent aussi : K.O., il revient à la vague suivante. Ses niveaux lui donnent des pouvoirs.`));
+    carte.append(element('p', 'mention-heros', auDoigt(`Le ${HEROS.nom} t’aide : clique sur lui, puis sur la carte (touche H). Il frappe et barre la route… mais les monstres le frappent aussi : K.O., il revient à la vague suivante. Ses niveaux lui donnent des pouvoirs.`)));
   }
   if (niveau.benedictions) {
     carte.append(element('p', 'mention-benedictions', `Toutes les ${TOUTES_LES} vagues tenues, une bénédiction : un bonus à choisir parmi 3, pour le reste de la partie.`));
   }
   if (niveau.pouvoirs) {
     const { meteore, froid } = POUVOIRS;
-    carte.append(element('p', 'mention-pouvoirs', `Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), un par vague, que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`));
+    carte.append(element('p', 'mention-pouvoirs', auDoigt(`Deux pouvoirs du château t’aident pendant les vagues : le ${meteore.nom} (touche ${meteore.touche}), un par vague, que tu vises sur le chemin, et le ${froid.nom} (touche ${froid.touche}), qui gèle tous les monstres.`)));
   }
   // la partie est enregistrée (si le joueur ne l'a pas refusé dans les Options) : on le dit
   if (enregistrement && lireOptions().partage) {
@@ -941,22 +1090,60 @@ document.querySelectorAll('[data-ambiance]').forEach((b) =>
 document.querySelectorAll('[data-camera]').forEach((b) =>
   b.addEventListener('click', () => changerOptions({ camera: b.dataset.camera })));
 
+// ── Le plateau : la souris et le doigt ──
+// À la souris : le survol montre (le socle, le cercle du Météore), le clic fait. Au doigt, il n'y a pas
+// de survol : un simple toucher fait ce que fait un clic, et pour viser (le Météore, le Bond, l'endroit
+// où envoyer le héros), on pose le doigt, le cercle apparaît, on le glisse, et on lâche pour lancer.
+// On peut aussi faire glisser le héros lui-même jusqu'à l'endroit voulu.
+let auDoigtMaintenant = false; // le dernier geste sur le plateau vient-il d'un doigt ?
+let glisse = null;             // un doigt posé pour viser : { x, y, bouge, heros (posé sur le héros) }
+let ignorerClic = false;       // le clic qui suit un doigt levé ne doit pas agir une seconde fois
+
+// Le cercle (ou la marque du héros) suit la souris, ou le doigt
+function viserA(x, y) {
+  const p = rendu.versSol(x, y);
+  if (ui.visee === 'meteore') ui.viseeMeteore = p && { ...p, rayon: pouvoirDe(etat, 'meteore').rayon };
+  else if (ui.visee === 'bond') ui.viseeBond = p && { ...p, rayon: HEROS.pouvoirs.bond.rayon };
+  else if (ui.herosChoisi) ui.viseeHeros = p;
+  ui.survol = -1;
+}
+
+// Le socle sous un point de l'écran. Au doigt, on est moins précis : un toucher un peu à côté
+// (à moins d'une case du socle, sur le sol) compte aussi.
+function socleSous(x, y) {
+  const i = rendu.socleSous(x, y);
+  if (i >= 0 || !auDoigtMaintenant) return i;
+  const p = rendu.versSol(x, y);
+  if (!p) return -1;
+  let meilleur = -1, dMin = 1.1;
+  niveau.socles.forEach((s, k) => {
+    const d = Math.hypot(s.x - p.x, s.y - p.y);
+    if (d < dMin && socleActif(etat, k)) { dMin = d; meilleur = k; }
+  });
+  return meilleur;
+}
+
+conteneur.addEventListener('pointerdown', (e) => {
+  auDoigtMaintenant = e.pointerType !== 'mouse';
+  if (!auDoigtMaintenant || !rendu) return;
+  const surHeros = !ui.visee && !ui.herosChoisi && herosSous(e.clientX, e.clientY);
+  if (ui.visee || ui.herosChoisi || surHeros) {
+    glisse = { x: e.clientX, y: e.clientY, bouge: false, heros: surHeros };
+    if (!surHeros) viserA(e.clientX, e.clientY);
+  }
+});
 conteneur.addEventListener('pointermove', (e) => {
   if (!rendu) return;
-  if (ui.visee) {
-    // on vise le Météore (ou le Bond du héros) : le cercle suit la souris
-    const p = rendu.versSol(e.clientX, e.clientY);
-    if (ui.visee === 'meteore') ui.viseeMeteore = p && { ...p, rayon: pouvoirDe(etat, 'meteore').rayon };
-    else ui.viseeBond = p && { ...p, rayon: HEROS.pouvoirs.bond.rayon };
-    ui.survol = -1;
+  if (glisse) {
+    if (!glisse.bouge && Math.hypot(e.clientX - glisse.x, e.clientY - glisse.y) > 12) {
+      glisse.bouge = true;
+      if (glisse.heros && !ui.herosChoisi) basculerHeros(); // on emmène le héros avec le doigt
+    }
+    if (glisse.bouge || !glisse.heros) viserA(e.clientX, e.clientY);
     return;
   }
-  if (ui.herosChoisi) {
-    // on choisit où envoyer le héros : une marque suit la souris
-    ui.viseeHeros = rendu.versSol(e.clientX, e.clientY);
-    ui.survol = -1;
-    return;
-  }
+  if (e.pointerType !== 'mouse') return; // (au doigt, pas de survol)
+  if (ui.visee || ui.herosChoisi) { viserA(e.clientX, e.clientY); return; }
   if (herosSous(e.clientX, e.clientY)) {
     ui.survol = -1;
     conteneur.style.cursor = 'pointer';
@@ -965,8 +1152,29 @@ conteneur.addEventListener('pointermove', (e) => {
   ui.survol = rendu.socleSous(e.clientX, e.clientY);
   conteneur.style.cursor = ui.survol >= 0 ? 'pointer' : '';
 });
+// On lève le doigt : le Météore (ou le Bond) part là où était le cercle ; le héros y va
+conteneur.addEventListener('pointerup', (e) => {
+  const g = glisse;
+  glisse = null;
+  if (!g || !rendu) return;
+  if (ui.visee) {
+    const p = rendu.versSol(e.clientX, e.clientY);
+    if (p && agir(ui.visee === 'meteore' ? 'lancerMeteore' : 'sauterHeros', p.x, p.y)) arreterVisee();
+    ignorerClic = true;
+  } else if (ui.herosChoisi && (g.bouge || !g.heros)) {
+    // (lâché sur le héros lui-même, sans l'avoir emmené : on le lâche)
+    const p = rendu.versSol(e.clientX, e.clientY);
+    if (p && (g.bouge || !herosSous(e.clientX, e.clientY))) agir('envoyerHeros', p.x, p.y);
+    lacherHeros();
+    ignorerClic = true;
+  }
+  // (un simple toucher sur le héros : le clic qui suit le choisit, comme à la souris)
+});
+conteneur.addEventListener('pointercancel', () => { glisse = null; });
+
 conteneur.addEventListener('click', (e) => {
   if (!rendu) return;
+  if (ignorerClic) { ignorerClic = false; return; }
   if (ui.visee) {
     const p = rendu.versSol(e.clientX, e.clientY);
     if (p && agir(ui.visee === 'meteore' ? 'lancerMeteore' : 'sauterHeros', p.x, p.y)) arreterVisee();
@@ -980,11 +1188,14 @@ conteneur.addEventListener('click', (e) => {
     return;
   }
   if (herosSous(e.clientX, e.clientY)) { basculerHeros(); son.effet('menu'); return; }
-  const i = rendu.socleSous(e.clientX, e.clientY);
-  if (i >= 0) { ouvrirMenu(i); son.effet('menu'); } else fermerMenu();
+  const i = socleSous(e.clientX, e.clientY);
+  // au doigt, la roue autour du socle ; à la souris, le menu à côté
+  if (i >= 0) { (TACTILE ? ouvrirRoue : ouvrirMenu)(i); son.effet('menu'); } else fermerMenu();
 });
-// clic droit pendant qu'on vise : on annule (sans ouvrir le menu du navigateur)
+// clic droit pendant qu'on vise : on annule (sans ouvrir le menu du navigateur). Au doigt, un appui
+// long ne doit jamais ouvrir le menu du navigateur.
 conteneur.addEventListener('contextmenu', (e) => {
+  if (TACTILE) e.preventDefault();
   if (!ui.visee && !ui.herosChoisi) return;
   e.preventDefault();
   arreterVisee();
@@ -999,7 +1210,7 @@ addEventListener('keydown', (e) => {
     if (id) { e.preventDefault(); prendreBenediction(id); }
     return;
   }
-  if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); lacherHeros(); }
+  if (e.key === 'Escape') { fermerMenu(); didacticiel.fermerFiche(); arreterVisee(); lacherHeros(); document.body.classList.remove('menu-telephone'); }
   // Espace lance la vague, sauf si un bouton actif a le clavier (Espace appuie alors sur lui)
   if (e.key === ' ' && (e.target === document.body || e.target.disabled)) { e.preventDefault(); $('#lancer').click(); }
   // les pouvoirs du château : touches 1 et 2 (pas pendant qu'on écrit son pseudo)
@@ -1017,7 +1228,55 @@ addEventListener('keydown', (e) => {
     if (pouvoir) utiliserPouvoirHeros(pouvoir);
   }
 });
-addEventListener('resize', () => rendu?.redimensionner());
+addEventListener('resize', () => { majTelephone(); rendu?.redimensionner(); });
+
+// ── Au doigt, et sur un téléphone (voir doigt.js) ─────────────
+// Sur un écran tactile : la roue autour du socle, et on vise en glissant le doigt. Sur un téléphone
+// couché : les boutons flottent dans les coins (voir style.css), le plateau prend toute la hauteur
+// (voir rendus/cadre.js), et le style, l'ambiance, la vitesse et le reste passent dans un petit menu
+// (le bouton ☰). Debout, le plateau serait minuscule : on demande de tourner le téléphone, et le jeu
+// se met en pause.
+document.body.classList.toggle('tactile', TACTILE);
+const panneauDuBouton = $('#lancer').parentElement;
+function majTelephone() {
+  const telephone = estUnTelephone(), debout = telephone && innerHeight > innerWidth;
+  // couché, les pouvoirs et le héros vont en bas à droite (et reviennent à côté du bouton sinon)
+  const coin = telephone && !debout ? $('#coin-pouvoirs') : panneauDuBouton;
+  for (const id of ['#pouvoirs', '#bouton-heros', '#pouvoirs-heros']) if ($(id).parentElement !== coin) coin.append($(id));
+  document.body.classList.toggle('telephone', telephone && !debout);
+  document.body.classList.toggle('debout', debout);
+  if (!telephone || debout) document.body.classList.remove('menu-telephone');
+  CADRE.plein = telephone && !debout; // (le style se recadre juste après : voir l'appel à redimensionner)
+  if (debout && !enPause) {
+    enPause = true;
+    $('#pause').setAttribute('aria-pressed', 'true');
+  }
+}
+majTelephone();
+const basculerMenuTelephone = (ouvert = !document.body.classList.contains('menu-telephone')) => {
+  document.body.classList.toggle('menu-telephone', ouvert);
+  $('#bouton-menu-telephone').setAttribute('aria-expanded', String(ouvert));
+};
+$('#bouton-menu-telephone').addEventListener('click', () => basculerMenuTelephone());
+$('#voile-menu-telephone').addEventListener('click', () => basculerMenuTelephone(false));
+// Le plein écran, sans les barres du navigateur : Chrome sur Android sait le faire (et tient alors
+// l'écran couché). Pas Safari sur iPhone : là, on installe le jeu sur l'écran d'accueil (voir
+// public/manifest.webmanifest), et il s'ouvre en plein écran.
+const boutonPleinEcran = $('#plein-ecran');
+boutonPleinEcran.hidden = !document.fullscreenEnabled;
+boutonPleinEcran.addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else {
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      await screen.orientation?.lock?.('landscape').catch(() => {}); // (tous ne savent pas tenir l'écran couché)
+    }
+  } catch { /* refusé : on reste comme avant */ }
+  basculerMenuTelephone(false);
+});
+document.addEventListener('fullscreenchange', () => {
+  boutonPleinEcran.textContent = document.fullscreenElement ? 'Quitter le plein écran' : 'Plein écran';
+});
 
 // Une carte plus haute que la fenêtre (un petit écran) : son voile défile, et on lui met la classe
 // « deborde » : la bande des boutons prend alors un fond (voir style.css). On surveille la taille

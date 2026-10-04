@@ -14,6 +14,7 @@ import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
 import TEXTURES from './textures.json';
 import { fabriquerTexture, aspectDeLaFace, placerUV, enRVB } from './recettes.js';
+import { CADRE } from './cadre.js';
 
 const T = 16; // taille d'une case en pixels
 const CONTOUR = '#24161c';
@@ -1548,12 +1549,14 @@ export default class RenduPixel {
     this.dessinerVie();
 
     // cercle de portée
+    // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant ; sur un socle
+    // vide, celle du gardien qu'on regarde dans la roue, au doigt)
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
     const tour = occupes.get(iPortee);
-    const portee = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : 0; // (avec les bénédictions)
+    const ici = tour || (ui.apercuPortee && this.niveau.socles[iPortee]);
+    const portee = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : ici ? ui.apercuPortee : 0; // (avec les bénédictions)
     if (portee > 0) { // (un gardien qui ne tire pas, comme la Pépite, n'a pas de cercle)
-      const p = this.versPixel(tour.x, tour.y);
-      // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
+      const p = this.versPixel(ici.x, ici.y);
       this.cercle(p.x, p.y, portee * T, '#fff4d0');
     }
     // le Météore : là où il va tomber, pendant qu'on vise (orange), puis pendant sa chute (rouge, qui clignote)
@@ -2108,9 +2111,11 @@ export default class RenduPixel {
     const h = (this.conteneur.clientHeight || innerHeight) * this.dpr;
     this.canvas.width = l;
     this.canvas.height = h;
-    // le plus grand agrandissement entier qui fait tenir la carte (avec de la place pour les barres)
+    // le plus grand agrandissement entier qui fait tenir la carte (avec de la place pour les barres, sauf
+    // sur un téléphone couché : les boutons y flottent dans les coins, voir cadre.js)
     const { largeur, hauteur } = this.niveau;
-    this.echelle = Math.max(1, Math.floor(Math.min(l / (largeur * T + 8), h / (hauteur * T / 0.82))));
+    const place = CADRE.plein ? 0.98 : 0.82;
+    this.echelle = Math.max(1, Math.floor(Math.min(l / (largeur * T + 8), h / ((hauteur * T) / place))));
     // (au moins 1 pixel : une page encore cachée peut avoir une taille nulle, et une image de 0 pixel plante)
     this.ecran.width = Math.max(1, Math.ceil(l / this.echelle));
     this.ecran.height = Math.max(1, Math.ceil(h / this.echelle));

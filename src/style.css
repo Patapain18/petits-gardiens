@@ -238,7 +238,7 @@ body[data-style='pixel'] .choix-benediction { line-height: 1.5; }
 .barre.bas { top: auto; bottom: 12px; align-items: flex-end; flex-wrap: wrap; row-gap: 8px; }
 /* quand tout ne tient pas sur une ligne (l'arène en pixel : les pouvoirs, le héros, et une police large),
    les boutons de droite passent dessous, toujours à droite (avant, ils sortaient de l'écran) */
-.barre.bas > :last-child { margin-left: auto; }
+.barre.bas > .commandes { margin-left: auto; }
 .barre.bas .panneau { flex-wrap: wrap; } /* et dans une fenêtre étroite, leurs boutons passent à la ligne */
 
 .ressources { gap: 18px; padding: 8px 14px; }
@@ -553,6 +553,138 @@ body[data-style='pixel'] .lecon p { line-height: 1.8; }
   .lecon { top: auto; bottom: 78px; }
   .presentation-corps { flex-direction: column; align-items: flex-start; }
 }
+
+/* ═════════════════════════════════════════════════════════════
+   AU DOIGT (body.tactile : un écran tactile, voir doigt.js)
+   ═════════════════════════════════════════════════════════════ */
+/* pas de loupe ni de menu à l'appui long, pas de zoom (au double toucher ou à deux doigts), pas de
+   rebond de la page ; sur le plateau, c'est le jeu qui reçoit les gestes (viser en glissant) */
+body.tactile { -webkit-touch-callout: none; touch-action: pan-x pan-y; overscroll-behavior: none; }
+body.tactile #scene { touch-action: none; }
+body.tactile kbd.touche { display: none; } /* pas de clavier */
+body.roue-ouverte :is(#indice, .apercu) { visibility: hidden; } /* la flèche du didacticiel et l'aperçu laissent la place à la roue */
+.bouton-menu-telephone, .voile-menu-telephone, .coin-pouvoirs, .tourner, .plein-ecran { display: none; }
+
+/* ── La roue des gardiens, autour du socle ── */
+.roue { position: fixed; z-index: 18; width: 0; height: 0; }
+.choix-roue {
+  position: absolute;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 58px;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.roue.ouvre .choix-roue { animation: roue-ouvre 0.16s ease-out both; } /* (seulement à l'ouverture) */
+@keyframes roue-ouvre { from { scale: 0.4; opacity: 0; } }
+@media (hover: hover) { .choix-roue:hover:not(:disabled) { background: none; } }
+.portrait-roue {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--fond-panneau);
+  border: 2px solid var(--bord-sombre);
+  box-shadow: inset 2px 2px 0 var(--bord-clair), var(--ombre);
+}
+body[data-style='pixel'] .portrait-roue { border-radius: 0; }
+.portrait-roue canvas { display: block; max-width: 88%; max-height: 88%; }
+body[data-style='pixel'] .portrait-roue canvas { image-rendering: pixelated; }
+.portrait-roue .grosse-piece { width: 24px; height: 24px; }
+.prix-roue { display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; font-size: 0.75em; line-height: 1.5; color: var(--texte); background: var(--fond-panneau); border: 2px solid var(--bord-sombre); border-radius: calc(var(--rayon) * 0.6); white-space: nowrap; }
+.prix-roue .piece { width: 10px; height: 10px; }
+.choix-roue.choisi .portrait-roue { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent), var(--ombre); }
+.choix-roue.impossible .portrait-roue { filter: grayscale(0.85) brightness(0.75); }
+.choix-roue.impossible .prix-roue { color: #ffb0a0; }
+.choix-roue.vendre .prix-roue { color: #ffe08a; }
+.marque-roue { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 18px; height: 18px; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 700; color: var(--accent-texte); background: var(--accent); border-radius: 50%; }
+.confirmer-roue { position: absolute; inset: 0; display: grid; place-items: center; font-family: system-ui, sans-serif; font-size: 24px; color: #fff; background: rgba(40, 150, 60, 0.6); border-radius: inherit; }
+.bulle-roue {
+  position: absolute;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
+  translate: -50% 0;
+  padding: 6px 10px;
+  font-size: 0.8em;
+  line-height: 1.35;
+  background: var(--fond-panneau);
+  border: 2px solid var(--bord-sombre);
+  border-radius: var(--rayon);
+  box-shadow: inset 2px 2px 0 var(--bord-clair), var(--ombre);
+  pointer-events: none;
+}
+.bulle-roue p { margin: 2px 0 0; color: var(--texte-doux); }
+.bulle-roue .chiffres-roue { font-size: 0.9em; }
+.bulle-roue .raison-roue { color: #ffb0a0; }
+.bulle-roue .aide-roue { color: var(--accent); }
+body[data-style='pixel'] .bulle-roue { line-height: 1.7; }
+
+/* ═════════════════════════════════════════════════════════════
+   SUR UN TÉLÉPHONE COUCHÉ (body.telephone) : les boutons flottent dans les coins
+   L'or et la vague en haut à gauche, la pause et le menu (☰) en haut à droite, « Lancer la vague »
+   en bas à gauche (avec l'aperçu au-dessus), les pouvoirs et le héros en bas à droite. Le plateau
+   prend toute la hauteur (voir rendus/cadre.js). On évite l'encoche (env(safe-area-inset-…)).
+   ═════════════════════════════════════════════════════════════ */
+body.telephone { --taille: 14px; --espace: 6px; }
+body.telephone[data-style='pixel'] { --taille: 10px; }
+body.telephone .barre { left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); }
+body.telephone .barre:not(.bas) { top: max(6px, env(safe-area-inset-top)); }
+body.telephone .barre.bas { bottom: max(6px, env(safe-area-inset-bottom)); flex-wrap: nowrap; }
+body.telephone .panneau { padding: 4px 6px; }
+body.telephone button { min-height: 32px; padding: 4px 10px; }
+/* en haut à gauche : l'or et la vague (la carte des époques, le style et l'ambiance : dans le menu) */
+body.telephone .ressources { gap: 12px; padding: 4px 10px; }
+body.telephone .ressources .bouton-lien, body.telephone .barre > .choix, body.telephone #reglages, body.telephone .mes-benedictions { display: none; }
+/* en haut à droite : la pause et le menu */
+body.telephone .commandes { position: fixed; top: max(6px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); }
+body.telephone .commandes > :is(#vitesse, #recommencer, #bouton-options) { display: none; }
+body.telephone .bouton-menu-telephone { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; font-family: system-ui, sans-serif; font-size: 18px; }
+/* en bas à droite : les pouvoirs et le héros (s'il y en a), en une ligne serrée : des noms courts
+   (« Froid », « Héros »), et les pouvoirs du héros seulement une fois gagnés */
+body.telephone .coin-pouvoirs:has(> :not([hidden])) { display: flex; flex-wrap: nowrap; gap: 4px; margin-left: auto; padding: 4px; }
+body.telephone .coin-pouvoirs :is(.pouvoir, .bouton-heros) { min-height: 38px; padding-inline: 8px; gap: 4px; }
+body.telephone .coin-pouvoirs .bouton-heros { padding-bottom: 12px; }
+body.telephone .coin-pouvoirs .pouvoir.verrouille { display: none; }
+.nom-court { display: none; }
+body.telephone .nom-court { display: inline; }
+body.telephone .nom-long { display: none; }
+/* l'aperçu de la prochaine vague, plus serré */
+body.telephone .apercu { max-width: min(460px, calc(100vw - 200px)); padding: 4px 8px; gap: 3px; }
+body.telephone .portrait-apercu { width: 30px; height: 30px; }
+body.telephone .alerte-apercu { font-size: 0.75em; }
+.alerte-apercu .courte { display: none; } /* (sur un téléphone, l'alerte en quelques mots) */
+body.telephone .alerte-apercu .courte { display: inline; }
+body.telephone .alerte-apercu .longue { display: none; }
+/* la leçon du didacticiel, entre les coins du haut */
+body.telephone .lecon { top: max(6px, env(safe-area-inset-top)); width: min(420px, calc(100vw - 330px)); padding: 5px 9px; font-size: 0.85em; }
+/* les cartes (début, fin, fiches, bénédictions) : plus serrées */
+body.telephone .voile { padding: 8px max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left)); }
+body.telephone .carte { padding: 12px 16px; }
+body.telephone .carte h1 { font-size: 1.5em; }
+body.telephone .portrait { width: 96px; height: 96px; }
+body.telephone .presentation-corps { gap: 12px; }
+
+/* le menu (☰) ouvert : le style, l'ambiance et les autres commandes, au milieu de l'écran */
+body.telephone.menu-telephone .voile-menu-telephone { display: block; position: fixed; inset: 0; z-index: 30; background: rgba(20, 12, 24, 0.6); }
+body.telephone.menu-telephone .barre { z-index: 31; }
+body.telephone.menu-telephone .commandes > :is(#vitesse, #recommencer, #bouton-options, #plein-ecran) { display: inline-flex; }
+body.telephone.menu-telephone .ressources .bouton-lien:not([hidden]) { display: inline-flex; }
+body.telephone.menu-telephone .barre > .choix { display: flex; position: fixed; top: 50%; left: 50%; translate: -50% -115%; width: max-content; max-width: calc(100vw - 24px); }
+body.telephone.menu-telephone #reglages { display: flex; z-index: 31; top: 50%; right: auto; bottom: auto; left: 50%; translate: -50% 15%; width: max-content; max-width: calc(100vw - 24px); }
+
+/* ── Sur un téléphone tenu debout : on demande de le tourner (et le jeu se met en pause) ── */
+body.debout .tourner { display: grid; place-items: center; position: fixed; inset: 0; z-index: 100; padding: 24px; background: #1a1420; }
+body.debout .tourner .carte { align-items: center; max-width: 320px; text-align: center; }
+.telephone-qui-tourne { color: var(--accent); animation: tourner 2.6s ease-in-out infinite; }
+@keyframes tourner { 0%, 25% { rotate: 0deg; } 50%, 80% { rotate: -90deg; } 100% { rotate: 0deg; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

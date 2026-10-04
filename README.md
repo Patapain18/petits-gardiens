@@ -37,6 +37,7 @@ Ce qui change en ligne :
 - Chaque monstre tué rapporte de l'or, et chaque vague terminée donne un bonus.
 - Clique sur un gardien déjà posé : tu vois ses chiffres et sa portée, tu peux l'**améliorer** (niveau 2, puis 3) ou le revendre (tu récupères 60 % de tout ce que tu as dépensé pour lui).
 - Le bouton **Options**, en bas à droite, règle le son, la vitesse et l'affichage (voir « L'écran d'options ») ; la touche **M** coupe tout le son.
+- **Au doigt, sur un téléphone ou une tablette** : on touche un socle, et les gardiens apparaissent autour, en roue ; un premier toucher montre le gardien (et sa portée), un second le pose. Sur un téléphone, on joue couché (voir « Le jeu au doigt »).
 - Dans l'arène, deux **pouvoirs du château** aident pendant les vagues : le **Météore** (touche **1**), que l'on vise sur le chemin, et le **Grand froid** (touche **2**). Voir « Les pouvoirs du château ».
 - Dans l'arène aussi, toutes les 5 vagues tenues, une **bénédiction** : un bonus à choisir parmi 3 (clic, ou touches 1, 2, 3), qui reste jusqu'à la fin de la partie. Voir « Les bénédictions ».
 - Et un **héros**, le Grand Gardien : clique sur lui (ou touche **H**), puis sur la carte, et il y marche. Il frappe les monstres autour de lui et leur barre la route, mais ils le frappent aussi : à zéro, il est K.O. jusqu'à la vague suivante. Ses niveaux lui donnent des pouvoirs : l'Onde de choc (touche **O**) et le Bond (touche **B**). Voir « Le héros ».
@@ -75,6 +76,29 @@ Les vraies parties l'ont montré (voir « L'atelier de l'équilibrage ») : dans
 Le bandeau disparaît dès que la vague est lancée. On clique à travers (il ne gêne jamais la pose d'un gardien), sauf sur les monstres, pour pouvoir les survoler. `src/jeu/apercu.js` ne connaît que les règles (ce qui arrive, et les trous de la défense) ; `main.js` dessine le bandeau, et ne le refait que si quelque chose a changé (la vague, les gardiens, l'or, le style).
 
 Au passage, la barre du bas a été réparée : dans l'arène en pixel art (les pouvoirs, le héros, et une police large), les boutons de droite sortaient de l'écran sur un ordinateur portable. Maintenant, quand tout ne tient pas sur une ligne, ils passent dessous, toujours à droite, et les boutons d'un panneau passent à la ligne plutôt que de se plier.
+
+## Le jeu au doigt, sur un téléphone
+
+Le jeu était fait pour une souris : un survol pour voir, un clic pour faire, et des touches du clavier. Sur un écran tactile, il change sa façon de faire (`src/doigt.js` dit si l'appareil se pilote au doigt : un doigt est moins précis qu'une souris, c'est le « pointer: coarse » du navigateur ; `?tactile` dans l'adresse le force, pour essayer sur un ordinateur).
+
+**La roue des gardiens.** Toucher un socle ouvre une roue autour de lui, comme dans Kingdom Rush : un bouton par gardien, avec son portrait dessiné par le style de l'époque et son prix (grisé s'il est trop cher, ou pas encore arrivé). Un premier toucher **montre** le gardien : son nom, ce qu'il fait, ses chiffres, et sa portée en cercle sur le plateau. Un second toucher le **pose**. Ainsi, un doigt qui glisse ne pose jamais un gardien par erreur. Sur un gardien déjà posé, la roue propose « Améliorer » (le portrait du niveau suivant, avec ce qui change) et « Revendre », avec le même double toucher. La roue suit son socle, et ne sort jamais de l'écran.
+
+**Viser au doigt.** Il n'y a pas de survol : pour le Météore et le Bond du héros, on touche leur bouton, puis on **pose le doigt** sur le plateau : le cercle apparaît, on le **glisse**, et on **lâche** pour lancer. Le héros, lui, se laisse **emmener** : on le fait glisser jusqu'à l'endroit voulu (un simple toucher le choisit aussi, puis un toucher ailleurs l'y envoie). Un toucher un peu à côté d'un socle (à moins d'une case) compte quand même, et le héros est plus facile à toucher.
+
+**Sur un téléphone couché**, les boutons flottent dans les coins, et le plateau prend toute la hauteur (`src/rendus/cadre.js` le dit aux trois styles, qui ne gardent plus de place pour les barres) :
+
+| Coin | Ce qu'on y trouve |
+|---|---|
+| En haut à gauche | l'or et la vague (et le record, dans l'arène) |
+| En haut à droite | la pause, et le menu ☰ : le style, l'ambiance, la vitesse, recommencer, les options, la carte des époques, et le plein écran (sur Android) |
+| En bas à gauche | « Lancer la vague », avec l'aperçu de la prochaine vague au-dessus (ses alertes en quelques mots) |
+| En bas à droite | les pouvoirs du château et le héros, avec des noms courts (« Froid », « Héros ») ; les pouvoirs du héros n'y apparaissent qu'une fois gagnés |
+
+**Debout**, le plateau serait minuscule (24 cases sur la largeur d'un téléphone : des socles d'un centimètre). Le jeu demande donc de **tourner le téléphone**, et se met en pause.
+
+Et encore : pas de zoom ni de défilement de la page pendant qu'on joue (pas de loupe non plus à l'appui long), les touches du clavier disparaissent des boutons, les textes disent « touche » au lieu de « clique » (le didacticiel a ses propres phrases pour le doigt), rien ne passe sous l'encoche d'un iPhone, et un téléphone a des graphismes plus légers par défaut (tant qu'on n'a pas choisi dans les options).
+
+**Jouer en plein écran.** Les barres du navigateur mangent la hauteur, déjà petite. Sur Android, le menu ☰ a un bouton « Plein écran » (et le téléphone reste couché). Sur iPhone, Safari ne sait pas faire de plein écran : on **installe le jeu** sur l'écran d'accueil (bouton Partager, puis « Sur l'écran d'accueil »), et il s'ouvre en plein écran, avec son icône : la Braise en pixel art, sur un ciel de coucher de soleil. C'est ce que décrit `public/manifest.webmanifest` (le « manifeste » d'une application web : son nom, son icône, plein écran, couché).
 
 ## Les améliorations
 
@@ -1130,6 +1154,7 @@ equilibrage.html       l'atelier de l'équilibrage : les niveaux en courbes, ave
 son.html               l'atelier du son : chaque bruitage mesuré dans les trois époques, des situations de jeu rejouées, les recettes à régler
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
+public/                copié tel quel sur le site : le manifeste (le jeu installé sur un téléphone) et ses icônes
 src/
 ├── accueil.js         la carte des époques : les mondes, les niveaux, la progression
 ├── accueil.css        son allure (chaque monde dans le style de son époque)
@@ -1154,6 +1179,7 @@ src/
 ├── compteur.js        le compteur de visites : chaque page prévient le serveur qu'on l'a ouverte
 ├── visites.js         la page des visites : les chiffres additionnés et dessinés (+ visites.css)
 ├── typographie.js     les espaces insécables : un « ! » ou un « ? » ne finit jamais seul au début d'une ligne
+├── doigt.js           au doigt : l'écran est-il tactile ? un téléphone ? et les textes qui disent « touche » au lieu de « clique »
 ├── style.css          l'interface du jeu (elle change de look selon le style choisi)
 ├── niveaux/           LES FICHES DE NIVEAU (des données pures, sans code)
 │   ├── monde1-1.json … monde1-4.json   les quatre niveaux du monde 1
@@ -1198,6 +1224,7 @@ src/
 │   ├── mesures.js     les oreilles : volume ressenti (LUFS), crête, dureté, spectre, spectrogramme
 │   └── situations.js  des situations de jeu : une vague jouée par le bon joueur imaginaire, chaque son à son heure
 └── rendus/            LES DESSINS (ils lisent l'état du jeu et l'affichent)
+    ├── cadre.js       la place laissée à l'interface : des barres en haut et en bas, ou rien (un téléphone couché)
     ├── voxel.js       style 1 : cubes façon Minecraft + lumière de coucher de soleil
     ├── cartoon.js     style 2 : formes rondes et contours, façon Kingdom Rush
     ├── pixel.js       style 3 : vrai pixel art 16 bits, dessiné en Canvas 2D
@@ -1523,3 +1550,4 @@ Dans la console du navigateur (F12) :
 14. ~~Un atelier de l'équilibrage, avec les vraies parties par-dessus~~ (fait : les niveaux en courbes, les chiffres du jeu dans une table, le banc d'essai et le débutant ; les pièges des premières vagues retirés de trois niveaux, et la vague 2 de la vallée du Colosse adoucie).
 15. ~~Un atelier du son, pour mesurer les bruitages comme l'oreille les entend~~ (fait : chaque bruitage comparé à la musique dans les trois époques, cinq situations de jeu rejouées ; les bruits aigus et les « boum » égalisés d'une époque à l'autre, les sons trop discrets montés).
 16. ~~Montrer la prochaine vague avant de la lancer~~ (fait : le bandeau au-dessus du bouton, avec les trous de la défense et l'or qui dort).
+17. ~~Jouer au doigt sur un téléphone~~ (fait : la roue des gardiens, viser en glissant le doigt, les boutons dans les coins d'un téléphone couché, le plateau sur toute la hauteur, et le jeu installable sur l'écran d'accueil).

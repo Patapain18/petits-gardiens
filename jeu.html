@@ -2,11 +2,21 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- viewport-fit=cover : sur un iPhone couché, le jeu va jusqu'aux bords (l'encoche est évitée dans style.css) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Petits Gardiens</title>
   <meta name="description" content="Petits Gardiens, un tower defense à travers les époques du jeu vidéo : des petits monstres gardiens protègent leur château." />
   <!-- Sans niveau dans l'adresse (jeu.html?niveau=monde1-1), on retourne à la carte des époques -->
   <script>if (!new URLSearchParams(location.search).get('niveau')) location.replace('./');</script>
+  <!-- Installé sur l'écran d'accueil d'un téléphone (voir public/manifest.webmanifest) : le jeu s'ouvre
+       en plein écran, sans les barres du navigateur -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icones/apple-touch-icon.png" />
+  <meta name="theme-color" content="#1a1420" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Petits Gardiens" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Pixelify+Sans:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
@@ -58,10 +68,10 @@
         <!-- Les pouvoirs du château (seulement dans les niveaux qui en donnent, comme l'arène) -->
         <span id="pouvoirs" class="pouvoirs" hidden>
           <button class="pouvoir" data-pouvoir="meteore"><span class="nom-pouvoir">Météore</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
-          <button class="pouvoir" data-pouvoir="froid"><span class="nom-pouvoir">Grand froid</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
+          <button class="pouvoir" data-pouvoir="froid"><span class="nom-pouvoir"><span class="nom-long">Grand froid</span><span class="nom-court">Froid</span></span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
         </span>
         <!-- Le héros (seulement dans les niveaux qui en ont un) : son niveau, sa vie et son expérience -->
-        <button id="bouton-heros" class="bouton-heros" hidden><span class="nom-heros">Grand Gardien</span><span class="niveau-heros"></span><kbd class="touche">H</kbd><span class="vie-heros" aria-hidden="true"></span><span class="xp-heros" aria-hidden="true"></span></button>
+        <button id="bouton-heros" class="bouton-heros" hidden><span class="nom-heros"><span class="nom-long">Grand Gardien</span><span class="nom-court">Héros</span></span><span class="niveau-heros"></span><kbd class="touche">H</kbd><span class="vie-heros" aria-hidden="true"></span><span class="xp-heros" aria-hidden="true"></span></button>
         <!-- Les pouvoirs du héros : ses niveaux les débloquent (l'Onde de choc au 4, le Bond au 6) -->
         <span id="pouvoirs-heros" class="pouvoirs" hidden>
           <button class="pouvoir" data-pouvoir-heros="onde"><span class="nom-pouvoir">Onde</span><span class="etat-pouvoir"></span><kbd class="touche">O</kbd></button>
@@ -69,17 +79,33 @@
         </span>
       </div>
     </div>
-    <div class="panneau">
+    <div class="panneau commandes">
       <button id="vitesse" title="Vitesse du jeu">Vitesse ×1</button>
       <button id="pause" aria-pressed="false">Pause</button>
       <button id="recommencer">Recommencer</button>
       <button id="bouton-options" aria-haspopup="dialog">Options</button>
+      <!-- Sur un téléphone, dans le menu : le plein écran (seulement si le navigateur sait le faire) -->
+      <button id="plein-ecran" class="plein-ecran" hidden>Plein écran</button>
+      <!-- Sur un téléphone couché : le menu (le style, l'ambiance, la vitesse, recommencer, les options, la carte) -->
+      <button id="bouton-menu-telephone" class="bouton-menu-telephone" aria-label="Menu" aria-expanded="false">☰</button>
     </div>
+    <!-- Sur un téléphone couché : les pouvoirs et le héros, en bas à droite (main.js y range leurs boutons) -->
+    <div id="coin-pouvoirs" class="panneau coin-pouvoirs"></div>
   </footer>
+  <div id="voile-menu-telephone" class="voile-menu-telephone" aria-hidden="true"></div>
 
 
   <!-- Menu qui s'ouvre quand on clique sur un socle -->
   <div id="menu" class="panneau menu" role="dialog" aria-label="Choisir un gardien" hidden></div>
+  <!-- Au doigt : la roue des gardiens autour du socle (remplie par main.js) -->
+  <div id="roue" class="roue" role="dialog" aria-label="Choisir un gardien" hidden></div>
+  <!-- Sur un téléphone tenu debout : le plateau serait minuscule -->
+  <div id="tourner" class="tourner" role="alert">
+    <div class="panneau carte">
+      <svg class="telephone-qui-tourne" viewBox="0 0 64 64" width="72" height="72" aria-hidden="true"><rect x="20" y="6" width="24" height="52" rx="5" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="32" cy="50" r="2.5" fill="currentColor"/></svg>
+      <p>Tourne ton téléphone pour jouer&nbsp;: le plateau a besoin de toute la largeur.</p>
+    </div>
+  </div>
 
   <!-- Petits textes « +6 » qui s'envolent quand un monstre meurt -->
   <div id="bulles" aria-hidden="true"></div>

@@ -1,0 +1,16 @@
+{
+  "name": "Petits Gardiens",
+  "short_name": "Petits Gardiens",
+  "description": "Un tower defense à travers les époques du jeu vidéo : des petits monstres gardiens protègent leur château.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a1420",
+  "theme_color": "#1a1420",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

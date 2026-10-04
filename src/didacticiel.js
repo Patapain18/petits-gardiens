@@ -17,6 +17,7 @@ import { classerSocles } from './jeu/equilibrage.js';
 import { lireProgression, noterVu } from './progression.js';
 import { lireOptions, quandOptionsChangent } from './options.js';
 import { insecables } from './typographie.js';
+import { TACTILE } from './doigt.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -26,12 +27,14 @@ function gardienAmeliorable(etat) {
   return etat.tours.filter((t) => prix(t) <= etat.or).sort((a, b) => prix(a) - prix(b))[0] || null;
 }
 
-// Les leçons. Pour chacune : son texte, quand on peut la donner, quand elle
-// est finie, et ce que montre la flèche (un socle ou un bouton).
+// Les leçons. Pour chacune : son texte (et celui pour le doigt, sur un écran
+// tactile : la roue autour du socle, pas de clavier), quand on peut la donner,
+// quand elle est finie, et ce que montre la flèche (un socle ou un bouton).
 const LECONS = {
   poser: {
     titre: 'Pose ton premier gardien',
     texte: 'Clique sur le socle de pierre que montre la flèche, puis choisis un gardien dans le menu.',
+    texteDoigt: 'Touche le socle de pierre que montre la flèche : les gardiens apparaissent autour. Touche un gardien pour le voir, puis encore une fois pour le poser.',
     possible: (etat) => etat.statut === 'preparation',
     finie: (etat) => etat.tours.length > 0,
     indice: (etat, didacticiel) => ({ socle: didacticiel.meilleurSocleLibre(etat) }),
@@ -39,6 +42,7 @@ const LECONS = {
   lancer: {
     titre: 'Lance la vague',
     texte: 'Quand tu es prêt, clique sur « Lancer la vague », en bas de l’écran (ou appuie sur Espace). Les monstres vont suivre le chemin jusqu’au château.',
+    texteDoigt: 'Quand tu es prêt, touche « Lancer la vague », en bas de l’écran. Les monstres vont suivre le chemin jusqu’au château.',
     possible: (etat) => etat.statut === 'preparation',
     finie: (etat) => etat.vague > 0,
     indice: () => ({ bouton: '#lancer' }),
@@ -46,6 +50,7 @@ const LECONS = {
   ameliorer: {
     titre: 'Améliore un gardien',
     texte: 'Tu as assez d’or : clique sur un gardien déjà posé, puis sur « Améliorer ». Il devient plus fort… et gagne une cape !',
+    texteDoigt: 'Tu as assez d’or : touche un gardien déjà posé, puis la flèche « Améliorer » (deux fois). Il devient plus fort… et gagne une cape !',
     possible: (etat) => etat.statut === 'preparation' && gardienAmeliorable(etat) !== null,
     finie: (etat) => etat.tours.some((t) => t.niveau > 1),
     indice: (etat) => ({ socle: gardienAmeliorable(etat)?.socle ?? null }),
@@ -204,7 +209,7 @@ export class Didacticiel {
       $('#lecon').hidden = !lecon;
       if (lecon) {
         $('#lecon-titre').textContent = insecables(lecon.titre);
-        $('#lecon-texte').textContent = insecables(lecon.texte);
+        $('#lecon-texte').textContent = insecables((TACTILE && lecon.texteDoigt) || lecon.texte);
       }
     }
     if (!lecon) {

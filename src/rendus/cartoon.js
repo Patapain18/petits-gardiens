@@ -18,6 +18,7 @@ import {
 } from './outils3d.js';
 import TEXTURES from './textures.json';
 import { creerToile, peindreSol as peindreSolRecettes, peindreMatiere, FORMES, portee } from './peintures.js';
+import { CADRE } from './cadre.js';
 
 // Le hasard du décor (où poussent les arbres, les fleurs…) : il repart de la même graine à chaque
 // nouveau rendu (voir le constructeur), pour que le décor soit toujours le même
@@ -1948,7 +1949,8 @@ export default class RenduCartoon {
       [c.x + 2.1, 3.5, c.y], [c.x + 2.1, 0, c.y - 2.5], [c.x + 2.1, 0, c.y + 2.7]]
       .map(([x, y, z]) => new THREE.Vector3(x, y, z).applyMatrix4(this.camera.matrixWorldInverse));
     let demiL = Math.max(...points.map((p) => Math.abs(p.x)));
-    let demiH = Math.max(...points.map((p) => Math.abs(p.y))) / 0.86; // place pour les barres du haut et du bas
+    // de la place pour les barres du haut et du bas (sauf sur un téléphone couché : voir cadre.js)
+    let demiH = Math.max(...points.map((p) => Math.abs(p.y))) / (CADRE.plein ? 0.97 : 0.86);
     const ratio = this.largeur / this.hauteur;
     if (demiL / demiH > ratio) demiH = demiL / ratio; else demiL = demiH * ratio;
     Object.assign(this.camera, { left: -demiL, right: demiL, top: demiH, bottom: -demiH });
@@ -2014,14 +2016,16 @@ export default class RenduCartoon {
       s.plus.rotation.y = Math.sin(this.temps * 1.5 + i) * 0.5;
       s.plus.scale.setScalar(actif ? 1.25 : 1);
     });
-    // cercle de portée (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
+    // cercle de portée (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant ;
+    // sur un socle vide, celle du gardien qu'on regarde dans la roue, au doigt)
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
     const tour = etat.tours.find((t) => t.socle === iPortee);
-    const r = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : 0; // (avec les bénédictions)
+    const ici = tour || (ui.apercuPortee && this.niveau.socles[iPortee]);
+    const r = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : ici ? ui.apercuPortee : 0; // (avec les bénédictions)
     this.anneau.visible = r > 0; // (un gardien qui ne tire pas, comme la Pépite, n'a pas de cercle)
     if (r > 0) {
       this.anneau.scale.set(r, 1, r);
-      this.anneau.position.set(tour.x, this.sol(tour.x, tour.y) + 0.06, tour.y);
+      this.anneau.position.set(ici.x, this.sol(ici.x, ici.y) + 0.06, ici.y);
     }
     // le héros choisi : la portée de sa frappe
     if (ui.herosChoisi && etat.heros) {

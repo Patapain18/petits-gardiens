@@ -43,7 +43,8 @@ export function traitsDe(type, force = 1) {
 // - monstres : une ligne par sorte de monstre, dans l'ordre où ils arrivent ({ type, nom,
 //   nombre, force, traits }) ;
 // - total : le nombre de monstres (sans les petits qui sortent des Gigognes) ;
-// - alertes : les trous de la défense contre cette vague ({ fort, texte } : fort = un vrai danger).
+// - alertes : les trous de la défense contre cette vague ({ fort, texte, court } : fort = un vrai
+//   danger ; court = la même chose en quelques mots, pour un petit écran).
 export function apercuVague(etat) {
   const { vagues } = etat.niveau;
   const index = etat.vague; // le nombre de vagues déjà lancées : la prochaine a ce numéro dans la liste
@@ -76,25 +77,25 @@ function alertes(etat, monstres) {
   const liste = [];
   const tireurs = etat.tours.map((t) => caracteristiques(t.type, t.niveau)).filter((c) => c.projectile);
   if (!tireurs.length) {
-    liste.push({ fort: true, texte: 'Aucun gardien ne tire encore : pose-en avant de lancer la vague.' });
+    liste.push({ fort: true, texte: 'Aucun gardien ne tire encore : pose-en avant de lancer la vague.', court: 'Aucun gardien ne tire encore.' });
   } else {
     // des volants, et que des tirs en cloche (les rochers du Grondin), qui retombent au sol
     const volants = monstres.filter((m) => MONSTRES[m.type].volant);
     if (volants.length && !tireurs.some((c) => !c.projectile.cloche)) {
-      liste.push({ fort: true, texte: `Aucun de tes gardiens ne touche ${noms(volants)}, qui volent : les rochers passent dessous. Il faut une Braise, une Givrine, une Étincelle ou un Prisme.` });
+      liste.push({ fort: true, texte: `Aucun de tes gardiens ne touche ${noms(volants)}, qui volent : les rochers passent dessous. Il faut une Braise, une Givrine, une Étincelle ou un Prisme.`, court: `Rien ne touche ${noms(volants)} (ils volent).` });
     }
     // une carapace, et que des petits coups (le rayon du Prisme, lui, la traverse)
     for (const m of monstres.filter((x) => MONSTRES[x.type].armure)) {
       const armure = MONSTRES[m.type].armure;
       if (!tireurs.some((c) => c.projectile.type === 'rayon' || c.degats >= 2 * armure)) {
-        liste.push({ fort: false, texte: `La carapace ${m.nombre > 1 ? `des ${m.nom}s` : `de la ${m.nom}`} enlève ${armure} dégâts à chaque coup : tes gardiens tapent trop doucement. Il faut de gros coups (un Grondin, des gardiens améliorés) ou le rayon d’un Prisme.` });
+        liste.push({ fort: false, texte: `La carapace ${m.nombre > 1 ? `des ${m.nom}s` : `de la ${m.nom}`} enlève ${armure} dégâts à chaque coup : tes gardiens tapent trop doucement. Il faut de gros coups (un Grondin, des gardiens améliorés) ou le rayon d’un Prisme.`, court: 'Tes coups sont trop faibles pour la carapace.' });
       }
     }
   }
   // l'or qui dort (au moins 100 pièces) : de quoi poser un gardien de plus, ou en améliorer un. (Une
   // vraie partie perdue aux deux étangs : une seule Braise, et 130 pièces en poche.)
   const achat = moinsCherAchat(etat);
-  if (achat && etat.or >= Math.max(100, achat.prix)) liste.push({ fort: false, texte: `Il te reste ${etat.or} pièces : de quoi ${achat.texte}.` });
+  if (achat && etat.or >= Math.max(100, achat.prix)) liste.push({ fort: false, texte: `Il te reste ${etat.or} pièces : de quoi ${achat.texte}.`, court: `${etat.or} pièces à dépenser.` });
   return liste;
 }
 

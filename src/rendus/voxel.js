@@ -19,6 +19,7 @@ import { fabriquerTexture, assemblerTerrain, aspectDeLaFace, placerUV } from './
 import { CarteDesLumieres } from './carte-lumieres.js';
 import { Lumieres } from './lumieres.js';
 import { ficheDe, ficheDuHeros, socleActif } from '../jeu/benedictions.js';
+import { CADRE } from './cadre.js';
 import {
   Synchro, Particules, creerBarreDeVie, majBarreDeVie, socleProche, versRotationY, liberer, creerAppareilPhoto, photographier, ombrerVue,
 } from './outils3d.js';
@@ -2238,6 +2239,8 @@ export default class RenduVoxel {
     const coins = [[-marge, -marge], [largeur + marge, -marge], [-marge, hauteur + marge], [largeur + marge, hauteur + marge]]
       .map(([x, z]) => new THREE.Vector3(x, 0, z));
     if (!cinema) coins.push(new THREE.Vector3(c.x + 1.6, 0, c.y - 2.5), new THREE.Vector3(c.x + 1.6, 3.5, c.y), new THREE.Vector3(c.x + 1.6, 0, c.y + 2.7));
+    // de la place pour les barres du haut et du bas (sauf sur un téléphone couché : voir cadre.js)
+    const bord = CADRE.plein ? 0.96 : 0.86;
     let bas = 4, haut = 200;
     for (let i = 0; i < 30; i++) {
       const milieu = (bas + haut) / 2;
@@ -2247,7 +2250,7 @@ export default class RenduVoxel {
       this.camera.updateMatrixWorld();
       const tient = coins.every((c) => {
         const p = c.clone().project(this.camera);
-        return Math.abs(p.x) < 0.97 && p.y > -0.86 && p.y < 0.86 && p.z < 1;
+        return Math.abs(p.x) < 0.97 && p.y > -bord && p.y < bord && p.z < 1;
       });
       if (tient) haut = milieu; else bas = milieu;
     }
@@ -2347,14 +2350,16 @@ export default class RenduVoxel {
     });
 
     // Cercle de portée du gardien survolé ou sélectionné
-    // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant)
+    // (ui.apercuPortee : pendant qu'on survole « Améliorer », la portée du niveau suivant ; sur un socle
+    // vide, celle du gardien qu'on regarde dans la roue, au doigt)
     const iPortee = ui.selection >= 0 ? ui.selection : ui.survol;
     const tour = etat.tours.find((t) => t.socle === iPortee);
-    const r = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : 0; // (avec les bénédictions)
+    const ici = tour || (ui.apercuPortee && this.niveau.socles[iPortee]);
+    const r = tour ? ui.apercuPortee ?? ficheDe(etat, tour.type, tour.niveau).portee : ici ? ui.apercuPortee : 0; // (avec les bénédictions)
     this.anneau.visible = r > 0; // (un gardien qui ne tire pas, comme la Pépite, n'a pas de cercle)
     if (r > 0) {
       this.anneau.scale.set(r, 1, r);
-      this.anneau.position.set(tour.x, this.sol(tour.x, tour.y) + 0.05, tour.y);
+      this.anneau.position.set(ici.x, this.sol(ici.x, ici.y) + 0.05, ici.y);
     }
     // le héros choisi : la portée de sa frappe
     if (ui.herosChoisi && etat.heros) {
