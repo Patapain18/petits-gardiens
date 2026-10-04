@@ -14,6 +14,8 @@
 // - /__chiffres : enregistre les chiffres du jeu (src/jeu/chiffres.json)
 //                 (c'est ce qu'utilise l'atelier de l'équilibrage, qui enregistre aussi les
 //                 fiches de niveau modifiées, par /__niveaux)
+// - /__sons     : enregistre les réglages du son (src/son/sons.json)
+//                 (c'est ce qu'utilise l'atelier du son)
 // - /__partie   : garde une partie enregistrée dans captures/parties/ (POST), ou la relit
 //                 (GET /__partie/nom) : pour vérifier qu'elle se rejoue pareil partout
 import { defineConfig } from 'vite';
@@ -26,12 +28,14 @@ import { problemesAmbiances, formaterAmbiances } from './src/rendus/format-ambia
 import { problemesTextures, formaterTextures } from './src/rendus/format-textures.js';
 import { problemesApparences, formaterApparences } from './src/rendus/format-apparences.js';
 import { problemesChiffres, formaterChiffres } from './src/jeu/format-chiffres.js';
+import { problemesSons, formaterSons } from './src/son/format-sons.js';
 
 const DOSSIER_NIVEAUX = path.resolve('src/niveaux');
 const FICHIER_AMBIANCES = path.resolve('src/rendus/ambiances.json');
 const FICHIER_TEXTURES = path.resolve('src/rendus/textures.json');
 const FICHIER_APPARENCES = path.resolve('src/jeu/apparences.json');
 const FICHIER_CHIFFRES = path.resolve('src/jeu/chiffres.json');
+const FICHIER_SONS = path.resolve('src/son/sons.json');
 // Un nom de fichier sûr : des minuscules, des chiffres et des tirets, rien d'autre.
 // (Impossible d'écrire « ../../quelque-chose » ailleurs que dans src/niveaux.)
 const ID_VALIDE = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -180,6 +184,23 @@ const outilsDev = {
       repondre(res, 200, { fichier: 'src/jeu/chiffres.json' });
     });
 
+    // Les réglages du son (l'atelier du son) : revérifiés avant d'être écrits (les mêmes époques,
+    // les mêmes bruitages qu'aujourd'hui, des recettes correctes : voir format-sons.js)
+    server.middlewares.use('/__sons', async (req, res) => {
+      if (req.method !== 'POST') return repondre(res, 405, { erreur: 'POST seulement' });
+      let donnees;
+      try {
+        donnees = JSON.parse(await lireCorps(req, TAILLE_MAX_FICHE));
+      } catch {
+        return repondre(res, 400, { erreur: 'Réglages illisibles (JSON invalide ou trop gros).' });
+      }
+      const modele = JSON.parse(fs.readFileSync(FICHIER_SONS, 'utf8'));
+      const problemes = problemesSons(donnees, modele);
+      if (problemes.length) return repondre(res, 422, { erreur: `Réglages incorrects : ${problemes[0]}`, problemes });
+      fs.writeFileSync(FICHIER_SONS, formaterSons(donnees));
+      repondre(res, 200, { fichier: 'src/son/sons.json' });
+    });
+
     // Les fiches de niveau
     server.middlewares.use('/__niveaux', async (req, res) => {
       const id = decodeURIComponent((req.url || '/').split('?')[0].replace(/^\/+/, ''));
@@ -248,18 +269,18 @@ export default defineConfig(({ command }) => ({
   // Des adresses relatives (« ./assets/… » plutôt que « /assets/… ») : le site marche aussi
   // rangé dans un sous-dossier, comme sur GitHub Pages (patapain18.github.io/petits-gardiens/)
   base: './',
-  // Onze pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
+  // Douze pages : l'accueil avec la carte des époques (index.html), le jeu (jeu.html),
   // l'éditeur de niveaux (editeur.html), la galerie des personnages (personnages.html),
   // la salle des sons (sons.html), l'atelier des lumières (lumieres.html), celui des
   // textures (textures.html), celui des modèles (modeles.html), celui de l'équilibrage
-  // (equilibrage.html), la page pour revoir une partie enregistrée (revoir.html) et celle
-  // des visites (visites.html)
+  // (equilibrage.html), celui du son (son.html), la page pour revoir une partie enregistrée
+  // (revoir.html) et celle des visites (visites.html)
   build: {
     rollupOptions: {
       input: {
         accueil: 'index.html', jeu: 'jeu.html', editeur: 'editeur.html', personnages: 'personnages.html', sons: 'sons.html',
         lumieres: 'lumieres.html', textures: 'textures.html', modeles: 'modeles.html', equilibrage: 'equilibrage.html',
-        revoir: 'revoir.html', visites: 'visites.html',
+        son: 'son.html', revoir: 'revoir.html', visites: 'visites.html',
       },
     },
   },

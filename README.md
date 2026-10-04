@@ -538,16 +538,16 @@ Chaque thème dure 16 mesures (environ 33 secondes pour le thème principal, 30 
 
 **Le séquenceur.** Une note doit tomber pile à l'heure, sinon la musique boite. On ne la lance donc pas avec un `setTimeout` (qui peut avoir du retard), mais on la **programme à l'avance** sur l'horloge du son : toutes les 25 millisecondes, `son.js` prépare les notes des 0,15 secondes suivantes, chacune avec son heure exacte.
 
-**Les bruitages.** Chaque événement du moteur a sa recette, écrite une seule fois dans `src/son/effets.js` : le tir de chaque gardien, l'éclair, le vent, l'explosion, le coup qui ricoche sur une carapace, un monstre battu (plus il est solide, plus c'est grave), la Taupe qui plonge et qui ressort, les petits qui sortent, le feu du Dragon, la récolte de la Pépite, poser, améliorer et revendre un gardien, une vague lancée, un chef qui arrive. La recette utilise les instruments de l'époque : le même tir de Braise sonne « console » en pixel et feutré, avec de l'écho, en voxel. Les rayons du Prisme font un bourdonnement continu, qui monte quand ils chauffent. Et chaque son vient de l'endroit de la carte où il se passe (à gauche ou à droite).
+**Les bruitages.** Chaque événement du moteur a sa recette, écrite une seule fois dans `src/son/sons.json` (des données, que l'atelier du son mesure et règle : voir plus bas) : le tir de chaque gardien, l'éclair, le vent, l'explosion, le coup qui ricoche sur une carapace, un monstre battu (plus il est solide, plus c'est grave), la Taupe qui plonge et qui ressort, les petits qui sortent, le feu du Dragon, la récolte de la Pépite, poser, améliorer et revendre un gardien, une vague lancée, un chef qui arrive. La recette utilise les instruments de l'époque : le même tir de Braise sonne « console » en pixel et feutré, avec de l'écho, en voxel. Les rayons du Prisme font un bourdonnement continu, qui monte quand ils chauffent. Et chaque son vient de l'endroit de la carte où il se passe (à gauche ou à droite).
 
-Un même bruitage ne peut pas jouer plus de 2 à 4 fois en même temps (`LIMITES`, dans `effets.js`) : sans ça, vingt Gluants battus d'un seul rocher feraient vingt sons d'un coup.
+Un même bruitage ne peut pas jouer plus de 2 à 4 fois en même temps (la `limite` de sa recette) : sans ça, vingt Gluants battus d'un seul rocher feraient vingt sons d'un coup.
 
 **Les réglages.** La fenêtre des options (voir plus bas) a deux curseurs (la musique, les bruitages) et une case pour tout couper (ou la touche M). Au départ : la musique à 50 %, les bruitages à 100 %. Les navigateurs interdisent de faire du bruit avant que le joueur ait cliqué : tout commence au premier clic (sur « Jouer »). Quand l'onglet est caché, le son se met en pause.
 
 **Comment on a vérifié, sans haut-parleur.** Web Audio sait aussi calculer le son sans le jouer (un contexte « hors ligne »). On a ainsi enregistré le thème de chaque orchestre, puis analysé les fichiers :
 - **la mélodie est juste** : la note entendue à chaque départ de note est celle de la partition (thème principal : 60 sur 60 en pixel et en cartoon ; en voxel, deux notes sont lues une octave trop haut, parce que la précédente résonne encore. Thème des chefs : 74 sur 74 dans les trois époques) ;
 - **le volume est le même dans les trois époques** : environ −19 LUFS pendant une vague et −21 au calme (le LUFS mesure le volume tel que l'oreille l'entend), et environ 1,5 de plus pour le thème des chefs. Pour y arriver, chaque orchestre a son propre volume ;
-- **les bruitages sont équilibrés** : la plupart sonnent aussi fort dans les trois époques, à 3 dB près. Le bruit « console » du pixel, plus puissant que le bruit blanc, a été baissé, et les bruits du cartoon et du voxel ont été poussés (`forceBruit`) ;
+- **les bruitages sont équilibrés** : la plupart sonnent aussi fort dans les trois époques, à 3 dB près. Le bruit « console » du pixel, plus puissant que le bruit blanc, a été baissé, et les bruits du cartoon et du voxel ont été poussés (`forceBruit`). L'atelier du son a ensuite trouvé ce que cette première mesure avait manqué (voir plus bas) ;
 - **rien ne sature**.
 
 Mais seule une oreille peut dire si c'est agréable : c'est au joueur de juger.
@@ -987,6 +987,118 @@ Le **Grondin** est le plus rentable contre les foules au sol : 35 dégâts pour 
 - **prévenir quand on lance une vague avec beaucoup d'or en poche** (une défaite aux deux étangs avec une seule Braise et 130 pièces) ;
 - le Blizzard et la Bourrasque.
 
+## L'atelier du son
+
+### Pourquoi un atelier
+
+La salle des sons fait **écouter** chaque bruitage, dans les trois époques. Mais l'oreille se fatigue, elle s'habitue, et elle juge un son tout seul, alors qu'en jeu il passe au milieu de la musique et de cinquante autres. La page `son.html` (un outil d'atelier) est l'**oreille** qui mesure : chaque bruitage est calculé dans les trois époques et mesuré comme l'oreille l'entend, et des **situations de jeu** rejouent 30 secondes d'une vraie vague pour voir si la musique est couverte. Les recettes se règlent avec des curseurs : l'atelier recalcule tout, et garde l'avant en pâle.
+
+### Les réglages du son, rangés dans un fichier
+
+Comme les chiffres du jeu, les réglages du son sont rangés à part, dans `src/son/sons.json` :
+
+- les **recettes** des 36 bruitages : leur nom, leur famille, leur **rôle**, une phrase qui les décrit, leurs couches et leur limite ;
+- les **réglages des trois époques** : le volume de chaque orchestre, son écho, et la force de chaque sorte de son dans ses bruitages ;
+- le **mixage** de la musique (le volume de chaque couche : au calme, pendant une vague, avec le thème des chefs) et la limite par défaut des bruitages.
+
+Une recette, c'est une liste de couches qui partent ensemble (chacune peut attendre un peu : son « retard ») :
+
+```json
+"tir:braise": {
+  "nom": "Braise tire", "famille": "Les gardiens", "role": "frequent",
+  "description": "Un souffle de feu qui part (du bruit qui descend) et un petit « piou ».",
+  "couches": [
+    { "outil": "bruit", "duree": 0.12, "volume": 0.18, "filtre": "bandpass", "de": 2400, "a": 700, "q": 1.2 },
+    { "outil": "bip", "frequence": 330, "duree": 0.07, "volume": 0.15, "glisse": 2 }
+  ],
+  "limite": { "max": 3, "ecart": 0.06 }
+}
+```
+
+`src/son/format-sons.js` donne le **sens de chaque nombre** (son nom, son unité, ses limites, une phrase qui l'explique) et vérifie un fichier proposé : les mêmes époques, les mêmes bruitages (leurs noms viennent des événements du jeu : l'atelier change les recettes, il n'en invente pas), et des recettes correctes. `src/son/reglages-son.js` les charge ; les modules du son les lisent à chaque son joué (un réglage de l'atelier compte tout de suite). Ce rangement n'a rien changé au jeu : les 120 sons (chaque recette dans chaque époque, et la défaite de chaque sorte de monstre) ont été recalculés et comparés à ceux d'avant, identiques à un millionième près.
+
+### Comment l'atelier entend
+
+- **Hors ligne.** Web Audio sait calculer un son sans le jouer (un `OfflineAudioContext`) : on obtient exactement ce que le joueur entendrait (les mêmes instruments, la même table de mixage, le même compresseur), mais sous forme de nombres. Le hasard (les petites variations de ±3 %, le grain du bruit) est fixé pendant qu'on prépare le son : le même calcul donne toujours le même son, et l'avant et l'après ne diffèrent que par les réglages (`src/son/hors-ligne.js`).
+- **Le volume ressenti** se mesure en **LUFS**, la norme des radios et des plateformes de musique (ITU-R BS.1770, dans `src/son/mesures.js`) : le son passe d'abord dans un filtre qui imite l'oreille (elle entend mal les graves et très bien les aigus vers 2 à 4 kHz), puis on mesure sa puissance. Pour un bruitage, on garde son moment le plus fort, sur 0,4 seconde. 6 LU de plus, c'est à peu près deux fois plus fort.
+- **Comparé à la musique.** Un bruitage n'est ni fort ni faible tout seul : il est fort *comparé à la musique*. Chacun est donc comparé à la musique de son époque pendant une vague (au volume des options par défaut).
+- **Les autres mesures** : la **crête** (le plus grand échantillon : à 0 dB, ça sature), la **dureté** (la part de l'énergie entre 2 et 5 kHz, là où l'oreille est la plus sensible : trop, et un son qui revient sans arrêt fatigue), la **brillance** (le « centre de gravité » des fréquences), la **forme de l'onde** et le **spectrogramme** (le temps de gauche à droite, les fréquences de bas en haut, sur une échelle musicale où chaque octave a la même hauteur, la force en couleur).
+- **Les mêmes chiffres dans Chrome et dans Safari** (vérifié avec WebKit, le moteur de Safari).
+
+Chaque bruitage a un **rôle**, qui dit à quel volume il doit sonner comparé à la musique :
+
+| Rôle | Sa bande | Pourquoi |
+|---|---|---|
+| Fréquent (un tir, un monstre battu) | de 12 à 4 LU sous la musique | il revient sans arrêt : un peu sous la musique, pour ne pas fatiguer |
+| Interface (un clic, un menu) | de 10 à 2 LU sous la musique | il doit s'entendre, sans couvrir la musique |
+| Événement (un coup de vent, la Taupe) | de 6 LU sous la musique à 2 au-dessus | quelque chose qu'on doit remarquer |
+| Important (un chef, une vague, un pouvoir) | de 2 LU sous la musique à 8 au-dessus | un grand moment : il passe devant |
+
+### Les situations de jeu
+
+Le bon joueur imaginaire de l'équilibrage joue une vague, et `src/son/situations.js` note chaque événement sonore à son heure, comme le jeu les donne au son : les tirs, les monstres battus, les pouvoirs, le héros, le tonnerre d'un chef qui arrive, les achats de la préparation, ce que fait la musique (calme, vague, thème des chefs) et le bourdonnement des rayons du Prisme.
+
+| Situation | Le niveau | Les 30 secondes gardées |
+|---|---|---|
+| Une vague du monde 1 | le bois brumeux, vague 4 (pixel) | les plus chargées en bruitages |
+| Le Colosse arrive | la vallée du Colosse, dernière vague (cartoon) | la préparation, la vague lancée, le Colosse et son thème |
+| Le Dragon arrive | le pic du Dragon, dernière vague (voxel) | 90 monstres, puis le Dragon (6 secondes avant son arrivée) |
+| La chute du Dragon | la même vague | jusqu'à 6 secondes après sa chute (le plus gros bruitage du jeu) |
+| La foule de la survie | l'arène, vague 18 (pixel) | les plus chargées : la foule, le Météore, le Grand froid, le héros |
+
+Chaque situation est calculée trois fois : **la musique seule**, **les bruitages seuls** (le compresseur agit pareil sur les deux : leur rapport ne change pas) et **tout ensemble**, comme dans le jeu. Pendant ce dernier calcul, l'atelier s'arrête toutes les 50 millisecondes pour lire **de combien le compresseur baisse le son**. (Le calcul commence une seconde plus tôt, et cette seconde est jetée : au tout début, le compresseur « démarre à froid » et baisse le son pour rien.) Trois graphiques : le volume ressenti de la musique et des bruitages au fil du temps (en rouge, les moments où les bruitages la couvrent, plus de 10 LU au-dessus d'elle), ce que fait le compresseur (au-delà de 3 dB, on l'entend « pomper » : la musique baisse à chaque gros bruitage), et les bruitages seconde par seconde (ceux qui jouent, et ceux que les limites empêchent).
+
+### Ce que montre l'atelier
+
+En haut, la bande des sons, rangés par famille, avec une **pastille** (verte : dans sa bande dans les trois époques ; orange ou rouge : à regarder), puis la musique et les situations de jeu.
+
+- **Un bruitage** : ses trois époques côte à côte, chacune avec sa forme d'onde (l'avant en gris derrière), son spectrogramme, ses mesures (son volume comparé à la musique, coloré selon sa bande) et un bouton pour l'**écouter** (ou l'avant). La case « Écouter les bruitages au milieu de la musique » le fait jouer par-dessus la musique de son époque, par les mêmes règles que le jeu. Dessous, la liste de ce qui ne va pas.
+- **Le nuage de tous les bruitages** : une ligne par bruitage, sa bande dorée, et un point par époque (carré : pixel ; rond : cartoon ; losange : voxel), placé à son volume comparé à la musique. L'avant : des formes creuses, reliées à l'après par un trait. Un clic sur une ligne ouvre le bruitage.
+- **La musique** : le volume des trois orchestres à chaque moment de la partie (ils doivent sonner aussi fort : on change d'époque en changeant de monde), et chaque musique à écouter.
+- **Une situation de jeu** : ses trois graphiques, son résumé, et le tableau de ses bruitages (combien ont joué, combien les limites ont empêchés).
+
+À droite, les **curseurs** : pour un bruitage, chaque couche (les fréquences sur un curseur « logarithmique », où chaque octave a la même place), les champs qu'on peut ajouter (une glisse, un retard…), d'autres couches, et sa limite ; pour la musique et les situations, les réglages de chaque époque, le mixage et la limite par défaut. « **Tour complet** » mesure tous les bruitages et toutes les situations et les range dans deux tableaux ; « **Planche** » et « **Avant/après** » rangent la vue dans `captures/son-….png` ; « **Enregistrer dans le jeu** » réécrit `sons.json` (seulement avec `npm run dev`).
+
+### Ce que l'atelier a trouvé, et ce qui a changé
+
+**1. Les bruits aigus du cartoon et du voxel sifflaient.** Le Grand froid sonnait 11 à 12 LU au-dessus de la musique en cartoon et en voxel (6 en pixel), avec plus de la moitié de son énergie dans les très aigus ; l'Éclair et la Bénédiction aussi. Deux raisons, qui s'additionnaient :
+- la **brillance** de l'époque baissait la fréquence de tous les filtres, pour un son plus feutré. Mais baisser un filtre « passe-haut » (celui qui ne garde que les aigus) laisse passer **plus** de souffle : le contraire de feutré ;
+- puis la **force des bruits** (×2 et ×2,4, réglée pour les bruits en bande) le poussait encore.
+
+**2. Les « boum » étaient plus forts en voxel.** La grosse caisse de chaque orchestre est réglée pour sa musique, et celle du voxel, plus ronde, sonne 6 dB plus fort à volume égal (4 dB en cartoon) : un Grondin qui tire, une vague lancée, un chef qui arrive…
+
+Trois réglages par époque ont été ajoutés (d'abord avec des valeurs qui redonnaient exactement l'ancien son, vérifié sur les 120 sons) : la **force des bruits aigus**, la **hauteur des bruits aigus** et la **force des « boum »**. L'atelier les a mesurés sur des sons d'essai, comparés au pixel :
+
+| | Pixel | Cartoon | Voxel |
+|---|---|---|---|
+| Bruit aigu (avant) | référence | +9 à +11 dB | +10 à +13 dB |
+| Bruit aigu, filtre à sa vraie hauteur | référence | +2 à +5 dB | +2 à +5 dB |
+| → force des bruits aigus | 1 | 0,65 | 0,65 |
+| Grosse caisse | référence | +3,9 dB | +5,9 dB |
+| → force des « boum » | 1 | 0,64 | 0,51 |
+
+Le même bruitage ne varie plus que de 3,8 LU au plus d'une époque à l'autre, au lieu de 7,6 (l'Éclair). Le Grand froid passe à 5 LU au-dessus de la musique en cartoon et en voxel.
+
+**3. Des bruitages qu'on n'entendait presque pas.** Le clic d'un bouton était 21 LU sous la musique, le menu d'un socle et « On envoie le héros » 15 à 16 LU, la Taupe qui ressort 14 à 16 LU. Ils ont été montés jusque dans leur bande, comme la Taupe qui plonge, le Bond, le héros K.O., la fiche du didacticiel et la vague lancée.
+
+**4. Un peu trop forts** : le chef battu en pixel (10 LU au-dessus de la musique, et il frôlait la saturation : sa crête à −1,2 dB en cartoon), le Météore qui s'écrase en pixel et l'amélioration d'un gardien ont été un peu baissés.
+
+**5. Le « tink » de la carapace** (deux notes à 2 400 et 3 600 Hz) avait 86 à 97 % de son énergie entre 2 et 5 kHz, la bande qui fatigue, et il revient à chaque coup sur une Carapace. Descendu à 1 800 et 2 700 Hz : 20 à 23 %, toujours métallique.
+
+Les 36 bruitages sont maintenant dans leur bande, dans les trois époques. Et dans les situations de jeu :
+
+| Situation | Le compresseur, au plus | La musique couverte | La crête |
+|---|---|---|---|
+| Une vague du monde 1 | 0,6 dB → 0,6 dB | 0 % | −6,4 dB |
+| Le Colosse arrive | 3,7 dB → 1,9 dB | 1 % → 0,3 % | −2,5 → −3,9 dB |
+| Le Dragon arrive | 3,0 dB → 1,6 dB | 0 % | −3,6 → −4,1 dB |
+| La chute du Dragon | 4,2 dB → 1,6 dB | 0 % | −2,7 → −4,1 dB |
+| La foule de la survie | 3,4 dB → 2,9 dB | 0,7 % → 0,3 % | −2,7 → −3,0 dB |
+
+La musique n'est jamais couverte, le compresseur reste discret, et rien ne sature. Au monde 1, rien n'a bougé : ses bruitages étaient déjà bien réglés.
+
+**Ce qui reste, à décider plus tard :** pendant une vague normale, la musique (au volume des options par défaut, 50 %) sonne 7 à 9 LU plus fort que l'ensemble des bruitages : ils passent derrière elle (sauf dans la foule de la survie, où les deux sont au même niveau). C'est un choix : une musique un peu plus basse au départ (40 % ?) ferait mieux ressortir les tirs, mais c'est à l'oreille du joueur d'en juger.
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -1001,6 +1113,7 @@ lumieres.html          l'atelier des lumières : régler les ambiances et repér
 textures.html          l'atelier des textures : voir les textures des trois styles en grand, les mesurer, régler leurs recettes
 modeles.html           l'atelier des modèles : chaque personnage sur les vrais sols, sa lisibilité mesurée (daltoniens compris), ses couleurs
 equilibrage.html       l'atelier de l'équilibrage : les niveaux en courbes, avec les vraies parties, et les chiffres du jeu à régler
+son.html               l'atelier du son : chaque bruitage mesuré dans les trois époques, des situations de jeu rejouées, les recettes à régler
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
 src/
@@ -1014,6 +1127,8 @@ src/
 ├── atelier-equilibrage.js l'atelier de l'équilibrage : les niveaux, les courbes, les vraies parties, les curseurs, le banc (+ atelier-equilibrage.css)
 ├── atelier-equilibrage-calcul.js son calcul, dans un worker : les joueurs imaginaires et les vraies parties, avec les chiffres qu'on lui donne
 ├── graphiques.js      les graphiques de l'atelier de l'équilibrage (courbes, colonnes, bulle du survol), dans un canvas
+├── atelier-son.js     l'atelier du son : la bande, les trois époques, le nuage, les situations, les curseurs (+ atelier-son.css)
+├── atelier-son-dessins.js ses dessins : forme d'onde, spectrogramme, nuage des bruitages, courbes au fil du temps
 ├── main.js            le chef d'orchestre du jeu : boucle, boutons, menu, cartes de début et de fin
 ├── didacticiel.js     les leçons, les fiches de présentation et la flèche
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
@@ -1059,8 +1174,14 @@ src/
 │   ├── synthe.js      le petit synthétiseur : notes, bruits, enveloppes, table de mixage, écho
 │   ├── partition.js   le thème principal, celui des chefs et les musiques de fin, écrits comme sur une portée
 │   ├── orchestres.js  les instruments et les deux arrangements de chaque époque
-│   ├── effets.js      une recette de bruitage par événement du jeu
-│   └── son.js         le chef d'orchestre : séquenceur, mixage selon la partie, réglages
+│   ├── sons.json      les réglages du son : les recettes des bruitages, les époques, le mixage (l'atelier du son les modifie)
+│   ├── reglages-son.js les charge (et l'atelier les change sur place)
+│   ├── format-sons.js le sens de chaque réglage ; vérifier et écrire sons.json
+│   ├── effets.js      jouer une recette avec les outils d'une époque, et les limites des bruitages
+│   ├── son.js         le chef d'orchestre : séquenceur, mixage selon la partie, réglages
+│   ├── hors-ligne.js  le son calculé sans haut-parleur : un bruitage, la musique, une situation de jeu
+│   ├── mesures.js     les oreilles : volume ressenti (LUFS), crête, dureté, spectre, spectrogramme
+│   └── situations.js  des situations de jeu : une vague jouée par le bon joueur imaginaire, chaque son à son heure
 └── rendus/            LES DESSINS (ils lisent l'état du jeu et l'affichent)
     ├── voxel.js       style 1 : cubes façon Minecraft + lumière de coucher de soleil
     ├── cartoon.js     style 2 : formes rondes et contours, façon Kingdom Rush
@@ -1353,6 +1474,7 @@ Dans la console du navigateur (F12) :
 - `__editeur.etat.fiche` (dans la console de l'éditeur) : la fiche en cours de modification ;
 - dans l'atelier des lumières : `__atelier.choisir({ niveau: 'monde3-3', style: 'voxel', ambiance: 'nuit' })`, `__atelier.planche()`, `__atelier.tourComplet({ styles: 'tous' })` (tous les niveaux dans les trois styles), `__atelier.capturer('nom', { ambiance: 'nuit', zone: [0.1, 0.1, 0.5, 0.5], avancer: 2 })` (une capture en grand, ou un gros plan, après avoir fait avancer la partie de 2 secondes) ;
 - dans l'atelier de l'équilibrage : `__equilibrage.choisir('monde2-4')`, `__equilibrage.tourComplet()`, `__equilibrage.planche()`, `__equilibrage.avantApres()`, `__equilibrage.remplacer({ monstres: { gluant: { pv: 50 } } })` (des chiffres « après », en entier ou en partie) et `__equilibrage.resultats` (tous les relevés) ;
+- dans l'atelier du son : `__atelierSon.choisir('grandFroid')` (ou `'musique'`, ou `'situation:foule'`), `__atelierSon.tourComplet()`, `__atelierSon.planche()`, `__atelierSon.avantApres()`, `__atelierSon.remplacer(reglages)` (des réglages « après », rangés comme `sons.json`), `__atelierSon.comparerSituation('dragon')` (ses grands chiffres, avant et après) et `__atelierSon.resultats` ;
 - `__jeu.son.effet('recolte')` (dans le jeu) ou `__son.effet('recolte')` (dans la salle des sons) : joue un bruitage ; `__jeu.son.reglages` : les volumes ; `__jeu.son.enCours` : quel thème joue, avec quel mixage, à quelle mesure ;
 - l'adresse `/__son` du serveur de développement enregistre un son calculé hors ligne dans `captures/nom.wav` (c'est ainsi qu'on a vérifié la musique) ;
 - pour essayer le serveur du classement sans salir le vrai : l'arène `essai`, par exemple `curl 'https://petits-gardiens-classement.vercel.app/api/scores?arene=essai'`. Les erreurs de la fonction s'affichent sur vercel.com, projet `petits-gardiens-classement`, onglet « Logs ».

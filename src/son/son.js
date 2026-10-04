@@ -14,19 +14,17 @@
 import { creerTable, reponseSalle, jouerNote, jouerBruit, frequence } from './synthe.js';
 import { THEME, THEME_CHEF, JINGLES, PAS_PAR_MESURE, lirePartition } from './partition.js';
 import { ORCHESTRES } from './orchestres.js';
-import { RECETTES, LIMITES } from './effets.js';
+import { BRUITAGES, recetteDe, jouerRecette, creerGarde } from './effets.js';
+import { REGLAGES_SON } from './reglages-son.js';
 import { MONSTRES } from '../jeu/donnees.js';
 import { lireOptions, changerOptions, quandOptionsChangent } from '../options.js';
 
 const AVANCE = 0.15;              // les notes sont préparées 0,15 s avant d'être jouées
 
-// Le volume de chaque couche de la musique, selon le moment de la partie
-// (« chef » : c'est le thème des chefs qui joue, avec toutes ses couches)
-export const MIXAGES = {
-  calme: { melodie: 0.55, accords: 1, basse: 0.8, batterie: 0, chef: 0 },
-  vague: { melodie: 1, accords: 1, basse: 1, batterie: 1, chef: 0 },
-  chef: { melodie: 1, accords: 1, basse: 1, batterie: 1, chef: 1 },
-};
+// Le volume de chaque couche de la musique, selon le moment de la partie : calme (entre les
+// vagues), vague, et chef (c'est le thème des chefs qui joue, avec toutes ses couches). Rangés dans
+// sons.json, avec les autres réglages du son (l'atelier du son les règle).
+export const MIXAGES = REGLAGES_SON.mixages;
 const COUCHES = Object.keys(MIXAGES.calme);
 
 // Les partitions sont lues une seule fois, au chargement
@@ -117,14 +115,64 @@ export function outilsBruitages(table, orchestre, { pan = 0, debut = table.ctx.c
     arpege: (numeros, { ecart = 0.06, retard = 0, ...options } = {}) =>
       numeros.forEach((numero, k) => sonner(inst.timbre, frequence(numero), { ...options, retard: retard + k * ecart })),
     grave: (f, options = {}) => sonner(inst.grave, f * varier(), options),
+    // la grosse caisse de l'époque, avec sa force dans les bruitages (voir orchestres.js)
     coup: ({ volume = 1, retard = 0 } = {}) =>
-      jouerInstrument(table, inst.kick, { numero: inst.kick.note, debut: debut + retard, duree: 0.12, volume, sortie, pan }),
-    bruit: ({ duree = 0.2, volume = 1, type = 'lowpass', de = 1000, a, q, retard = 0 }) =>
-      jouerBruit(table, {
-        debut: debut + retard, duree, volume: volume * orchestre.forceBruit, sortie, pan, bruit: orchestre.bruit,
-        // la brillance de l'époque : au voxel, les filtres sont plus fermés, le son plus feutré
-        filtre: { type, de: de * orchestre.brillance, a: (a ?? de) * orchestre.brillance, q },
-      }),
+      jouerInstrument(table, inst.kick, { numero: inst.kick.note, debut: debut + retard, duree: 0.12, volume: volume * orchestre.forceCoup, sortie, pan }),
+    bruit: ({ duree = 0.2, volume = 1, type = 'lowpass', de = 1000, a, q, retard = 0 }) => {
+      // les bruits aigus (le filtre « highpass ») ont leurs propres réglages : la brillance (fermer
+      // un filtre pour un son feutré) ne marche pas pour eux, baisser un passe-haut laisse passer
+      // PLUS de souffle
+      const aigu = type === 'highpass';
+      const force = aigu ? orchestre.forceAigus : orchestre.forceBruit;
+      const hauteur = aigu ? orchestre.hauteurAigus : orchestre.brillance;
+      return jouerBruit(table, {
+        debut: debut + retard, duree, volume: volume * force, sortie, pan, bruit: orchestre.bruit,
+        filtre: { type, de: de * hauteur, a: (a ?? de) * hauteur, q },
+      });
+    },
+  };
+}
+
+// Le bourdonnement des rayons du Prisme : plus il y a de rayons, plus il est fort, et il monte
+// quand un rayon chauffe. reglageBourdon(rayons) donne son volume et sa hauteur ; regler(volume,
+// hauteur, heure) les lui donne (l'heure : maintenant, dans le jeu ; celle d'une partie rejouée,
+// dans l'atelier du son).
+export const reglageBourdon = (rayons) => [
+  Math.min(1, rayons.length / 3) * 0.05,
+  196 * (1 + rayons.reduce((m, tour) => Math.max(m, tour.chauffe || 0), 0) * 0.5),
+];
+export function creerBourdon(table, orchestre, debut = table.ctx.currentTime) {
+  const { ctx } = table;
+  const volume = ctx.createGain();
+  volume.gain.value = 0;
+  const filtre = ctx.createBiquadFilter();
+  filtre.frequency.value = 4000 * orchestre.brillance;
+  volume.connect(filtre);
+  filtre.connect(table.effets.volume);
+  // deux ondes de la forme du « timbre » de l'époque, à l'octave l'une de l'autre,
+  // un tout petit peu désaccordées : elles « battent » ensemble, ça scintille
+  const forme = orchestre.instruments.timbre.ondes[0].forme;
+  const oscs = [1, 2.006].map((ratio) => {
+    const osc = ctx.createOscillator();
+    if (table.ondes[forme]) osc.setPeriodicWave(table.ondes[forme]); else osc.type = forme;
+    osc.connect(volume);
+    osc.start(debut);
+    return { osc, ratio };
+  });
+  // on ne donne un nouvel ordre que si le volume ou la hauteur ont vraiment changé
+  let volumeDonne = -1, frequenceDonnee = -1;
+  return {
+    regler(v, f, t = ctx.currentTime) {
+      if (Math.abs(v - volumeDonne) > 0.002) { volume.gain.setTargetAtTime(v, t, 0.08); volumeDonne = v; }
+      if (Math.abs(f - frequenceDonnee) > f * 0.01) {
+        oscs.forEach(({ osc, ratio }) => osc.frequency.setTargetAtTime(f * ratio, t, 0.1));
+        frequenceDonnee = f;
+      }
+    },
+    arreter: () => {
+      volume.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+      oscs.forEach(({ osc }) => osc.stop(ctx.currentTime + 0.3));
+    },
   };
 }
 
@@ -148,7 +196,7 @@ export function creerSon({ musique = true } = {}) {
   let mixage = 'calme', mixageApplique = null;
 
   // les bruitages
-  const departs = new Map();     // pour chaque bruitage : l'heure de ses derniers départs
+  const garde = creerGarde();    // le gardien des limites (voir effets.js)
   let bourdon = null;            // le bourdonnement des rayons du Prisme
   let pauseAppliquee = false;    // le filtre de la pause est-il fermé ?
   const chefsVus = new Set();    // les chefs déjà annoncés
@@ -254,21 +302,13 @@ export function creerSon({ musique = true } = {}) {
   }
 
   // ── Les bruitages ──
-  // Un bruitage a-t-il le droit de jouer maintenant ? (voir LIMITES dans effets.js)
-  function autorise(nom) {
-    const { max, ecart } = LIMITES[nom] || LIMITES.defaut;
-    const t = table.ctx.currentTime;
-    const recents = (departs.get(nom) || []).filter((heure) => heure > t - 0.3);
-    if (recents.length >= max || recents.some((heure) => heure > t - ecart)) return false;
-    recents.push(t);
-    departs.set(nom, recents);
-    return true;
-  }
-
-  // Joue un bruitage par son nom (« clic », « vague »…), s'il a le droit
+  // Joue un bruitage par son nom (« clic », « vague »…), s'il a le droit (voir les limites dans
+  // effets.js). L'événement peut choisir une recette à part (le Météore qui s'écrase, un chef battu).
   function effet(nom, ev = {}, pan = 0) {
-    if (!table || table.ctx.state !== 'running' || !RECETTES[nom] || !autorise(nom)) return;
-    RECETTES[nom](outilsBruitages(table, orchestre, { pan }), ev);
+    if (!table || table.ctx.state !== 'running') return;
+    const recette = BRUITAGES[recetteDe(nom, ev)];
+    if (!recette || !garde(nom, table.ctx.currentTime)) return;
+    jouerRecette(recette, outilsBruitages(table, orchestre, { pan }), ev);
   }
 
   // Les événements du moteur (une liste par image). largeur = celle de la carte,
@@ -303,50 +343,12 @@ export function creerSon({ musique = true } = {}) {
     majBourdon(etat, pause);
   }
 
-  // Le bourdonnement des rayons du Prisme : plus il y a de rayons, plus il est fort,
-  // et il monte quand un rayon chauffe
+  // Le bourdonnement des rayons du Prisme (voir creerBourdon)
   function majBourdon(etat, pause) {
     const rayons = pause ? [] : etat.tours.filter((t) => t.rayon);
     if (!bourdon && !rayons.length) return;
-    if (!bourdon) bourdon = creerBourdon();
-    const chauffe = rayons.reduce((m, tour) => Math.max(m, tour.chauffe || 0), 0);
-    bourdon.regler(Math.min(1, rayons.length / 3) * 0.05, 196 * (1 + chauffe * 0.5));
-  }
-
-  function creerBourdon() {
-    const { ctx } = table;
-    const volume = ctx.createGain();
-    volume.gain.value = 0;
-    const filtre = ctx.createBiquadFilter();
-    filtre.frequency.value = 4000 * orchestre.brillance;
-    volume.connect(filtre);
-    filtre.connect(table.effets.volume);
-    // deux ondes de la forme du « timbre » de l'époque, à l'octave l'une de l'autre,
-    // un tout petit peu désaccordées : elles « battent » ensemble, ça scintille
-    const forme = orchestre.instruments.timbre.ondes[0].forme;
-    const oscs = [1, 2.006].map((ratio) => {
-      const osc = ctx.createOscillator();
-      if (table.ondes[forme]) osc.setPeriodicWave(table.ondes[forme]); else osc.type = forme;
-      osc.connect(volume);
-      osc.start();
-      return { osc, ratio };
-    });
-    // on ne donne un nouvel ordre que si le volume ou la hauteur ont vraiment changé
-    let volumeDonne = -1, frequenceDonnee = -1;
-    return {
-      regler(v, f) {
-        const t = ctx.currentTime;
-        if (Math.abs(v - volumeDonne) > 0.002) { volume.gain.setTargetAtTime(v, t, 0.08); volumeDonne = v; }
-        if (Math.abs(f - frequenceDonnee) > f * 0.01) {
-          oscs.forEach(({ osc, ratio }) => osc.frequency.setTargetAtTime(f * ratio, t, 0.1));
-          frequenceDonnee = f;
-        }
-      },
-      arreter: () => {
-        volume.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
-        oscs.forEach(({ osc }) => osc.stop(ctx.currentTime + 0.3));
-      },
-    };
+    if (!bourdon) bourdon = creerBourdon(table, orchestre);
+    bourdon.regler(...reglageBourdon(rayons));
   }
 
   // Quand une option change (la fenêtre des options, la touche M…), les volumes suivent

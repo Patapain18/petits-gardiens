@@ -1,0 +1,318 @@
+{
+  "epoques": {
+    "pixel": { "volume": 0.6, "volumeChef": 1.23, "reverb": { "envoi": 0, "duree": 0.5 }, "brillance": 1, "forceBruit": 1, "forceAigus": 1, "hauteurAigus": 1, "forceCoup": 1 },
+    "cartoon": { "volume": 0.72, "volumeChef": 1.14, "reverb": { "envoi": 0.12, "duree": 1.2 }, "brillance": 0.85, "forceBruit": 2, "forceAigus": 0.65, "hauteurAigus": 1, "forceCoup": 0.64 },
+    "voxel": { "volume": 0.51, "volumeChef": 1.38, "reverb": { "envoi": 0.35, "duree": 2.8 }, "brillance": 0.6, "forceBruit": 2.4, "forceAigus": 0.65, "hauteurAigus": 1, "forceCoup": 0.51 }
+  },
+  "mixages": {
+    "calme": { "melodie": 0.55, "accords": 1, "basse": 0.8, "batterie": 0, "chef": 0 },
+    "vague": { "melodie": 1, "accords": 1, "basse": 1, "batterie": 1, "chef": 0 },
+    "chef": { "melodie": 1, "accords": 1, "basse": 1, "batterie": 1, "chef": 1 }
+  },
+  "limiteParDefaut": { "max": 3, "ecart": 0.04 },
+  "bruitages": {
+    "tir:braise": {
+      "nom": "Braise tire", "famille": "Les gardiens", "role": "frequent",
+      "description": "Un souffle de feu qui part (du bruit qui descend) et un petit « piou ».",
+      "couches": [
+        { "outil": "bruit", "duree": 0.12, "volume": 0.18, "filtre": "bandpass", "de": 2400, "a": 700, "q": 1.2 },
+        { "outil": "bip", "frequence": 330, "duree": 0.07, "volume": 0.15, "glisse": 2 }
+      ],
+      "limite": { "max": 3, "ecart": 0.06 }
+    },
+    "tir:givrine": {
+      "nom": "Givrine tire", "famille": "Les gardiens", "role": "frequent",
+      "description": "Deux notes très aiguës, comme du verre.",
+      "couches": [
+        { "outil": "bip", "frequence": 1568, "duree": 0.05, "volume": 0.22 },
+        { "outil": "bip", "frequence": 2093, "duree": 0.06, "volume": 0.18, "retard": 0.04 }
+      ],
+      "limite": { "max": 2, "ecart": 0.08 }
+    },
+    "tir:grondin": {
+      "nom": "Grondin tire", "famille": "Les gardiens", "role": "frequent",
+      "description": "Le mortier fait « boum » en lançant son rocher.",
+      "couches": [
+        { "outil": "coup", "volume": 0.25 },
+        { "outil": "bruit", "duree": 0.15, "volume": 0.12, "filtre": "lowpass", "de": 600, "a": 200 }
+      ],
+      "limite": { "max": 3, "ecart": 0.08 }
+    },
+    "tir:bourrasque": {
+      "nom": "Bourrasque tire", "famille": "Les gardiens", "role": "frequent",
+      "description": "Un « fffff » de vent qui monte.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.2, "volume": 0.3, "filtre": "bandpass", "de": 500, "a": 1600, "q": 1.5 }
+      ],
+      "limite": { "max": 2, "ecart": 0.1 }
+    },
+    "eclair": {
+      "nom": "Éclair d’Étincelle", "famille": "Les gardiens", "role": "frequent",
+      "description": "L’éclair grésille et claque.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.16, "volume": 0.05, "filtre": "highpass", "de": 3000, "a": 5000 },
+        { "outil": "bip", "frequence": 1800, "duree": 0.1, "volume": 0.12, "glisse": 0.5 },
+        { "outil": "bip", "frequence": 2600, "duree": 0.06, "volume": 0.08, "retard": 0.05 }
+      ],
+      "limite": { "max": 2, "ecart": 0.08 }
+    },
+    "souffle": {
+      "nom": "Coup de vent", "famille": "Les gardiens", "role": "evenement",
+      "description": "Le vent de la Bourrasque repousse les monstres.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.45, "volume": 0.3, "filtre": "bandpass", "de": 400, "a": 1400, "q": 1 }
+      ],
+      "limite": { "max": 2, "ecart": 0.12 }
+    },
+    "explosion": {
+      "nom": "Rocher qui explose", "famille": "Les gardiens", "role": "evenement",
+      "description": "Un « boum », et un grondement qui descend.",
+      "couches": [
+        { "outil": "coup", "volume": 0.4 },
+        { "outil": "bruit", "duree": 0.5, "volume": 0.3, "filtre": "lowpass", "de": 1200, "a": 120 }
+      ],
+      "limite": { "max": 3, "ecart": 0.08 }
+    },
+    "carapace": {
+      "nom": "Coup sur une carapace", "famille": "Les gardiens", "role": "frequent",
+      "description": "Un coup qui ricoche : « tink » (deux notes métalliques).",
+      "couches": [
+        { "outil": "bip", "frequence": 1800, "duree": 0.04, "volume": 0.25 },
+        { "outil": "bip", "frequence": 2700, "duree": 0.03, "volume": 0.15 }
+      ],
+      "limite": { "max": 2, "ecart": 0.07 }
+    },
+    "mort": {
+      "nom": "Monstre battu", "famille": "Les monstres", "role": "frequent",
+      "description": "Une petite note qui retombe, et un peu de bruit. Plus le monstre est solide, plus elle est grave : la fréquence est celle des plus fragiles (moins de 40 PV), et descend pour les autres.",
+      "couches": [
+        { "outil": "bip", "frequence": 880, "duree": 0.12, "volume": 0.2, "glisse": 0.6, "selonLesPV": true },
+        { "outil": "bruit", "duree": 0.08, "volume": 0.1, "filtre": "bandpass", "de": 1500, "a": 600 }
+      ],
+      "limite": { "max": 4, "ecart": 0.05 }
+    },
+    "mort:chef": {
+      "nom": "Chef battu", "famille": "Les monstres", "role": "important",
+      "description": "Le Colosse ou le Dragon tombe : un très gros « boum », un long grondement, puis une fanfare qui monte.",
+      "couches": [
+        { "outil": "coup", "volume": 0.66 },
+        { "outil": "bruit", "duree": 1.4, "volume": 0.42, "filtre": "lowpass", "de": 1500, "a": 80 },
+        { "outil": "arpege", "notes": [72, 76, 79, 84, 88, 91], "ecart": 0.07, "duree": 0.2, "volume": 0.25, "retard": 0.3 }
+      ]
+    },
+    "plonge": {
+      "nom": "La Taupe plonge", "famille": "Les monstres", "role": "frequent",
+      "description": "« Floump » : de la terre qui retombe, et une note qui descend.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.22, "volume": 0.19, "filtre": "lowpass", "de": 900, "a": 200 },
+        { "outil": "bip", "frequence": 300, "duree": 0.1, "volume": 0.13, "glisse": 1.6 }
+      ],
+      "limite": { "max": 2, "ecart": 0.1 }
+    },
+    "surgit": {
+      "nom": "La Taupe ressort", "famille": "Les monstres", "role": "frequent",
+      "description": "« Pop » : la terre qui s’ouvre, et une note qui monte.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.18, "volume": 0.21, "filtre": "lowpass", "de": 250, "a": 900 },
+        { "outil": "bip", "frequence": 420, "duree": 0.08, "volume": 0.21, "glisse": 0.6 }
+      ],
+      "limite": { "max": 2, "ecart": 0.1 }
+    },
+    "naissance": {
+      "nom": "Des petits sortent", "famille": "Les monstres", "role": "evenement",
+      "description": "Trois bulles qui montent.",
+      "couches": [
+        { "outil": "arpege", "notes": [72, 76, 79], "ecart": 0.06, "duree": 0.07, "volume": 0.3 }
+      ]
+    },
+    "flamme": {
+      "nom": "Feu du Dragon", "famille": "Les monstres", "role": "important",
+      "description": "Un grand souffle de feu et un grognement grave.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.75, "volume": 0.45, "filtre": "bandpass", "de": 900, "a": 250, "q": 0.7 },
+        { "outil": "grave", "frequence": 82, "duree": 0.6, "volume": 0.6, "glisse": 1.3 }
+      ],
+      "limite": { "max": 1, "ecart": 0.3 }
+    },
+    "meteore": {
+      "nom": "Météore lancé", "famille": "Les pouvoirs du château", "role": "evenement",
+      "description": "Un sifflement qui descend pendant toute la chute.",
+      "couches": [
+        { "outil": "bip", "frequence": 420, "duree": 0.85, "volume": 0.13, "glisse": 4.5 },
+        { "outil": "bruit", "duree": 0.85, "volume": 0.16, "filtre": "bandpass", "de": 3200, "a": 500, "q": 1.4 }
+      ],
+      "limite": { "max": 1, "ecart": 0.5 }
+    },
+    "explosion:meteore": {
+      "nom": "Météore qui s’écrase", "famille": "Les pouvoirs du château", "role": "important",
+      "description": "Un très gros « boum », qui gronde longtemps.",
+      "couches": [
+        { "outil": "coup", "volume": 0.8 },
+        { "outil": "bruit", "duree": 1.1, "volume": 0.45, "filtre": "lowpass", "de": 1600, "a": 70 },
+        { "outil": "grave", "frequence": 58, "duree": 0.7, "volume": 0.55, "glisse": 1.6 }
+      ]
+    },
+    "grandFroid": {
+      "nom": "Grand froid", "famille": "Les pouvoirs du château", "role": "important",
+      "description": "Des notes de cristal qui montent, et un souffle glacé.",
+      "couches": [
+        { "outil": "arpege", "notes": [88, 91, 95, 100, 103], "ecart": 0.05, "duree": 0.3, "volume": 0.24 },
+        { "outil": "bruit", "duree": 1, "volume": 0.18, "filtre": "highpass", "de": 3500, "a": 7000 },
+        { "outil": "bruit", "duree": 0.8, "volume": 0.14, "filtre": "bandpass", "de": 1600, "a": 400, "q": 0.8 }
+      ],
+      "limite": { "max": 1, "ecart": 0.5 }
+    },
+    "frappe": {
+      "nom": "Le héros frappe le sol", "famille": "Le héros", "role": "frequent",
+      "description": "Un « boum » sourd et un peu de poussière.",
+      "couches": [
+        { "outil": "coup", "volume": 0.3 },
+        { "outil": "bruit", "duree": 0.25, "volume": 0.14, "filtre": "lowpass", "de": 700, "a": 150 }
+      ],
+      "limite": { "max": 2, "ecart": 0.2 }
+    },
+    "herosNiveau": {
+      "nom": "Le héros gagne un niveau", "famille": "Le héros", "role": "important",
+      "description": "Une petite fanfare qui monte.",
+      "couches": [
+        { "outil": "arpege", "notes": [67, 72, 76, 79, 84], "ecart": 0.08, "duree": 0.22, "volume": 0.32 }
+      ],
+      "limite": { "max": 1, "ecart": 0.5 }
+    },
+    "herosEnvoye": {
+      "nom": "On envoie le héros", "famille": "Le héros", "role": "interface",
+      "description": "Un petit « hop ».",
+      "couches": [
+        { "outil": "bip", "frequence": 520, "duree": 0.07, "volume": 0.38, "glisse": 0.7 }
+      ]
+    },
+    "ondeDeChoc": {
+      "nom": "L’Onde de choc", "famille": "Le héros", "role": "important",
+      "description": "Un énorme « boum », la terre qui gronde, et un sifflement qui retombe.",
+      "couches": [
+        { "outil": "coup", "volume": 0.75 },
+        { "outil": "grave", "frequence": 52, "duree": 0.6, "volume": 0.55, "glisse": 2 },
+        { "outil": "bruit", "duree": 0.7, "volume": 0.32, "filtre": "lowpass", "de": 1200, "a": 90 },
+        { "outil": "bip", "frequence": 880, "duree": 0.3, "volume": 0.08, "glisse": 0.5, "retard": 0.05 }
+      ],
+      "limite": { "max": 1, "ecart": 0.5 }
+    },
+    "bond": {
+      "nom": "Le Bond : il décolle", "famille": "Le héros", "role": "evenement",
+      "description": "Un « whoosh » qui monte.",
+      "couches": [
+        { "outil": "bruit", "duree": 0.35, "volume": 0.29, "filtre": "bandpass", "de": 400, "a": 2200, "q": 1.2 },
+        { "outil": "bip", "frequence": 300, "duree": 0.3, "volume": 0.16, "glisse": 0.5 }
+      ]
+    },
+    "atterrissage": {
+      "nom": "Le Bond : il retombe", "famille": "Le héros", "role": "evenement",
+      "description": "Un gros « boum » sourd.",
+      "couches": [
+        { "outil": "coup", "volume": 0.55 },
+        { "outil": "bruit", "duree": 0.35, "volume": 0.2, "filtre": "lowpass", "de": 900, "a": 120 }
+      ],
+      "limite": { "max": 1, "ecart": 0.3 }
+    },
+    "herosKO": {
+      "nom": "Le héros tombe K.O.", "famille": "Le héros", "role": "important",
+      "description": "Quatre notes qui descendent, tristes.",
+      "couches": [
+        { "outil": "arpege", "notes": [67, 63, 60, 55], "ecart": 0.13, "duree": 0.3, "volume": 0.42 }
+      ],
+      "limite": { "max": 1, "ecart": 1 }
+    },
+    "herosDebout": {
+      "nom": "Le héros se relève", "famille": "Le héros", "role": "evenement",
+      "description": "Quatre notes qui remontent.",
+      "couches": [
+        { "outil": "arpege", "notes": [60, 64, 67, 72], "ecart": 0.09, "duree": 0.22, "volume": 0.26 }
+      ]
+    },
+    "benediction": {
+      "nom": "Bénédiction choisie", "famille": "Les bénédictions", "role": "important",
+      "description": "Un arpège magique qui monte, et un scintillement.",
+      "couches": [
+        { "outil": "arpege", "notes": [72, 76, 79, 84, 88, 91, 96], "ecart": 0.06, "duree": 0.28, "volume": 0.26 },
+        { "outil": "bruit", "duree": 0.9, "volume": 0.08, "filtre": "highpass", "de": 5000, "a": 8000 }
+      ],
+      "limite": { "max": 1, "ecart": 0.5 }
+    },
+    "nouveauSocle": {
+      "nom": "Un nouveau socle", "famille": "Les bénédictions", "role": "evenement",
+      "description": "Un « boum » sourd, puis trois notes qui montent.",
+      "couches": [
+        { "outil": "coup", "volume": 0.35 },
+        { "outil": "arpege", "notes": [67, 72, 76, 79], "ecart": 0.07, "duree": 0.12, "volume": 0.28, "retard": 0.1 }
+      ],
+      "limite": { "max": 1, "ecart": 0.5 }
+    },
+    "recolte": {
+      "nom": "Récolte de la Pépite", "famille": "L’or et les gardiens", "role": "evenement",
+      "description": "« Ding-ding », comme des pièces.",
+      "couches": [
+        { "outil": "arpege", "notes": [88, 93], "ecart": 0.08, "duree": 0.14, "volume": 0.4 }
+      ],
+      "limite": { "max": 4, "ecart": 0.09 }
+    },
+    "construction": {
+      "nom": "Gardien posé", "famille": "L’or et les gardiens", "role": "interface",
+      "description": "Trois notes qui montent.",
+      "couches": [
+        { "outil": "arpege", "notes": [72, 76, 79], "ecart": 0.05, "duree": 0.09, "volume": 0.3 }
+      ]
+    },
+    "amelioration": {
+      "nom": "Amélioration", "famille": "L’or et les gardiens", "role": "interface",
+      "description": "Cinq notes qui montent.",
+      "couches": [
+        { "outil": "arpege", "notes": [72, 76, 79, 84, 88], "ecart": 0.05, "duree": 0.1, "volume": 0.25 }
+      ]
+    },
+    "vente": {
+      "nom": "Gardien revendu", "famille": "L’or et les gardiens", "role": "interface",
+      "description": "Deux notes qui descendent.",
+      "couches": [
+        { "outil": "arpege", "notes": [79, 72], "ecart": 0.07, "duree": 0.1, "volume": 0.28 }
+      ]
+    },
+    "clic": {
+      "nom": "Clic d’un bouton", "famille": "Les grands moments", "role": "interface",
+      "description": "Un tout petit « tic ».",
+      "couches": [
+        { "outil": "bip", "frequence": 1200, "duree": 0.03, "volume": 0.38 }
+      ]
+    },
+    "menu": {
+      "nom": "Menu d’un socle", "famille": "Les grands moments", "role": "interface",
+      "description": "Un petit « pop » qui descend.",
+      "couches": [
+        { "outil": "bip", "frequence": 660, "duree": 0.05, "volume": 0.4, "glisse": 0.8 }
+      ]
+    },
+    "fiche": {
+      "nom": "Fiche du didacticiel", "famille": "Les grands moments", "role": "important",
+      "description": "Un petit carillon.",
+      "couches": [
+        { "outil": "arpege", "notes": [84, 88, 91], "ecart": 0.07, "duree": 0.25, "volume": 0.38 }
+      ]
+    },
+    "chef": {
+      "nom": "Un chef arrive", "famille": "Les grands moments", "role": "important",
+      "description": "Un grand coup de tonnerre : un « boum », un grondement très grave.",
+      "couches": [
+        { "outil": "coup", "volume": 1 },
+        { "outil": "bruit", "duree": 1.2, "volume": 0.4, "filtre": "lowpass", "de": 400, "a": 60 },
+        { "outil": "grave", "frequence": 55, "duree": 1, "volume": 0.7, "glisse": 1.5 }
+      ]
+    },
+    "vague": {
+      "nom": "Vague lancée", "famille": "Les grands moments", "role": "important",
+      "description": "Un « boum » et un souffle qui monte.",
+      "couches": [
+        { "outil": "coup", "volume": 0.75 },
+        { "outil": "bruit", "duree": 0.6, "volume": 0.15, "filtre": "bandpass", "de": 300, "a": 2500, "q": 0.8 }
+      ]
+    }
+  }
+}

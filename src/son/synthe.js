@@ -69,6 +69,7 @@ export function creerTable(ctx) {
 
   return {
     ctx,
+    compresseur, // (l'atelier du son lit de combien il baisse le son)
     general,
     reverb,
     sourdine,

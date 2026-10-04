@@ -20,7 +20,35 @@
 // arrangerChef, plus pressant, pour le thème des chefs (avec la couche 'chef').
 // La mélodie, elle, vient directement de la partition : elle est jouée par
 // l'instrument « melodie », ou « melodieChef » pour le thème des chefs.
+//
+// Les réglages de chaque époque sont rangés dans sons.json (l'atelier du son les
+// mesure et les règle) :
+//   volume      : le volume de l'orchestre (pour que les trois époques sonnent aussi fort) ;
+//   volumeChef  : le thème des chefs, un peu plus fort que le thème principal ;
+//   reverb      : l'écho de la salle (envoi : la part du son qui y va ; duree : sa longueur) :
+//                 aucun pour une vieille console, une petite salle au cartoon, une grande au voxel ;
+//   brillance   : les filtres des bruitages (1 : ouverts, un son vif ; 0,6 : plus fermés, feutré) ;
+//   forceBruit  : le volume des bruits des bruitages (le bruit blanc du cartoon et du voxel étale sa
+//                 force sur tous les aigus : dans la bande d'un bruitage, il est plus faible que le
+//                 bruit « console » du pixel, alors on le pousse pour que ça s'entende autant) ;
+//   forceAigus, hauteurAigus : le volume et la hauteur du filtre des bruits aigus (les filtres
+//                 « highpass », qui ne gardent que les aigus : le souffle glacé, les étincelles) ;
+//   forceCoup   : le volume de la grosse caisse dans les bruitages (chaque orchestre a la sienne,
+//                 plus ou moins forte à volume égal).
 // ─────────────────────────────────────────────────────────────
+import { REGLAGES_SON } from './reglages-son.js';
+
+// Les réglages d'une époque, lus dans sons.json à chaque fois qu'on s'en sert (des « getters » :
+// orchestre.volume va chercher la valeur du moment). Un réglage de l'atelier du son compte donc
+// tout de suite, sans refabriquer l'orchestre.
+const REGLAGES_EPOQUE = ['volume', 'volumeChef', 'reverb', 'brillance', 'forceBruit', 'forceAigus', 'hauteurAigus', 'forceCoup'];
+function avecReglages(id, orchestre) {
+  for (const cle of REGLAGES_EPOQUE) {
+    Object.defineProperty(orchestre, cle, { get: () => REGLAGES_SON.epoques[id][cle], enumerable: true });
+  }
+  orchestre.id = id;
+  return orchestre;
+}
 
 // Quelques aides pour placer les notes d'un accord dans une octave
 // (accord.fondamentale va de 0 = Do à 11 = Si ; octave 4 = autour du Do du milieu)
@@ -33,12 +61,7 @@ const QUINTE = 7;
 // ═════════════════════════════════════════════════════════════
 const pixel = {
   nom: 'Console 8 bits',
-  volume: 0.6,                      // le volume de l'orchestre : les trois époques sonnent aussi fort
-  volumeChef: 1.23,                 // le thème des chefs, un peu plus fort que le thème principal
-  reverb: { envoi: 0, duree: 0.5 }, // une vieille console n'a pas d'écho
   bruit: 'console',                 // le bruit à gros grain
-  brillance: 1,                     // les filtres des bruitages restent ouverts : un son vif
-  forceBruit: 1,                    // le volume des bruits des bruitages (voir les deux autres époques)
   instruments: {
     // une impulsion fine, avec un petit vibrato qui arrive après le début de la note
     melodie: { ondes: [{ forme: 'impulsion25' }], enveloppe: { attaque: 0.003, decroissance: 0.15, maintien: 0.6, relache: 0.05 }, vibrato: { vitesse: 6, profondeur: 0.008, retard: 0.18 }, volume: 0.16 },
@@ -104,14 +127,7 @@ const marimba = {
 };
 const cartoon = {
   nom: 'Orchestre de dessin animé',
-  volume: 0.72,
-  volumeChef: 1.14,
-  reverb: { envoi: 0.12, duree: 1.2 }, // une petite salle
   bruit: 'blanc',
-  brillance: 0.85,
-  // le bruit blanc étale sa force sur tous les aigus : dans la bande d'un bruitage, il est
-  // plus faible que le bruit « console » du pixel. On le pousse pour que ça s'entende autant.
-  forceBruit: 2,
   instruments: {
     melodie: marimba,
     // des accords pincés, sur les temps 2 et 4 (le « pah » de « oum-pah »)
@@ -178,12 +194,7 @@ const piano = {
 };
 const voxel = {
   nom: 'Piano et nappes',
-  volume: 0.51,
-  volumeChef: 1.38,
-  reverb: { envoi: 0.35, duree: 2.8 }, // une grande salle : chaque note résonne longtemps
   bruit: 'blanc',
-  brillance: 0.6, // des bruitages plus feutrés
-  forceBruit: 2.4, // (voir le cartoon) un peu plus encore, car les filtres plus fermés laissent passer moins de bruit
   instruments: {
     melodie: piano,
     piano: { ...piano, volume: 0.11 },
@@ -252,4 +263,4 @@ const voxel = {
   },
 };
 
-export const ORCHESTRES = { pixel, cartoon, voxel };
+export const ORCHESTRES = { pixel: avecReglages('pixel', pixel), cartoon: avecReglages('cartoon', cartoon), voxel: avecReglages('voxel', voxel) };
