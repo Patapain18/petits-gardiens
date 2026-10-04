@@ -17,7 +17,7 @@ const DEMO = import.meta.env.DEV && new URLSearchParams(location.search).has('de
 // ── Les noms à afficher ──────────────────────────────────────
 const PAGES = {
   accueil: 'Carte des époques', jeu: 'Le jeu', revoir: 'Revoir une partie', personnages: 'Galerie des personnages',
-  sons: 'Salle des sons', lumieres: 'Atelier des lumières', textures: 'Atelier des textures', modeles: 'Atelier des modèles', editeur: 'Éditeur de niveaux',
+  sons: 'Salle des sons', lumieres: 'Atelier des lumières', textures: 'Atelier des textures', modeles: 'Atelier des modèles', equilibrage: 'Atelier de l’équilibrage', editeur: 'Éditeur de niveaux',
 };
 const NAVIGATEURS = { chrome: 'Chrome', safari: 'Safari', firefox: 'Firefox', edge: 'Edge', autre: 'Autre' };
 const SYSTEMES = { windows: 'Windows', mac: 'Mac', ios: 'iPhone, iPad', android: 'Android', linux: 'Linux', chromeos: 'ChromeOS', autre: 'Autre' };

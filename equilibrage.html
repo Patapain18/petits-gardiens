@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Atelier de l’équilibrage — Petits Gardiens</title>
+  <meta name="description" content="Un outil d'atelier de Petits Gardiens : chaque niveau joué par des joueurs imaginaires, avec les vraies parties par-dessus, en courbes vague après vague (où l'on perd, l'or, la force des monstres contre celle des gardiens, qui fait les dégâts), et les chiffres du jeu à régler avec des curseurs." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/atelier-equilibrage.css" />
+</head>
+<body>
+  <header class="entete">
+    <h1>Atelier de l’équilibrage</h1>
+    <p>Chaque niveau est joué par des <strong>joueurs imaginaires</strong> (le bon joueur, le maladroit, celui qui ne met que des Braise…), et les <strong>vraies parties</strong> enregistrées sont rejouées par-dessus. Vague après vague : jusqu’où vont les monstres, l’or gagné et dépensé, la force des monstres contre celle des gardiens, et qui fait les dégâts. Les chiffres du jeu se règlent avec les curseurs : l’atelier rejoue tout, et garde l’avant en pâle.</p>
+    <nav class="filtres" aria-label="Autres pages">
+      <a href="./modeles.html">Atelier des modèles</a>
+      <a href="./textures.html">Atelier des textures</a>
+      <a href="./lumieres.html">Atelier des lumières</a>
+      <a href="./editeur.html">Éditeur de niveaux</a>
+      <a href="./">Carte des époques</a>
+    </nav>
+  </header>
+
+  <!-- Les niveaux (rempli par atelier-equilibrage.js) -->
+  <nav class="bande-niveaux" id="bande-niveaux" aria-label="Les niveaux"></nav>
+
+  <!-- Ce qu'on regarde -->
+  <form class="choix" id="choix" aria-label="Ce qu'on regarde"></form>
+
+  <main class="atelier">
+    <section class="cote-vue" aria-labelledby="titre-niveau">
+      <h2 id="titre-niveau">…</h2>
+      <p class="info-vue" id="info-niveau"></p>
+      <div class="graphiques" id="graphiques">
+        <figure class="graphique" id="fig-course" tabindex="0">
+          <h3>Jusqu’où vont les monstres</h3>
+          <p class="sous-titre">Au plus près du château qu’un monstre est arrivé, à chaque vague. Une croix : une partie perdue là.</p>
+          <div class="toile"><canvas aria-hidden="true"></canvas><div class="bulle" hidden></div></div>
+          <ul class="legende"></ul>
+        </figure>
+        <figure class="graphique" id="fig-or" tabindex="0">
+          <h3>L’or, vague après vague</h3>
+          <p class="sous-titre">Ce que le joueur détaillé gagne pendant chaque vague, ce qu’il dépense avant, et ce qui lui reste au lancement.</p>
+          <div class="toile"><canvas aria-hidden="true"></canvas><div class="bulle" hidden></div></div>
+          <ul class="legende"></ul>
+        </figure>
+        <figure class="graphique" id="fig-forces" tabindex="0">
+          <h3>Les monstres contre les gardiens</h3>
+          <p class="sous-titre">La force de chaque vague (leurs PV × leur vitesse) et celle de ses gardiens contre ces monstres-là, toutes deux à ×1 au début. Quand le rouge monte plus vite que le bleu, ça devient dur.</p>
+          <div class="toile"><canvas aria-hidden="true"></canvas><div class="bulle" hidden></div></div>
+          <ul class="legende"></ul>
+        </figure>
+        <figure class="graphique" id="fig-degats" tabindex="0">
+          <h3>Qui fait les dégâts</h3>
+          <p class="sous-titre">La part de chacun dans les dégâts de chaque vague, pour le joueur détaillé.</p>
+          <div class="toile"><canvas aria-hidden="true"></canvas><div class="bulle" hidden></div></div>
+          <ul class="legende"></ul>
+        </figure>
+      </div>
+      <details class="tableau-courbes">
+        <summary>Les chiffres des courbes (en tableau)</summary>
+        <div id="tableau-courbes"></div>
+      </details>
+      <div class="verdict" id="verdict" aria-live="polite"></div>
+      <div class="vraies" id="vraies"></div>
+    </section>
+
+    <aside class="panneau" aria-labelledby="titre-reglages">
+      <h2 id="titre-reglages">Les chiffres</h2>
+      <label class="choix-liste choix-reglage"><span>Que régler ?</span><select id="choix-reglage"></select></label>
+      <div class="reglages" id="reglages"></div>
+      <div class="banc-essai" id="banc"></div>
+      <div class="actions" id="actions"></div>
+      <p class="etat-enregistrement" id="etat" role="status"></p>
+    </aside>
+  </main>
+
+  <section class="tour" id="tour" aria-live="polite"></section>
+
+  <script type="module" src="/src/atelier-equilibrage.js"></script>
+</body>
+</html>

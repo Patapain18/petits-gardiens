@@ -2,7 +2,7 @@
 
 Un tower defense vu de dessus. De petits monstres gentils, les **gardiens**, protègent leur château. Des monstres méchants suivent le chemin et, **si un seul entre dans le château, la partie est perdue**.
 
-> Où on en est (octobre 2026) : une **campagne complète** avec une carte des époques et trois mondes de 4 niveaux : le monde 1 en pixel art, le monde 2 en cartoon, le monde 3 en voxel (chacun commence par un **didacticiel**, le monde 2 finit par le Colosse et le monde 3 par le Dragon) ; un **mode survie** avec son **classement en ligne** ; des **parties enregistrées**, qu'on peut revoir ; un petit moteur maison (fiches de niveau, éditeur, équilibrage, fiches personnages) ; des **gardiens qui s'améliorent** jusqu'au niveau 3 ; trois styles graphiques, un par époque, chacun avec 4 ambiances ; **la musique et les bruitages**, fabriqués par le code : un même thème joué par trois orchestres, un par époque, et un thème pour les chefs ; et un **écran d'options**.
+> Où on en est (octobre 2026) : une **campagne complète** avec une carte des époques et trois mondes de 4 niveaux : le monde 1 en pixel art, le monde 2 en cartoon, le monde 3 en voxel (chacun commence par un **didacticiel**, le monde 2 finit par le Colosse et le monde 3 par le Dragon) ; un **mode survie** avec son **classement en ligne** ; des **parties enregistrées**, qu'on peut revoir ; un petit moteur maison (fiches de niveau, éditeur, équilibrage, fiches personnages), et des ateliers pour le régler (lumières, textures, modèles, équilibrage) ; des **gardiens qui s'améliorent** jusqu'au niveau 3 ; trois styles graphiques, un par époque, chacun avec 4 ambiances ; **la musique et les bruitages**, fabriqués par le code : un même thème joué par trois orchestres, un par époque, et un thème pour les chefs ; et un **écran d'options**.
 
 **Jouer en ligne : https://patapain18.github.io/petits-gardiens/**
 
@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:5180 : c'est la **carte des époques**, d'où l'on choisit un niveau. L'éditeur de niveaux est à http://localhost:5180/editeur.html, la galerie des personnages (chacun dans les trois styles) à http://localhost:5180/personnages.html, la salle des sons à http://localhost:5180/sons.html, l'atelier des lumières à http://localhost:5180/lumieres.html, et l'atelier des textures à http://localhost:5180/textures.html.
+Puis ouvrir http://localhost:5180 : c'est la **carte des époques**, d'où l'on choisit un niveau. L'éditeur de niveaux est à http://localhost:5180/editeur.html, la galerie des personnages (chacun dans les trois styles) à http://localhost:5180/personnages.html, la salle des sons à http://localhost:5180/sons.html, et les ateliers : des lumières (`lumieres.html`), des textures (`textures.html`), des modèles (`modeles.html`) et de l'équilibrage (`equilibrage.html`).
 
 Pour jouer un niveau précis : `http://localhost:5180/jeu.html?niveau=monde1-3` (le nom du fichier, sans `.json`).
 
@@ -357,6 +357,8 @@ npm run parties -- --essai           # les parties jouées pendant le développe
 ```
 
 Chaque partie est rejouée avec **les règles de sa version** : le moteur de l'époque est ressorti de git (`git archive`), dans `parties/.moteurs/`. La version, c'est le commit publié : Vite l'écrit dans le jeu au moment de le fabriquer (`__VERSION__`, dans `vite.config.js`). Les parties téléchargées sont gardées dans `parties/`, qui ne va pas sur GitHub.
+
+**Et si… ?** L'atelier de l'équilibrage rejoue aussi les vraies parties avec d'autres chiffres, avec les mêmes décisions (le lecteur « souple » de `enregistrement.js`) : voir « L'atelier de l'équilibrage ».
 
 **Ce qui est envoyé** : les décisions de la partie, le pseudo du classement (s'il y en a un) et la famille du navigateur (Safari, Chrome…), utile si une partie se rejoue mal. Rien d'autre. Chaque joueur peut refuser dans les Options (« Partager mes parties »), et la carte de début de partie le rappelle. Les parties jouées avec `npm run dev` partent « pour essai » : le serveur les range à part, pour ne pas les mélanger aux vraies.
 
@@ -879,6 +881,111 @@ Ce qui a changé :
 
 **Ce qui reste en rouge**, à regarder plus tard : en voxel, le Colosse (mais il est immense : 150 à 200 pixels de haut), la Gigogne à l'aube, la Taupe la nuit, et quelques gardiens (l'Étincelle de niveau 3, la Bourrasque à l'aube, le Prisme la nuit) ; en pixel art, le Dragon la nuit (13,9, tout juste sous le seuil). Les lumières des quatre niveaux voxel ont été remesurées avec la gelée qui luit : rien ne brûle (au plus 0,02 % de l'image).
 
+## L'atelier de l'équilibrage
+
+### Pourquoi un atelier
+
+`npm run equilibrage` dit, en texte, si chaque niveau a bien la difficulté visée : des joueurs imaginaires le jouent, et on regarde qui gagne. Mais il ne raconte pas ce qui se passe vague après vague, et il ne sait rien des vrais joueurs. La page `equilibrage.html` (un outil d'atelier) le montre **en courbes**, avec **les vraies parties par-dessus**, et les chiffres du jeu s'y règlent **avec des curseurs** : l'atelier rejoue tout, et garde l'avant en pâle.
+
+### Les chiffres du jeu, rangés dans une table
+
+Comme dans les studios de jeu vidéo, les chiffres sont rangés à part, dans une **table d'équilibrage** : `src/jeu/chiffres.json`. On y trouve le prix, les dégâts et la portée des gardiens, la vie, la vitesse et la prime des monstres, les pouvoirs du château, le héros, l'économie (la revente, le bonus de fin de vague) et le mode survie (la croissance des vagues). `donnees.js` garde ce qui n'est pas un chiffre (les noms, les textes du didacticiel, les apparences) et va chercher les chiffres dans la table :
+
+```js
+niveaux: [
+  { ...G.braise.niveaux[0], apparence: APPARENCES.gardiens.braise[0] },
+  { nom: 'Braise ardente', ...G.braise.niveaux[1], apparence: APPARENCES.gardiens.braise[1] },
+  …
+```
+
+(Les trois petits points « `...` » recopient tous les champs d'un objet dans un autre : ici, le prix, les dégâts, la cadence et la portée du niveau.)
+
+`src/jeu/format-chiffres.js` donne le **sens de chaque chiffre** : son nom, son unité, ses limites et une phrase qui l'explique. Les curseurs de l'atelier s'en servent, et le serveur de développement revérifie tout avant d'écrire le fichier (les mêmes champs, chaque chiffre dans ses limites, des niveaux du héros de plus en plus chers). Pour essayer des chiffres sans réécrire le fichier, `appliquerChiffres(chiffres)` (dans `donnees.js`) les recopie dans les fiches : seul l'atelier s'en sert. Ce rangement n'a rien changé au jeu : les 330 parties de `npm run equilibrage` et les 58 vraies parties rejouées sont restées identiques, à l'octet près.
+
+### Ce que montre l'atelier
+
+En haut, les niveaux, rangés par monde. Chacun a une **pastille** (verte : l'objectif est atteint ; orange ou rouge : manqué) et le nombre de **vraies parties** jouées.
+
+Pour le niveau choisi, quatre graphiques, vague après vague :
+
+| Graphique | Ce qu'il montre | Comment le lire |
+|---|---|---|
+| Jusqu'où vont les monstres | au plus près du château qu'un monstre est arrivé, pour chaque joueur imaginaire (le bon joueur en bleu) et chaque vraie partie (en orange) | près de 0 : très serré ; une croix : une partie perdue là (« ×9 » : neuf parties perdues à la même vague) |
+| L'or | ce que le joueur détaillé gagne pendant chaque vague, ce qu'il dépense avant, et ce qui lui reste au lancement | une réserve qui grimpe : il n'a plus rien à acheter |
+| Les monstres contre les gardiens | la force de chaque vague (la menace : les PV × la vitesse) et celle de ses gardiens contre ces monstres-là | les deux partent de ×1 ; quand le rouge monte plus vite que le bleu, la défense décroche |
+| Qui fait les dégâts | la part de chacun (chaque gardien, le héros, le Météore) dans les dégâts de chaque vague | un gardien absent ne sert à rien ; une part énorme : il fait tout |
+
+En survolant un graphique (ou au clavier, avec les flèches), une bulle donne toutes les valeurs de la vague ; « Les chiffres des courbes » les met en tableau. Dessous : le verdict, comme dans `npm run equilibrage`, le débutant (voir plus bas), le tableau des joueurs imaginaires et celui des **vraies parties**. Un clic sur un joueur, ou sur une partie, la détaille dans les graphiques.
+
+À droite, **« Que régler ? »** : le niveau lui-même (l'or de départ, l'arrivée de chaque gardien, et chaque groupe de monstres de chaque vague : combien, et à quel écart), un gardien (niveau par niveau), un monstre, le héros, les pouvoirs du château, ou l'économie et la survie. Chaque curseur va du tiers au triple de la valeur du fichier, et la case à côté accepte une valeur exacte ; un chiffre changé est marqué en doré, avec l'avant. Dès qu'un curseur bouge, l'atelier rejoue le niveau avec tes chiffres.
+
+« **Tour complet** » joue tous les niveaux (avec les vraies parties, une quarantaine de secondes) et les range dans un tableau, avant et après tes chiffres. En rouge : un objectif manqué, un piège dans un didacticiel, ou un **mur pour les vrais joueurs** (au moins 3 parties perdues à la même vague, dès les 3 premières). « **Planche** » range les quatre graphiques dans `captures/equilibrage-<niveau>.png`, « **Avant / après** » la course du niveau avec les chiffres du fichier puis les tiens. « **Enregistrer dans le jeu** » réécrit `chiffres.json` et les fiches de niveau modifiées (seulement avec `npm run dev` ; le jeu se recharge avec les nouveaux chiffres).
+
+### Comment il calcule
+
+- **Dans des workers.** Un *Web Worker* est un petit programme qui tourne à côté de la page, en même temps qu'elle : les joueurs imaginaires peuvent jouer des centaines de parties sans que la page se fige. L'atelier en fait tourner deux (`atelier-equilibrage-calcul.js`) : l'un avec les chiffres du fichier (l'avant), l'autre avec les tiens (l'après). Si un curseur bouge pendant un calcul, l'ancien calcul est arrêté et le nouveau repart.
+- **Le relevé** (`jeu/releve.js`) regarde une partie se jouer et note, à chaque vague : le plus près du château, là où tombent les monstres, l'or (au lancement, dépensé avant, gagné : les primes, le bonus de fin de vague, la récolte des Pépites), la défense et les dégâts de chacun. Les mêmes relevés servent pour les joueurs imaginaires et pour les vraies parties rejouées (un essai vérifie que l'or de chaque vague tombe juste, à la pièce près).
+- **La force des gardiens** se mesure au banc d'essai (voir plus bas) : les dégâts par seconde de chaque gardien contre chaque sorte de monstre de la vague, comptés selon sa part de la menace. Un Grondin compte donc pour rien contre une vague de Voltigeurs.
+- **Deux mesures qui n'ont pas la même unité ne partagent jamais un axe.** La menace des monstres et les dégâts par seconde des gardiens sont donc ramenés à ×1 à la première vague, sur une échelle « logarithmique » (×1, ×2, ×5, ×10… à distances égales), pour voir l'arène grimper jusqu'à ×500.
+- **Les couleurs ont été vérifiées par le calcul**, avec une méthode de graphiques : deux couleurs voisines doivent rester distinctes pour un daltonien, sur le fond sombre de l'atelier. Les sources de dégâts gardent toujours la même couleur et le même ordre dans les piles (Braise orange, Givrine bleue, Bourrasque vert d'eau, Étincelle jaune, Prisme rose, Grondin vert, héros violet, Météore rouge). Le premier ordre essayé mettait le héros en vert juste à côté de la Braise orange : deux couleurs qu'un daltonien confond.
+
+### Les vraies parties, et « et si… ? »
+
+L'atelier lit les parties enregistrées sur le serveur, comme `npm run parties`, et les rejoue avec le lecteur de `jeu/enregistrement.js`. Une partie jouée avec d'anciennes règles ne se rejoue plus pareil : sa courbe raconterait une autre partie que la vraie. Elle n'est donc pas dessinée (la case « Anciennes règles » la montre quand même).
+
+**Et si… ?** Quand tes chiffres changent, chaque vraie partie est rejouée avec **les mêmes décisions** : « avec 8 Voltigeurs au lieu de 12, ce joueur aurait-il tenu la vague 2 ? ». Mais une décision prise au pas 2 400 n'est peut-être plus possible à ce moment-là. Le **lecteur souple** (`creerLecteurSouple`) refait donc les décisions dans l'ordre, chacune dès qu'elle redevient possible :
+- lancer la vague, ou choisir une bénédiction : il attend que ce soit possible, et décale d'autant toutes les décisions suivantes ;
+- un achat qui manque d'or est mis de côté, et refait dès que l'or arrive (une minute au plus), sans retenir les autres décisions ;
+- le reste (un pouvoir, le héros) se fait à son moment, ou pas du tout.
+
+Avec les mêmes chiffres, il refait exactement les vraies parties (vérifié sur 53 d'entre elles). Mais ce n'est qu'une indication : avec d'autres chiffres, le vrai joueur aurait peut-être fait d'autres choix. Avec plus d'or, il aurait acheté plus de gardiens, alors que ce lecteur ne refait que ses achats. Le tableau signale les décisions qui n'ont pas pu se faire à leur moment.
+
+### Le banc d'essai
+
+`jeu/banc.js` pose chaque gardien seul, à côté d'un chemin tout droit, et fait passer devant lui une file de 10 monstres d'une même sorte (un seul pour un chef), avec une vie infinie. C'est le vrai moteur qui joue : le temps de vol des tirs, l'armure de la Carapace, les volants que les rochers ne touchent pas, la Taupe qui plonge, le Dragon qui assomme… Pour un gardien, le panneau montre la part de la vie qu'il enlève à chaque monstre qui passe (100 % : il le bat à lui seul), combien de temps il **retient** les monstres sous le feu (le gel, le vent), et ce que rapporte une amélioration comparée à un nouveau gardien, à prix égal. Pour un monstre : la part de sa vie qu'enlève chaque gardien. Tout le banc se mesure en 0,2 seconde.
+
+### Le débutant
+
+Les vraies parties ont montré où les nouveaux joueurs perdent : **dès les premières vagues**. `pardonDuDebutant()` (dans `jeu/equilibrage.js`) imite un joueur qui découvre le niveau : il pose des Braise au hasard (il ne sait pas encore quels socles sont bons), avec tout son or, puis lance la vague 1. Sur 60 façons de les placer, combien tiennent ? Et s'il achète d'abord un gardien qui ne se bat presque pas (une Pépite, une Bourrasque) ? Dans un didacticiel ou un niveau facile, un piège de ce genre (la vague 1 tenue moins d'une fois sur deux) donne un conseil, dans l'atelier, dans l'éditeur et dans `npm run equilibrage`.
+
+### Ce que l'atelier a trouvé, et ce qui a changé
+
+Il y avait 58 parties enregistrées : 7 dans l'arène, 51 dans la campagne, jouées par quelques amis.
+
+**1. Deux murs pour les vrais joueurs.**
+- **La vallée du Colosse** : 13 parties, dont 11 perdues, et 9 à la vague 2. Les graphiques racontent la première : à la vague 2, la force des monstres double (×1,9) pendant que celle de la défense baisse (×0,8). Son Grondin, qui faisait 80 % des dégâts à la vague 1, ne touche pas les 12 Voltigeurs, qui volent. Le joueur a fini par gagner… avec 5 Étincelle.
+- **La colline dorée** (le didacticiel du monde 3) : trois défaites d'affilée **dès la vague 1**, chaque fois avec une Pépite achetée tout de suite, et deux gardiens seulement. C'était pourtant le conseil de sa fiche : « Pose-la tôt ».
+
+**2. Le débutant a mesuré le piège.** Avec des Braise posées au hasard, la vague 1 est tenue dans 75 à 100 % des cas, dans tous les niveaux : elle pardonne. Mais avec un gardien qui ne se bat pas, acheté d'abord :
+
+| Niveau | Pépite d'abord | Bourrasque d'abord |
+|---|---|---|
+| La colline dorée (didacticiel) | 10 % → plus possible (elle arrive à la vague 2) | 13 % → plus possible |
+| La prairie des Carapaces (facile) | 0 % → plus possible | 0 % → plus possible |
+| Le lac aux Voltigeurs (facile) | — | 3 % → plus possible |
+| Les niveaux normaux | de 0 à 50 % (gardé : un niveau normal peut punir) | de 0 à 22 % (gardé) |
+
+**3. Ce qui a changé** (dans les fiches de niveau, enregistrées par l'atelier, et une phrase) :
+1. La colline dorée : la Pépite et la Bourrasque arrivent à la vague 2. La vague 1 se joue avec des gardiens qui tirent, et la fiche de la Pépite s'ouvre après la première vague, quand la défense tient.
+2. La prairie des Carapaces et le lac aux Voltigeurs (deux niveaux faciles) : pareil pour la Bourrasque (et pour la Pépite dans la prairie).
+3. La vallée du Colosse : 8 Voltigeurs au lieu de 12 à la vague 2, un peu plus espacés (0,9 seconde au lieu de 0,7). Le bon joueur imaginaire trouve toujours le niveau « Équilibré », avec la même marge ; le grand test du niveau passe de la vague 2 à la vague 8, celle du Colosse ; et, rejouées avec les mêmes décisions, 4 des 9 parties perdues à la vague 2 l'auraient tenue (et celle perdue à la vague 8 aurait été gagnée).
+4. Le conseil de la Pépite : « Pose-la quand tes premiers gardiens tiennent bon… » (au lieu de « Pose-la tôt »).
+
+Les 13 niveaux atteignent toujours leur objectif, et les joueurs imaginaires jouent exactement pareil partout, sauf dans la vallée du Colosse. (Les anciennes parties de ces quatre niveaux ne se rejouent plus tout à fait pareil : la page « Revoir la partie » le signale, comme après chaque changement de règles.)
+
+**4. Le banc d'essai confirme une règle des fiches.** « Une amélioration rapporte à peu près autant de dégâts par pièce qu'un nouveau gardien » : c'est vrai, de 0,83 à 1,21 fois selon le gardien et le niveau. Avec deux remarques, à surveiller (rien n'est changé) :
+- le **Blizzard** (le niveau 3 de la Givrine) rapporte 1,5 fois ce que rapporterait une nouvelle Givrine, en plus d'un gel bien plus fort : l'améliorer est toujours le bon choix ;
+- la **Bourrasque** retient peu les monstres : 1,2 à 1,6 fois plus longtemps sous le feu, contre 1,6 à 2,5 pour la Givrine au même prix. La poser tôt fait perdre, mais une Givrine posée au même moment aussi : c'est surtout une question de moment.
+
+Le **Grondin** est le plus rentable contre les foules au sol : 35 dégâts pour 100 pièces, contre 22 à 25 pour les autres. C'est pour ça qu'il fait 60 à 70 % des dégâts dans les vraies parties de l'arène.
+
+**5. L'arène : le plafond se voit.** Dès la vague 13, la force des gardiens plafonne à ×20 (tous les socles sont au niveau 3) pendant que celle des monstres grimpe jusqu'à ×500 vers la vague 27. Ce sont le Météore et le héros qui comblent l'écart, et l'or inutilisé grimpe jusqu'à 9 000 pièces. C'était déjà connu ; maintenant, ça se voit.
+
+**Ce qui reste, à décider plus tard :**
+- **montrer la prochaine vague** avant de la lancer (« 8 Voltigeurs : des volants ! »). C'est le vrai remède au piège des volants : l'équilibrage seul n'y suffit pas, puisqu'un débutant qui ouvre avec un Grondin ne passe la vague 2 de la vallée que 12 fois sur 100 (au lieu de 0) ;
+- **prévenir quand on lance une vague avec beaucoup d'or en poche** (une défaite aux deux étangs avec une seule Braise et 130 pièces) ;
+- le Blizzard et la Bourrasque.
+
 ## Comment le code est rangé
 
 L'idée principale : **les règles du jeu ne savent pas dessiner, et les dessins ne connaissent pas les règles.**
@@ -892,6 +999,7 @@ sons.html              la salle des sons : le thème et les bruitages, dans les 
 lumieres.html          l'atelier des lumières : régler les ambiances et repérer les lumières trop fortes
 textures.html          l'atelier des textures : voir les textures des trois styles en grand, les mesurer, régler leurs recettes
 modeles.html           l'atelier des modèles : chaque personnage sur les vrais sols, sa lisibilité mesurée (daltoniens compris), ses couleurs
+equilibrage.html       l'atelier de l'équilibrage : les niveaux en courbes, avec les vraies parties, et les chiffres du jeu à régler
 revoir.html            revoir une partie enregistrée (revoir.html?partie=…)
 visites.html           les visites du site, jour après jour (la page du créateur, reliée à aucune autre)
 src/
@@ -902,6 +1010,9 @@ src/
 ├── atelier-lumieres.js l'atelier des lumières : la partie automatique, les curseurs, les mesures (+ atelier-lumieres.css)
 ├── atelier-textures.js l'atelier des textures : gros plans, grand sol, vrai niveau, mesures, recettes (+ atelier-textures.css)
 ├── atelier-modeles.js l'atelier des modèles : le défilé, les photos avec et sans le modèle, les mesures, l'apparence (+ atelier-modeles.css)
+├── atelier-equilibrage.js l'atelier de l'équilibrage : les niveaux, les courbes, les vraies parties, les curseurs, le banc (+ atelier-equilibrage.css)
+├── atelier-equilibrage-calcul.js son calcul, dans un worker : les joueurs imaginaires et les vraies parties, avec les chiffres qu'on lui donne
+├── graphiques.js      les graphiques de l'atelier de l'équilibrage (courbes, colonnes, bulle du survol), dans un canvas
 ├── main.js            le chef d'orchestre du jeu : boucle, boutons, menu, cartes de début et de fin
 ├── didacticiel.js     les leçons, les fiches de présentation et la flèche
 ├── progression.js     les niveaux gagnés et les fiches déjà vues, gardés par le navigateur
@@ -931,11 +1042,15 @@ src/
 │   ├── survie.js      le mode survie : les vagues fabriquées, de plus en plus dures
 │   ├── benedictions.js les bénédictions : la liste, le tirage des 3 propositions, les chiffres avec les bonus
 │   ├── niveau.js      lit et vérifie une fiche, puis calcule chemin, relief et décor
-│   ├── equilibrage.js les joueurs imaginaires et le verdict d'équilibrage
-│   ├── donnees.js     les fiches des personnages : chiffres de jeu + apparence
+│   ├── equilibrage.js les joueurs imaginaires, le débutant et le verdict d'équilibrage
+│   ├── releve.js      le relevé d'une partie, vague par vague (pour les courbes de l'atelier de l'équilibrage)
+│   ├── banc.js        le banc d'essai : chaque gardien face à une file de chaque monstre
+│   ├── donnees.js     les fiches des personnages : noms, textes, chiffres (lus dans chiffres.json) et apparence
+│   ├── chiffres.json  les chiffres du jeu, la « table d'équilibrage » (l'atelier de l'équilibrage la modifie)
+│   ├── format-chiffres.js  le sens de chaque chiffre (nom, unité, limites) ; vérifier et écrire chiffres.json
 │   ├── apparences.json l'apparence des personnages, rangée à part (l'atelier des modèles la modifie)
 │   ├── moteur.js      ce qui se passe à chaque instant : déplacements, tirs, or, défaite
-│   ├── enregistrement.js  les parties enregistrées : noter les décisions, puis les rejouer (le « lecteur »)
+│   ├── enregistrement.js  les parties enregistrées : noter les décisions, puis les rejouer (le « lecteur », et le lecteur « souple » des « et si… ? »)
 │   ├── calcul.js      distance() : un calcul qui donne le même résultat dans tous les navigateurs
 │   └── aleatoire.js   hasard « reproductible » et bruit (pour placer le décor)
 ├── son/               LE SON (fabriqué par le code, sans aucun fichier)
@@ -1012,20 +1127,28 @@ Chaque fichier de `rendus/` exporte une classe avec les mêmes méthodes :
 
 ## Les fiches des personnages
 
-Chaque personnage est décrit **une seule fois**, dans `src/jeu/donnees.js` : ses chiffres de jeu (prix, dégâts, vitesse…) et son **apparence**. Les trois styles fabriquent eux-mêmes le personnage à partir de cette apparence. L'apparence est rangée à part, dans `src/jeu/apparences.json` (des données, comme les fiches de niveau) : l'atelier des modèles la règle et l'enregistre, sans toucher au code des règles.
+Chaque personnage est décrit **une seule fois**, dans `src/jeu/donnees.js` : son nom, ses textes, ses chiffres de jeu (prix, dégâts, vitesse…) et son **apparence**. Les trois styles fabriquent eux-mêmes le personnage à partir de cette apparence. Les chiffres et l'apparence sont rangés à part, dans deux fichiers de données (comme les fiches de niveau) : `src/jeu/chiffres.json`, que règle l'atelier de l'équilibrage, et `src/jeu/apparences.json`, que règle l'atelier des modèles. Ils changent sans qu'on touche au code des règles.
 
 ```js
 braise: {
-  nom: 'Braise', role: '…', projectile: { vitesse: 9, type: 'feu' }, // commun aux 3 niveaux
+  nom: 'Braise', role: '…', projectile: { type: 'feu', ...G.braise.projectile }, // commun aux 3 niveaux
   niveaux: [
-    {
-      cout: 70, degats: 9, cadence: 0.8, portee: 3.0,
-      apparence: APPARENCES.gardiens.braise[0],  // lue dans apparences.json
-    },
-    { nom: 'Braise ardente', cout: 70, /* … */ },  // niveau 2 : cout = prix de l'amélioration
-    { nom: 'Brasier', cout: 110, /* … */ },        // niveau 3
+    { ...G.braise.niveaux[0], apparence: APPARENCES.gardiens.braise[0] },  // lus dans chiffres.json et apparences.json
+    { nom: 'Braise ardente', ...G.braise.niveaux[1], apparence: … },       // niveau 2 : cout = prix de l'amélioration
+    { nom: 'Brasier', ...G.braise.niveaux[2], apparence: … },              // niveau 3
   ],
 },
+```
+
+```json
+"braise": {
+  "projectile": { "vitesse": 9 },
+  "niveaux": [
+    { "cout": 70, "degats": 9, "cadence": 0.8, "portee": 3 },
+    { "cout": 70, "degats": 14, "cadence": 0.62, "portee": 3.2 },
+    { "cout": 110, "degats": 22, "cadence": 0.54, "portee": 3.4 }
+  ]
+}
 ```
 
 ```json
@@ -1035,7 +1158,7 @@ braise: {
 ]
 ```
 
-Le gabarit est la silhouette de base, les couleurs vont du dessus éclairé (`clair`) à l'ombre (`fonce`), et les accessoires sont ce qu'il porte. Les monstres n'ont qu'un niveau : leur fiche contient directement leurs chiffres et leur `apparence` (`APPARENCES.monstres.gluant`…).
+Le gabarit est la silhouette de base, les couleurs vont du dessus éclairé (`clair`) à l'ombre (`fonce`), et les accessoires sont ce qu'il porte. Les monstres n'ont qu'un niveau : leur fiche recopie directement leurs chiffres (`...M.gluant`, lus dans `chiffres.json`) et leur `apparence` (`APPARENCES.monstres.gluant`…). Le sens de chaque chiffre (son unité, ses limites) est écrit dans `src/jeu/format-chiffres.js`.
 
 **Les pouvoirs**, des champs facultatifs que le moteur sait lire :
 
@@ -1210,7 +1333,9 @@ Il est comparé à la difficulté visée (`difficulte` dans la fiche) : « Objec
 
 Il est accompagné de conseils : le bon joueur a-t-il eu chaud (« un monstre est passé à 0,2 case du château ») ? Quelle vague arrête le plus de joueurs ? Peut-on gagner sans jamais améliorer ses gardiens ? (C'est le cas du niveau d'essai : avec 10 socles, poser des gardiens partout suffit. Pour rendre les améliorations utiles, il faut moins de socles ou des dernières vagues plus fortes.)
 
-Le code est dans `src/jeu/equilibrage.js` (partagé par la commande `scripts/equilibrage.js` et par l'éditeur).
+**Le débutant** : chaque niveau (sauf l'arène) est aussi joué par un débutant, qui pose des Braise au hasard avec tout son or, puis lance la vague 1 ; et, si le niveau les propose dès le début, par un débutant qui achète d'abord une Pépite ou une Bourrasque (deux gardiens qui ne se battent presque pas). Dans un didacticiel ou un niveau facile, si la vague 1 est tenue moins d'une fois sur deux, un conseil le dit. C'est l'atelier de l'équilibrage, et les vraies parties, qui ont montré ce piège (voir « L'atelier de l'équilibrage »).
+
+Le code est dans `src/jeu/equilibrage.js` (partagé par la commande `scripts/equilibrage.js`, par l'éditeur et par l'atelier de l'équilibrage, qui montre tout ça en courbes, avec les vraies parties par-dessus).
 
 ## Astuces de développement
 
@@ -1225,6 +1350,7 @@ Dans la console du navigateur (F12) :
 - `__planche('nom')` (dans la galerie des personnages) : assemble les personnages affichés en une seule image, une ligne par personnage et une colonne par style, dans `captures/nom.jpg` ;
 - `__editeur.etat.fiche` (dans la console de l'éditeur) : la fiche en cours de modification ;
 - dans l'atelier des lumières : `__atelier.choisir({ niveau: 'monde3-3', style: 'voxel', ambiance: 'nuit' })`, `__atelier.planche()`, `__atelier.tourComplet({ styles: 'tous' })` (tous les niveaux dans les trois styles), `__atelier.capturer('nom', { ambiance: 'nuit', zone: [0.1, 0.1, 0.5, 0.5], avancer: 2 })` (une capture en grand, ou un gros plan, après avoir fait avancer la partie de 2 secondes) ;
+- dans l'atelier de l'équilibrage : `__equilibrage.choisir('monde2-4')`, `__equilibrage.tourComplet()`, `__equilibrage.planche()`, `__equilibrage.avantApres()`, `__equilibrage.remplacer({ monstres: { gluant: { pv: 50 } } })` (des chiffres « après », en entier ou en partie) et `__equilibrage.resultats` (tous les relevés) ;
 - `__jeu.son.effet('recolte')` (dans le jeu) ou `__son.effet('recolte')` (dans la salle des sons) : joue un bruitage ; `__jeu.son.reglages` : les volumes ; `__jeu.son.enCours` : quel thème joue, avec quel mixage, à quelle mesure ;
 - l'adresse `/__son` du serveur de développement enregistre un son calculé hors ligne dans `captures/nom.wav` (c'est ainsi qu'on a vérifié la musique) ;
 - pour essayer le serveur du classement sans salir le vrai : l'arène `essai`, par exemple `curl 'https://petits-gardiens-classement.vercel.app/api/scores?arene=essai'`. Les erreurs de la fonction s'affichent sur vercel.com, projet `petits-gardiens-classement`, onglet « Logs ».
@@ -1255,3 +1381,4 @@ Dans la console du navigateur (F12) :
 11. ~~Le héros, plus vivant : de la vie (à zéro, K.O. jusqu'à la vague suivante) et des pouvoirs gagnés avec ses niveaux~~ (fait : la Peau de pierre au niveau 2, l'Onde de choc au 4, le Bond au 6 ; réglé avec les parties enregistrées).
 12. ~~Un atelier des textures, et des textures refaites dans les trois styles~~ (fait : des recettes réglables et mesurées ; le voxel, puis le pixel art et le cartoon).
 13. ~~Un atelier des modèles, pour que chaque personnage se voie bien, même pour un joueur daltonien~~ (fait : le Filou gris-bleu, le Gluant vert citron, la gelée qui luit en voxel).
+14. ~~Un atelier de l'équilibrage, avec les vraies parties par-dessus~~ (fait : les niveaux en courbes, les chiffres du jeu dans une table, le banc d'essai et le débutant ; les pièges des premières vagues retirés de trois niveaux, et la vague 2 de la vallée du Colosse adoucie).

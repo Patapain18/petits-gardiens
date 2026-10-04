@@ -57,7 +57,7 @@
       { "type": "gluant", "nombre": 12, "ecart": 0.9, "delai": 0 }
     ],
     [
-      { "type": "voltigeur", "nombre": 12, "ecart": 0.7, "delai": 0 },
+      { "type": "voltigeur", "nombre": 8, "ecart": 0.9, "delai": 0 },
       { "type": "filou", "nombre": 10, "ecart": 0.6, "delai": 5 }
     ],
     [

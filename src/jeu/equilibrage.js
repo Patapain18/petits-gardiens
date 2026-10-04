@@ -15,6 +15,7 @@ import {
 import { caracteristiques, NIVEAU_MAX, MONSTRES, POUVOIRS, HEROS } from './donnees.js';
 import { choisirBenediction, pouvoirDe, ficheDuHeros } from './benedictions.js';
 import { DIFFICULTES } from './niveau.js';
+import { creerAleatoire } from './aleatoire.js';
 
 // Le mélange du bon joueur. Les gardiens des mondes 2 (Étincelle, Bourrasque) et 3 (Prisme,
 // Pépite) sont glissés entre ceux du monde 1 : dans un niveau qui ne les propose pas, ils
@@ -396,7 +397,10 @@ export function simuler(niveau, plan, graine = 1, malin = false, pouvoirs = 'mal
 // Chaque stratégie joue plusieurs parties (une par graine), car le hasard
 // change un peu la position des monstres. pause() permet à l'éditeur de
 // rester fluide entre deux parties ; progression(0 → 1) sert à la barre.
-export async function analyser(niveau, { graines = [1, 2, 3], pause = async () => {}, progression = () => {} } = {}) {
+// suivre(strategie, graine) : si on le donne, il renvoie de quoi regarder chaque partie (un
+// « relevé », voir releve.js, avec sa fonction regarder(etat)) ; chaque résultat garde alors ses
+// parties (avec leur relevé, dans « suivi ») : c'est ce que dessine l'atelier de l'équilibrage.
+export async function analyser(niveau, { graines = [1, 2, 3], pause = async () => {}, progression = () => {}, suivre = null } = {}) {
   const classement = classerSocles(niveau);
   // Chaque joueur n'achète que les gardiens que ce niveau propose. Un joueur
   // qui n'a plus rien à acheter (« Que des Grondin » sans Grondin) ne joue pas.
@@ -410,15 +414,22 @@ export async function analyser(niveau, { graines = [1, 2, 3], pause = async () =
     const plan = planDe(strategie, classement);
     const parties = [];
     for (const graine of graines) {
-      parties.push(simuler(niveau, plan, graine, Boolean(strategie.malin), strategie.naif ? 'naif' : 'malin'));
+      const pouvoirs = strategie.naif ? 'naif' : 'malin';
+      const suivi = suivre ? suivre(strategie, graine) : null;
+      const partie = simuler(niveau, plan, graine, Boolean(strategie.malin), pouvoirs, pouvoirs, suivi ? suivi.regarder : null);
+      if (suivi) partie.suivi = suivi;
+      parties.push(partie);
       faites++;
       progression(faites / total);
       await pause();
     }
-    resultats.push(resumer(strategie, parties, niveau.survie));
+    const resultat = resumer(strategie, parties, niveau.survie);
+    if (suivre) resultat.parties = parties;
+    resultats.push(resultat);
   }
-  const verdict = niveau.survie ? jugerSurvie(resultats) : juger(niveau, resultats);
-  return { resultats, verdict, parties: total };
+  const debutant = pardonDuDebutant(niveau);
+  const verdict = niveau.survie ? jugerSurvie(resultats) : juger(niveau, resultats, debutant);
+  return { resultats, verdict, debutant, parties: total };
 }
 
 function resumer(strategie, parties, survie) {
@@ -465,6 +476,40 @@ export function texteResultat(r) {
   return `Gagne ${r.victoires} fois sur ${r.total}`;
 }
 
+// ── Le débutant ──────────────────────────────────────────────
+// Un joueur qui découvre le niveau : il pose des gardiens au hasard (il ne sait pas encore quels
+// socles sont bons), avec tout son or, puis lance la vague 1. Sur combien de façons de les placer
+// tient-il cette première vague ? Et s'il achète d'abord un gardien qui ne se bat presque pas (la
+// Pépite, la Bourrasque) ? Les vraies parties ont montré que c'est là que les nouveaux joueurs
+// perdent : trois défaites d'affilée à la vague 1 du didacticiel du monde 3, avec une Pépite
+// achetée tout de suite… comme le conseillait sa fiche. Un didacticiel doit pardonner ces erreurs.
+// Renvoie { gardien, auHasard (en %), pieges: [{ type, part (en %) }] }, ou null en mode survie.
+const GARDIENS_DU_DEBUTANT = ['braise', 'etincelle', 'prisme', 'givrine', 'grondin']; // le premier proposé dès la vague 1
+const PIEGES = ['pepite', 'bourrasque'];
+export function pardonDuDebutant(niveau, { essais = 60 } = {}) {
+  if (niveau.survie) return null;
+  const dispo = (type) => niveau.gardiens[type] === 1;
+  const gardien = GARDIENS_DU_DEBUTANT.find(dispo);
+  if (!gardien) return null;
+  const socles = niveau.socles.map((s, i) => i).filter((i) => !niveau.socles[i].bonus);
+  const essayer = (piege) => {
+    const alea = creerAleatoire(99); // toujours les mêmes placements au hasard : des mesures qu'on peut comparer
+    let tenues = 0;
+    for (let k = 0; k < essais; k++) {
+      const etat = creerPartie(niveau, 1 + (k % 3));
+      const libres = [...socles];
+      for (let i = libres.length - 1; i > 0; i--) { const j = Math.floor(alea() * (i + 1)); [libres[i], libres[j]] = [libres[j], libres[i]]; }
+      if (piege) construire(etat, libres.pop(), piege);
+      while (libres.length && construire(etat, libres[libres.length - 1], gardien)) libres.pop();
+      lancerVague(etat);
+      for (let t = 0; t < DUREE_MAX_VAGUE && etat.statut === 'vague'; t += PAS) { majPartie(etat, PAS); etat.evenements.length = 0; }
+      if (etat.statut !== 'perdu') tenues++;
+    }
+    return Math.round((100 * tenues) / essais);
+  };
+  return { gardien, auHasard: essayer(null), pieges: PIEGES.filter(dispo).map((type) => ({ type, part: essayer(type) })) };
+}
+
 // ── Le verdict d'une arène de survie ─────────────────────────
 // On ne gagne jamais : on regarde jusqu'où tient chaque joueur. Une bonne
 // arène laisse un bon joueur aller assez loin, et sépare bien les bons
@@ -491,7 +536,7 @@ const RANGS = { 'trop-facile': 0, facile: 1, equilibre: 2, 'trop-dur': 3 };
 // Le verdict attendu pour chaque difficulté visée par la fiche (« difficulte »)
 const ATTENDU = { didacticiel: 'trop-facile', facile: 'facile', normal: 'equilibre' };
 
-function juger(niveau, resultats) {
+function juger(niveau, resultats, debutant = null) {
   const souvent = (r) => r.victoires * 3 >= r.total * 2; // au moins 2 fois sur 3
   const reference = resultats.find((r) => r.strategie.reference);
   const naifsGagnants = resultats.filter((r) => r.strategie.naif && souvent(r));
@@ -561,6 +606,15 @@ function juger(niveau, resultats) {
       conseils.push(vagueMur === 1
         ? `Dès la vague 1, ${combien} stratégies sur ${resultats.length} perdent : le début est peut-être trop raide (or de départ ?).`
         : `La vague ${vagueMur} arrête ${combien} stratégies sur ${resultats.length} : c’est le grand test du niveau.`);
+    }
+  }
+
+  // 4. Le débutant (surtout dans un didacticiel ou un niveau facile : c'est là qu'il arrive)
+  if (debutant && visee !== 'normal') {
+    const nom = caracteristiques(debutant.gardien, 1).nom;
+    if (debutant.auHasard < 60) conseils.push(`Un débutant qui pose ses ${nom} au hasard perd souvent la vague 1 (il ne la tient que ${debutant.auHasard} fois sur 100) : un début plus doux, ou plus d’or au départ.`);
+    for (const p of debutant.pieges) {
+      if (p.part < 50) conseils.push(`Un débutant qui achète d’abord un${p.type === 'pepite' || p.type === 'bourrasque' ? 'e' : ''} ${caracteristiques(p.type, 1).nom} perd la vague 1 (il ne la tient que ${p.part} fois sur 100) : fais-la arriver à la vague 2, quand sa défense tient le coup.`);
     }
   }
   return { niveau: niveauVerdict, titre, explication, objectif, conseils };

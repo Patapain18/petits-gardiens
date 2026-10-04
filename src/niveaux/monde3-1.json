@@ -38,7 +38,7 @@
     { "x": 14.6, "y": 4.6 }
   ],
   "decor": { "graine": 3101, "arbres": 0.1 },
-  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1, "pepite": 1, "prisme": 2 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 2, "pepite": 2, "prisme": 2 },
   "didacticiel": {
     "presenter": ["pepite", "prisme", "carapace", "taupe"]
   },

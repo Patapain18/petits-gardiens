@@ -42,7 +42,7 @@
     { "x": 17.6, "y": 7.4 }
   ],
   "decor": { "graine": 2202, "arbres": 0.06 },
-  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 1 },
+  "gardiens": { "braise": 1, "givrine": 1, "grondin": 1, "etincelle": 1, "bourrasque": 2 },
   "vagues": [
     [
       { "type": "gluant", "nombre": 8, "ecart": 1.2, "delai": 0 }

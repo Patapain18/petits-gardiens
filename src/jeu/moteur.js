@@ -4,7 +4,7 @@
 // et le fait avancer d'un petit pas de temps à chaque appel.
 // Les styles graphiques ne font que LIRE cet état pour le dessiner.
 // ─────────────────────────────────────────────────────────────
-import { GARDIENS, MONSTRES, POUVOIRS, HEROS, PART_REVENTE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
+import { GARDIENS, MONSTRES, POUVOIRS, HEROS, ECONOMIE, NIVEAU_MAX, HAUTEUR_VOL, caracteristiques } from './donnees.js';
 import { creerAleatoire } from './aleatoire.js';
 import { distance } from './calcul.js';
 import { ficheDe, ficheDuHeros, pouvoirDe, socleActif, bonusDeDepart, proposerBenedictions, TOUTES_LES } from './benedictions.js';
@@ -140,7 +140,8 @@ export function ameliorer(etat, indexSocle) {
 }
 
 // Ce qu'on récupère en revendant : une part de tout ce qu'on a dépensé pour ce gardien
-export const prixRevente = (tour) => Math.floor(tour.investi * PART_REVENTE);
+// (60 % : ECONOMIE.revente, dans chiffres.json)
+export const prixRevente = (tour) => Math.floor(tour.investi * ECONOMIE.revente);
 
 export function vendre(etat, indexSocle) {
   const tour = tourSur(etat, indexSocle);
@@ -783,7 +784,8 @@ function verifierFinDeVague(etat) {
   if (etat.statut !== 'preparation') return;
   // entre deux vagues, le héros se repose : toute sa vie (s'il est K.O., il se relèvera à la vague suivante)
   if (etat.heros && !etat.heros.ko) etat.heros.vie = ficheDuHeros(etat).vie;
-  etat.or += 20 + etat.vague * 10; // bonus de fin de vague
+  // le bonus de fin de vague : 20 pièces, plus 10 par vague déjà tenue (ECONOMIE.finDeVague, dans chiffres.json)
+  etat.or += ECONOMIE.finDeVague.base + etat.vague * ECONOMIE.finDeVague.parVague;
   // les gardiens qui creusent (la Pépite) rapportent leur récolte
   for (const tour of etat.tours) {
     const recolte = caracteristiques(tour.type, tour.niveau).recolte;

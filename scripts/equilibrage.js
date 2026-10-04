@@ -69,7 +69,7 @@ for (const id of aAnalyser) {
   }
 
   const graines = Array.from({ length: nombreParties }, (_, i) => i + 1);
-  const { resultats, verdict, parties } = await analyser(niveau, { graines });
+  const { resultats, verdict, debutant, parties } = await analyser(niveau, { graines });
   totalParties += parties;
 
   console.log(`${gras(niveau.nom)}  ${gris(fichier)}`);
@@ -87,6 +87,12 @@ for (const id of aAnalyser) {
     const marge = r.victoires ? `${virgule(r.marge)} case${r.marge >= 2 ? 's' : ''}` : '';
     const nom = r.strategie.reference ? gras(r.strategie.nom.padEnd(largeurNom)) : r.strategie.nom.padEnd(largeurNom);
     console.log('  ' + nom + enCouleur(texte.padEnd(largeurResultat)) + marge);
+  }
+
+  // Le débutant : il pose ses gardiens au hasard (et parfois, d'abord, un gardien qui ne se bat pas)
+  if (debutant) {
+    const pieges = debutant.pieges.map((p) => `, ${p.type === 'pepite' ? 'une Pépite' : 'une Bourrasque'} d’abord : ${p.part} %`).join('');
+    console.log(gris(`\n  Un débutant (des gardiens posés au hasard) tient la vague 1 : ${debutant.auHasard} %${pieges}`));
   }
 
   // Le verdict, la difficulté visée (pas pour une arène de survie) et les conseils

@@ -1,0 +1,97 @@
+{
+  "gardiens": {
+    "braise": {
+      "projectile": { "vitesse": 9 },
+      "niveaux": [
+        { "cout": 70, "degats": 9, "cadence": 0.8, "portee": 3 },
+        { "cout": 70, "degats": 14, "cadence": 0.62, "portee": 3.2 },
+        { "cout": 110, "degats": 22, "cadence": 0.54, "portee": 3.4 }
+      ]
+    },
+    "givrine": {
+      "projectile": { "vitesse": 8 },
+      "niveaux": [
+        { "cout": 75, "degats": 7, "cadence": 0.8, "portee": 3, "ralentissement": { "facteur": 0.45, "duree": 2.5, "zone": 0.9 } },
+        { "cout": 70, "degats": 11, "cadence": 0.7, "portee": 3.2, "ralentissement": { "facteur": 0.4, "duree": 3, "zone": 1.1 } },
+        { "cout": 110, "degats": 16, "cadence": 0.6, "portee": 3.4, "ralentissement": { "facteur": 0.35, "duree": 3.5, "zone": 1.4 } }
+      ]
+    },
+    "grondin": {
+      "projectile": { "vitesse": 7 },
+      "niveaux": [
+        { "cout": 120, "degats": 24, "cadence": 2.3, "portee": 3.6, "zone": 1.2, "monstresMax": 5 },
+        { "cout": 100, "degats": 40, "cadence": 2.1, "portee": 3.8, "zone": 1.4, "monstresMax": 6 },
+        { "cout": 150, "degats": 62, "cadence": 1.9, "portee": 4, "zone": 1.6, "monstresMax": 8 }
+      ]
+    },
+    "etincelle": {
+      "niveaux": [
+        { "cout": 90, "degats": 9, "cadence": 1.1, "portee": 3, "rebonds": { "nombre": 2, "saut": 1.6, "attenuation": 0.6 } },
+        { "cout": 75, "degats": 14, "cadence": 1, "portee": 3.2, "rebonds": { "nombre": 3, "saut": 1.7, "attenuation": 0.62 } },
+        { "cout": 115, "degats": 20, "cadence": 0.95, "portee": 3.4, "rebonds": { "nombre": 3, "saut": 1.8, "attenuation": 0.65 } }
+      ]
+    },
+    "bourrasque": {
+      "projectile": { "vitesse": 10 },
+      "niveaux": [
+        { "cout": 75, "degats": 3, "cadence": 2.6, "portee": 3, "souffle": { "recul": 1.2, "zone": 0.9 } },
+        { "cout": 75, "degats": 5, "cadence": 2.3, "portee": 3.2, "souffle": { "recul": 1.5, "zone": 1.1 } },
+        { "cout": 115, "degats": 8, "cadence": 2, "portee": 3.4, "souffle": { "recul": 1.9, "zone": 1.3 } }
+      ]
+    },
+    "pepite": {
+      "niveaux": [
+        { "cout": 100, "recolte": 25 },
+        { "cout": 80, "recolte": 45 },
+        { "cout": 120, "recolte": 75 }
+      ]
+    },
+    "prisme": {
+      "niveaux": [
+        { "cout": 110, "degats": 10, "portee": 3.2, "rayon": { "montee": 2, "max": 3 } },
+        { "cout": 90, "degats": 15, "portee": 3.4, "rayon": { "montee": 1.8, "max": 3.2 } },
+        { "cout": 130, "degats": 22, "portee": 3.6, "rayon": { "montee": 1.6, "max": 3.5 } }
+      ]
+    }
+  },
+  "monstres": {
+    "gluant": { "pv": 44, "vitesse": 1.15, "prime": 6, "coup": 5 },
+    "filou": { "pv": 26, "vitesse": 2.1, "prime": 5, "coup": 4 },
+    "cuirasse": { "pv": 260, "vitesse": 0.68, "prime": 22, "coup": 12, "vent": 0.5 },
+    "voltigeur": { "pv": 34, "vitesse": 1.55, "prime": 7, "vent": 1.5 },
+    "gigogne": { "pv": 120, "vitesse": 0.85, "prime": 10, "vent": 0.7, "enfants": { "nombre": 3 } },
+    "colosse": { "pv": 5500, "vitesse": 0.42, "prime": 100, "vent": 0, "gel": 0.5, "enfants": { "nombre": 2 } },
+    "carapace": { "pv": 90, "vitesse": 0.8, "prime": 13, "armure": 5, "vent": 0.7 },
+    "taupe": { "pv": 50, "vitesse": 1.1, "prime": 9, "creuse": { "dessous": 1.6, "dessus": 2, "vitesse": 1.5 } },
+    "dragon": { "pv": 3500, "vitesse": 0.45, "prime": 150, "vent": 0, "gel": 0.5, "feu": { "toutesLes": 5, "portee": 3.2, "duree": 2 } }
+  },
+  "pouvoirs": {
+    "meteore": { "parVague": 1, "chute": 0.9, "rayon": 1.6, "part": 0.5, "partGele": 0.75 },
+    "froid": { "recharge": 60, "duree": 4, "fragile": 2 }
+  },
+  "heros": {
+    "vitesse": 3,
+    "rayon": 1.3,
+    "monstresMax": 6,
+    "cadence": 1.1,
+    "barrage": { "rayon": 0.8, "facteur": 0.5 },
+    "coupParDefaut": 6,
+    "soin": { "attente": 2, "part": 0.08 },
+    "partage": 0.25,
+    "niveaux": [
+      { "degats": 14, "vie": 120, "xp": 0 },
+      { "degats": 20, "vie": 160, "xp": 100 },
+      { "degats": 28, "vie": 210, "xp": 350 },
+      { "degats": 38, "vie": 270, "xp": 800 },
+      { "degats": 52, "vie": 340, "xp": 1400 },
+      { "degats": 70, "vie": 420, "xp": 2100 }
+    ],
+    "pouvoirs": {
+      "peau": { "niveau": 2, "coups": 0.5, "soin": 2 },
+      "onde": { "niveau": 4, "recharge": 20, "rayon": 2.2, "duree": 2, "degats": 2 },
+      "bond": { "niveau": 6, "recharge": 25, "duree": 0.5, "rayon": 1.3, "assomme": 1 }
+    }
+  },
+  "economie": { "revente": 0.6, "finDeVague": { "base": 20, "parVague": 10 } },
+  "survie": { "croissance": 1.2, "maxParGroupe": 15 }
+}

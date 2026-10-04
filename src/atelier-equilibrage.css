@@ -1,0 +1,161 @@
+/* ─────────────────────────────────────────────────────────────
+   L'atelier de l'équilibrage (equilibrage.html) : le même look que les autres
+   ateliers (la vue à gauche, les réglages à droite, la bande en haut), mais la
+   « vue » est faite de quatre graphiques.
+   ───────────────────────────────────────────────────────────── */
+@import './atelier-textures.css';
+
+.atelier { grid-template-columns: minmax(0, 1fr) 400px; }
+.cote-vue h2 { margin: 0 0 2px; font-size: 1.4rem; }
+
+/* ── la bande des niveaux, rangés par monde ── */
+.bande-niveaux { max-width: 1500px; margin: 4px auto 6px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.carte-niveau {
+  position: relative;
+  width: 148px;
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 1px 6px;
+  align-items: center;
+  padding: 6px 8px;
+  font: inherit;
+  text-align: left;
+  color: #e9d6b8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.carte-niveau .nom { font-size: 0.8rem; line-height: 1.1; }
+.carte-niveau .infos { grid-column: 2; font-size: 0.66rem; color: #a8988c; }
+.carte-niveau:hover { background: rgba(255, 210, 122, 0.12); }
+.carte-niveau[aria-pressed='true'] { border-color: #ffd27a; background: rgba(255, 210, 122, 0.18); color: #fff4e0; }
+.carte-niveau:focus-visible { outline: 3px solid #ffd27a; outline-offset: 2px; }
+.carte-niveau.modifiee::after { content: ''; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ffd27a; }
+/* la pastille : l'objectif du niveau est-il atteint ? (vide tant que le niveau n'a pas été joué) */
+.pastille { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); }
+.pastille.bien { background: #0ca30c; border-color: #0ca30c; }
+.pastille.attention { background: #fab219; border-color: #fab219; }
+.pastille.trop { background: #d03b3b; border-color: #d03b3b; }
+
+/* ── les quatre graphiques ── */
+.graphiques { margin-top: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.graphique {
+  margin: 0;
+  padding: 10px 12px 8px;
+  background: #1d1526;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.graphique:focus-visible { outline: 3px solid #ffd27a; outline-offset: 2px; }
+.graphique h3 { margin: 0; font-size: 1rem; font-weight: 500; color: #ffd27a; }
+.graphique .sous-titre { margin: 2px 0 6px; font-size: 0.72rem; line-height: 1.3; color: #a8988c; }
+.toile { position: relative; }
+.toile canvas { display: block; width: 100%; height: 230px; transition: opacity 0.2s; }
+/* pendant un calcul, les graphiques gardent leur dessin, en plus pâle (pas de trou, pas de saut) */
+.graphiques.calcul canvas { opacity: 0.55; }
+.legende { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 3px 14px; font-size: 0.75rem; color: #e9d6b8; }
+.legende li { display: flex; align-items: center; gap: 6px; }
+
+/* la clé d'une série (dans la légende et dans la bulle) : un petit trait, ou un carré pour une colonne */
+.cle { display: inline-block; flex: none; width: 14px; height: 3px; border-radius: 2px; background: var(--couleur); vertical-align: middle; }
+.cle.barre { width: 10px; height: 10px; border-radius: 2px; }
+.cle.pale { opacity: 0.4; }
+.cle.croix { width: 10px; height: 10px; border-radius: 0; background: linear-gradient(45deg, transparent 42%, var(--couleur) 42% 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, var(--couleur) 42% 58%, transparent 58%); }
+
+/* la bulle du survol */
+.bulle {
+  position: absolute;
+  top: 4px;
+  z-index: 3;
+  max-width: 300px;
+  padding: 6px 9px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #e9d6b8;
+  background: rgba(36, 24, 46, 0.97);
+  border: 1px solid rgba(255, 210, 122, 0.35);
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.bulle p { margin: 0; display: flex; align-items: baseline; gap: 5px; }
+.bulle p .cle { align-self: center; }
+.bulle b { color: #fff4e0; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bulle .titre-bulle { color: #ffd27a; margin-bottom: 2px; }
+
+/* le tableau des chiffres des courbes */
+.tableau-courbes { margin-top: 10px; font-size: 0.85rem; }
+.tableau-courbes summary { cursor: pointer; color: #ffd27a; }
+.tableau-courbes .resultats { font-size: 0.75rem; }
+
+/* ── le verdict et les vraies parties ── */
+.verdict, .vraies { margin-top: 14px; }
+.verdict-titre { margin: 0 0 4px; font-size: 1rem; }
+.verdict-titre b { margin-right: 4px; }
+/* l'issue d'une partie ou d'un verdict : seulement la couleur du texte (un joueur imaginaire maladroit
+   qui perd, c'est normal ; le fond rouge est gardé pour les vrais problèmes, dans le tour complet) */
+.issue-bien { color: #b9e8a3; }
+.issue-moyen { color: #ffd08a; }
+.issue-mal { color: #ffb0a0; }
+.objectif { margin: 0 0 6px; font-size: 0.9rem; }
+.debutant { margin: 0 0 6px; font-size: 0.85rem; color: #e9d6b8; }
+.conseils { margin: 4px 0 10px; padding-left: 20px; font-size: 0.85rem; color: #e9d6b8; }
+.vraies h3 { margin: 6px 0 4px; font-size: 1.05rem; color: #ffd27a; font-weight: 500; }
+.vraies > p { margin: 0 0 6px; font-size: 0.88rem; }
+.aide { margin: 0 0 6px; font-size: 0.75rem; line-height: 1.35; color: #a8988c; }
+.resultats tr[tabindex] { cursor: pointer; }
+.resultats tr[tabindex]:hover td { background: rgba(255, 210, 122, 0.06); }
+.resultats tr[tabindex]:focus-visible { outline: 2px solid #ffd27a; outline-offset: -2px; }
+.resultats tr.choisi td { background: rgba(255, 210, 122, 0.12); }
+.resultats td.reference { font-weight: 700; }
+.banc td.bien { color: #b9e8a3; }
+.banc td.attention { color: #ffd08a; }
+.banc td.trop { color: #ffb0a0; }
+.avant { color: #a8988c; font-size: 0.78em; }
+
+/* ── les curseurs ── */
+.choix-reglage { margin-bottom: 8px; }
+.choix-reglage select { width: 100%; }
+.reglages h3 { margin: 12px 0 6px; font-size: 0.95rem; color: #ffd27a; font-weight: 500; }
+.reglage.reglage-chiffre { display: grid; grid-template-columns: minmax(0, 1fr) 78px; gap: 2px 8px; align-items: center; margin-bottom: 8px; padding-left: 6px; border-left: 2px solid transparent; }
+.reglage-chiffre .nom { grid-column: 1 / -1; cursor: help; }
+.reglage-chiffre .nom small { color: #a8988c; }
+.reglage-chiffre input[type='number'] {
+  width: 100%;
+  font: inherit;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #fff4e0;
+  background: #2a1d36;
+  border: 1px solid rgba(255, 210, 122, 0.35);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+.reglage-chiffre .ancien { grid-column: 1 / -1; font-size: 0.72rem; color: #ffd27a; }
+.reglage-chiffre .ancien:empty { display: none; }
+.reglage-chiffre .aide-champ { display: none; }
+.reglage-chiffre.modifie { border-left-color: #ffd27a; }
+.reglage-chiffre.modifie .nom { color: #fff4e0; }
+.onglets { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 8px; }
+.onglets button { padding: 2px 8px; font-size: 0.8rem; }
+.panneau .onglets button[aria-selected='true'] { color: #2a1a10; background: #ffd27a; border-color: #ffd27a; }
+
+/* ── le banc d'essai ── */
+.banc-essai h3 { margin: 14px 0 4px; font-size: 0.95rem; color: #ffd27a; font-weight: 500; }
+.banc { width: 100%; border-collapse: collapse; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.banc th { color: #c8b8a8; font-weight: 500; text-align: right; padding: 3px 5px; }
+.banc th:first-child, .banc td:first-child { text-align: left; }
+.banc td { padding: 3px 5px; text-align: right; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.banc .rentabilite td { border-top: 1px solid rgba(255, 210, 122, 0.3); }
+
+/* ── le tour complet ── */
+.tour h2 { margin: 16px 0 4px; }
+.tour .resultats td.lien { color: #ffd27a; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 1200px) {
+  .graphiques { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .atelier { grid-template-columns: 1fr; }
+}

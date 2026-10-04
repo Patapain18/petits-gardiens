@@ -6,8 +6,8 @@
 // Pour mesurer « dur », on calcule la menace d'une vague : les points de
 // vie qui arrivent, multipliés par la vitesse des monstres (un monstre
 // rapide reste moins longtemps devant les gardiens). Chaque vague
-// fabriquée apporte CROISSANCE fois plus de menace que la précédente.
-// Au-delà de MAX_PAR_GROUPE monstres, on ne les rend plus plus nombreux
+// fabriquée apporte « croissance » fois plus de menace que la précédente.
+// Au-delà de « maxParGroupe » monstres, on ne les rend plus plus nombreux
 // mais plus résistants (« force » multiplie leurs points de vie) : l'écran
 // reste lisible, et l'or gagné ne suit plus. C'est ce qui finit toujours
 // par faire tomber le château.
@@ -27,10 +27,11 @@
 // pouvoirs : il frappe moins fort au début, et avec 22 %, l'expert tombait à 30
 // vagues et le bon joueur à 22 ; avec 20 %, ils reviennent à 34 et 26.
 // ─────────────────────────────────────────────────────────────
-import { MONSTRES } from './donnees.js';
+import { MONSTRES, SURVIE } from './donnees.js';
 
-export const CROISSANCE = 1.2;    // chaque vague fabriquée : 20 % de menace en plus
-const MAX_PAR_GROUPE = 15;        // au-delà, des monstres renforcés plutôt que plus nombreux
+// Les deux chiffres du mode survie sont rangés avec les autres, dans chiffres.json (l'atelier de
+// l'équilibrage les règle) : SURVIE.croissance (1,2 : chaque vague fabriquée apporte 20 % de menace
+// en plus) et SURVIE.maxParGroupe (15 : au-delà, des monstres renforcés plutôt que plus nombreux).
 const VAGUES_EN_TOUT = 150;       // bien plus que ce qu'on peut tenir
 
 // La menace d'un groupe de monstres
@@ -56,16 +57,16 @@ export function vaguesDeSurvie(vaguesEcrites) {
   let serrage = 0.6;
   for (let n = 0; n < vagues.length; n++) serrage *= 0.97;
   for (let n = vagues.length; n < VAGUES_EN_TOUT; n++) {
-    budget *= CROISSANCE;
+    budget *= SURVIE.croissance;
     const ecart = Math.max(0.2, serrage);
     serrage *= 0.97;
     vagues.push(THEMES[n % THEMES.length].map(({ type, part }, i) => {
       const m = MONSTRES[type];
       let nombre = Math.max(1, Math.round((budget * part) / (m.pv * m.vitesse)));
       let force = 1;
-      if (nombre > MAX_PAR_GROUPE) {
-        force = nombre / MAX_PAR_GROUPE;
-        nombre = MAX_PAR_GROUPE;
+      if (nombre > SURVIE.maxParGroupe) {
+        force = nombre / SURVIE.maxParGroupe;
+        nombre = SURVIE.maxParGroupe;
       }
       // les Cuirassés, lents et costauds, arrivent plus espacés ; chaque groupe part 4 s après le précédent
       const groupe = { type, nombre, ecart: Math.round((type === 'cuirasse' ? ecart * 4 : ecart) * 100) / 100, delai: i * 4 };
