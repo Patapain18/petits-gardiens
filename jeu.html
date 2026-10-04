@@ -72,10 +72,11 @@
         </span>
         <!-- Le héros (seulement dans les niveaux qui en ont un) : son niveau, sa vie et son expérience -->
         <button id="bouton-heros" class="bouton-heros" hidden><span class="nom-heros"><span class="nom-long">Grand Gardien</span><span class="nom-court">Héros</span></span><span class="niveau-heros"></span><kbd class="touche">H</kbd><span class="vie-heros" aria-hidden="true"></span><span class="xp-heros" aria-hidden="true"></span></button>
-        <!-- Les pouvoirs du héros : ses niveaux les débloquent (l'Onde de choc au 4, le Bond au 6) -->
+        <!-- Les pouvoirs du héros : ses niveaux les débloquent (l'Onde de choc au 4, le Bond au 6).
+             Sur un téléphone, avant ce niveau, le bouton se fait tout petit : un cadenas et le niveau -->
         <span id="pouvoirs-heros" class="pouvoirs" hidden>
-          <button class="pouvoir" data-pouvoir-heros="onde"><span class="nom-pouvoir">Onde</span><span class="etat-pouvoir"></span><kbd class="touche">O</kbd></button>
-          <button class="pouvoir" data-pouvoir-heros="bond"><span class="nom-pouvoir">Bond</span><span class="etat-pouvoir"></span><kbd class="touche">B</kbd></button>
+          <button class="pouvoir" data-pouvoir-heros="onde"><span class="nom-pouvoir">Onde</span><span class="etat-pouvoir"></span><span class="cadenas" aria-hidden="true"><svg viewBox="0 0 8 10" width="9" height="11" shape-rendering="crispEdges"><path d="M2 0h4v1h1v3H6V1H2v3H1V1h1z" fill="currentColor"/><path d="M0 4h8v6H0z" fill="currentColor"/><path d="M3 6h2v2H3z" fill="#000" opacity="0.45"/></svg><span class="niveau-requis"></span></span><kbd class="touche">O</kbd></button>
+          <button class="pouvoir" data-pouvoir-heros="bond"><span class="nom-pouvoir">Bond</span><span class="etat-pouvoir"></span><span class="cadenas" aria-hidden="true"><svg viewBox="0 0 8 10" width="9" height="11" shape-rendering="crispEdges"><path d="M2 0h4v1h1v3H6V1H2v3H1V1h1z" fill="currentColor"/><path d="M0 4h8v6H0z" fill="currentColor"/><path d="M3 6h2v2H3z" fill="#000" opacity="0.45"/></svg><span class="niveau-requis"></span></span><kbd class="touche">B</kbd></button>
         </span>
       </div>
     </div>
@@ -99,6 +100,12 @@
   <div id="menu" class="panneau menu" role="dialog" aria-label="Choisir un gardien" hidden></div>
   <!-- Au doigt : la roue des gardiens autour du socle (remplie par main.js) -->
   <div id="roue" class="roue" role="dialog" aria-label="Choisir un gardien" hidden></div>
+  <!-- Au doigt : une bulle au-dessus des boutons. Elle dit où toucher quand on vise (le Météore, le
+       Bond) ou qu'on déplace le héros, et pourquoi un pouvoir ne part pas (remplie par main.js) -->
+  <div id="bulle-boutons" class="panneau bulle-boutons" role="status" aria-live="polite" hidden>
+    <p><strong class="titre-bulle"></strong><span class="texte-bulle"></span><span class="detail-bulle"></span></p>
+    <button class="annuler-bulle">Annuler</button>
+  </div>
   <!-- Sur un téléphone tenu debout : le plateau serait minuscule -->
   <div id="tourner" class="tourner" role="alert">
     <div class="panneau carte">

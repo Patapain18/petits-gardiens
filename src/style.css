@@ -131,7 +131,7 @@ button.principal {
   /* la recharge : le bouton se remplit de gauche à droite (--charge va de 0 à 1) */
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.16) calc(var(--charge, 1) * 100%), rgba(0, 0, 0, 0.3) 0);
 }
-.pouvoir:disabled { opacity: 0.75; }
+.pouvoir:is(:disabled, .indisponible) { opacity: 0.75; } /* (au doigt, grisé mais on peut le toucher : il dit pourquoi) */
 .pouvoir.pret { border-color: var(--accent); }
 .pouvoir .etat-pouvoir:not(:empty) { color: var(--texte-doux); font-size: 0.85em; }
 .pouvoir .touche {
@@ -159,8 +159,10 @@ button.principal {
 .bouton-heros.danger .vie-heros::after { background: #ec4a3a; }
 /* K.O. : le bouton s'éteint jusqu'à la vague suivante */
 .bouton-heros.ko .niveau-heros { color: #ff8a7a; }
-/* un pouvoir du héros pas encore débloqué : « niv. 4 » à la place de la recharge */
+/* un pouvoir du héros pas encore débloqué : « niv. 4 » à la place de la recharge (sur un téléphone,
+   un cadenas et le niveau : voir plus bas) */
 .pouvoir.verrouille { opacity: 0.55; }
+.cadenas { display: none; }
 #scene.deplacement { cursor: pointer; } /* on choisit où envoyer le héros */
 
 /* Le Grand froid : un voile de givre sur les bords de l'écran, le temps du gel */
@@ -627,6 +629,38 @@ body[data-style='pixel'] .portrait-roue canvas { image-rendering: pixelated; }
 .bulle-roue .aide-roue { color: var(--accent); }
 body[data-style='pixel'] .bulle-roue { line-height: 1.7; }
 
+/* ── Au doigt : la bulle au-dessus des boutons (où toucher le plateau, ou pourquoi un pouvoir ne part
+   pas). main.js la pose au-dessus de son bouton ; on vise à travers elle, sauf sur « Annuler » ── */
+.bulle-boutons {
+  position: fixed;
+  z-index: 19;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 16px));
+  padding: 5px 6px 5px 10px;
+  font-size: 0.8em;
+  line-height: 1.35;
+  border-color: var(--accent);
+  pointer-events: none;
+}
+.bulle-boutons[hidden] { display: none; }
+.bulle-boutons p { margin: 0; }
+.bulle-boutons .titre-bulle { color: var(--accent); }
+.bulle-boutons .detail-bulle { display: block; margin-top: 2px; color: var(--texte-doux); }
+.bulle-boutons .detail-bulle:empty { display: none; }
+.bulle-boutons .annuler-bulle { flex: none; min-height: 30px; padding: 2px 10px; pointer-events: auto; }
+.bulle-boutons .annuler-bulle[hidden] { display: none; }
+/* la pointe, vers le bouton (--pointe : où il est, depuis le bord gauche de la bulle) */
+.bulle-boutons::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: var(--pointe, 50%);
+  translate: -50% 0;
+  border: 7px solid transparent;
+  border-top-color: var(--accent);
+}
+body[data-style='pixel'] .bulle-boutons { line-height: 1.7; }
+
 /* ═════════════════════════════════════════════════════════════
    SUR UN TÉLÉPHONE COUCHÉ (body.telephone) : les boutons flottent dans les coins
    L'or et la vague en haut à gauche, la pause et le menu (☰) en haut à droite, « Lancer la vague »
@@ -648,11 +682,14 @@ body.telephone .commandes { position: fixed; top: max(6px, env(safe-area-inset-t
 body.telephone .commandes > :is(#vitesse, #recommencer, #bouton-options) { display: none; }
 body.telephone .bouton-menu-telephone { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; font-family: system-ui, sans-serif; font-size: 18px; }
 /* en bas à droite : les pouvoirs et le héros (s'il y en a), en une ligne serrée : des noms courts
-   (« Froid », « Héros »), et les pouvoirs du héros seulement une fois gagnés */
+   (« Froid », « Héros »), et les pouvoirs du héros pas encore gagnés tout petits : un cadenas et le
+   niveau où il les aura (on les touche : la bulle des boutons dit ce qu'ils font) */
 body.telephone .coin-pouvoirs:has(> :not([hidden])) { display: flex; flex-wrap: nowrap; gap: 4px; margin-left: auto; padding: 4px; }
 body.telephone .coin-pouvoirs :is(.pouvoir, .bouton-heros) { min-height: 38px; padding-inline: 8px; gap: 4px; }
 body.telephone .coin-pouvoirs .bouton-heros { padding-bottom: 12px; }
-body.telephone .coin-pouvoirs .pouvoir.verrouille { display: none; }
+body.telephone .coin-pouvoirs .pouvoir.verrouille { padding-inline: 7px; }
+body.telephone .coin-pouvoirs .pouvoir.verrouille :is(.nom-pouvoir, .etat-pouvoir) { display: none; }
+body.telephone .coin-pouvoirs .pouvoir.verrouille .cadenas { display: inline-flex; align-items: center; gap: 3px; font-size: 0.85em; }
 .nom-court { display: none; }
 body.telephone .nom-court { display: inline; }
 body.telephone .nom-long { display: none; }

@@ -279,6 +279,7 @@ function majInterface() {
   if (etat.pouvoirs) majPouvoirs();
   if (niveau.benedictions) majBenedictions();
   if (etat.heros) { majBoutonHeros(); majPouvoirsHeros(); }
+  majBulleBoutons(); // (au doigt : où toucher, ou pourquoi un pouvoir ne part pas)
   majRoue(); // (au doigt : la roue ouverte suit l'or et son socle)
   // Le menu ouvert se met à jour si l'or change, ou si un gardien arrive (boutons grisés ou non)
   if (!menu.hidden) {
@@ -645,8 +646,22 @@ for (const b of boutonsPouvoirs) {
   b.title = `${description} (touche ${touche})`;
   b.querySelector('.touche').textContent = touche;
   // après un clic, le bouton rend le clavier : sinon il le garderait, et la touche Espace (qui lance
-  // la vague) appuierait sur lui à la place
-  b.addEventListener('click', () => { utiliserPouvoir(b.dataset.pouvoir); b.blur(); });
+  // la vague) appuierait sur lui à la place. Au doigt, un pouvoir qui ne peut pas partir dit pourquoi
+  // (à la souris, sa bulle d'aide le dit déjà, au survol).
+  b.addEventListener('click', () => {
+    const nom = b.dataset.pouvoir;
+    if (TACTILE && !pouvoirPret(etat, nom)) expliquer(b, () => raisonPouvoir(nom));
+    else utiliserPouvoir(nom);
+    b.blur();
+  });
+}
+
+// Un bouton qui ne peut pas servir maintenant est grisé. Au doigt, on peut quand même le toucher :
+// la bulle des boutons dit alors pourquoi (« seulement pendant les vagues »…).
+function griser(b, oui) {
+  b.disabled = oui && !TACTILE;
+  b.classList.toggle('indisponible', oui);
+  if (b.getAttribute('aria-disabled') !== String(oui)) b.setAttribute('aria-disabled', String(oui));
 }
 
 function utiliserPouvoir(nom) {
@@ -679,7 +694,7 @@ function majPouvoirs() {
   for (const b of boutonsPouvoirs) {
     const nom = b.dataset.pouvoir, pret = pouvoirPret(etat, nom);
     if (!pret && document.activeElement === b) b.blur(); // un bouton grisé ne garde pas le clavier
-    b.disabled = !pret;
+    griser(b, !pret);
     b.classList.toggle('pret', pret);
     if (nom === 'meteore') {
       const { parVague } = pouvoirDe(etat, 'meteore');
@@ -701,7 +716,12 @@ function majPouvoirs() {
 // Clic droit, Échap ou un nouveau clic sur lui : on le lâche.
 const boutonHeros = $('#bouton-heros');
 boutonHeros.title = `${HEROS.description} (touche H)`;
-boutonHeros.addEventListener('click', () => { basculerHeros(); boutonHeros.blur(); });
+boutonHeros.addEventListener('click', () => {
+  // (au doigt, K.O., il ne peut pas bouger : la bulle le dit)
+  if (TACTILE && etat.heros?.ko) expliquer(boutonHeros, () => etat.heros.ko && { texte: 'Le héros est K.O. : il revient à la vague suivante.' });
+  else basculerHeros();
+  boutonHeros.blur();
+});
 
 function basculerHeros() {
   if (!etat.heros || etat.heros.ko) return; // K.O. : il ne peut rien faire avant la vague suivante
@@ -751,12 +771,18 @@ function majBoutonHeros() {
 // ── Les pouvoirs du héros ────────────────────────────────────
 // Deux boutons à côté du sien (et les touches O et B) : l'Onde de choc part tout de suite ; le Bond
 // se vise, comme le Météore (on clique sur le bouton, puis là où il doit atterrir). Avant le niveau
-// qui les débloque, ils montrent « niv. 4 » ou « niv. 6 ».
+// qui les débloque, ils montrent « niv. 4 » ou « niv. 6 » (sur un téléphone : un cadenas et le niveau).
 const boutonsPouvoirsHeros = [...document.querySelectorAll('[data-pouvoir-heros]')];
 for (const b of boutonsPouvoirsHeros) {
   const { nom, texte, touche, niveau: niveauRequis } = HEROS.pouvoirs[b.dataset.pouvoirHeros];
   b.title = `${nom} : ${texte} À partir du niveau ${niveauRequis} du héros. (touche ${touche.toUpperCase()})`;
-  b.addEventListener('click', () => { utiliserPouvoirHeros(b.dataset.pouvoirHeros); b.blur(); });
+  b.querySelector('.niveau-requis').textContent = niveauRequis;
+  b.addEventListener('click', () => {
+    const quel = b.dataset.pouvoirHeros;
+    if (TACTILE && !pouvoirHerosPret(etat, quel)) expliquer(b, () => raisonPouvoirHeros(quel));
+    else utiliserPouvoirHeros(quel);
+    b.blur();
+  });
 }
 
 function utiliserPouvoirHeros(nom) {
@@ -772,7 +798,7 @@ function majPouvoirsHeros() {
     const nom = b.dataset.pouvoirHeros, pouvoir = HEROS.pouvoirs[nom];
     const debloque = h.niveau >= pouvoir.niveau, pret = pouvoirHerosPret(etat, nom);
     if (!pret && document.activeElement === b) b.blur();
-    b.disabled = !pret;
+    griser(b, !pret);
     b.classList.toggle('pret', pret);
     b.classList.toggle('verrouille', !debloque);
     b.style.setProperty('--charge', String(debloque ? 1 - h[nom] / pouvoir.recharge : 0));
@@ -780,6 +806,83 @@ function majPouvoirsHeros() {
     if (nom === 'bond') b.setAttribute('aria-pressed', String(ui.visee === 'bond'));
   }
   if (ui.visee === 'bond' && !pouvoirHerosPret(etat, 'bond')) arreterVisee();
+}
+
+// ── Au doigt : la bulle des boutons ──────────────────────────
+// Sans souris, pas de curseur qui change ni de bulle d'aide au survol : une bulle au-dessus du bouton
+// touché dit quoi faire. Pendant qu'on vise (le Météore, le Bond) ou qu'on déplace le héros : où
+// toucher le plateau, avec « Annuler ». Et quand un pouvoir ne part pas : pourquoi, quelques secondes
+// (pas encore gagné, en recharge, entre deux vagues, héros K.O.).
+const bulleBoutons = $('#bulle-boutons');
+const DUREE_EXPLICATION = 3000; // (en millisecondes)
+let explication = null;         // { bouton, raison, jusqua } : raison() dit pourquoi (null : le pouvoir est prêt)
+let boutonBulle = null, signatureBulle = '';
+bulleBoutons.querySelector('.annuler-bulle').addEventListener('click', () => { arreterVisee(); lacherHeros(); });
+
+function expliquer(bouton, raison) {
+  explication = { bouton, raison, jusqua: performance.now() + DUREE_EXPLICATION };
+}
+
+// Pourquoi ce pouvoir du château ne part pas (null : il est prêt). Les textes suivent son nom (« Météore : … »).
+function raisonPouvoir(nom) {
+  if (pouvoirPret(etat, nom)) return null;
+  const titre = POUVOIRS[nom].nom;
+  if (etat.statut !== 'vague') return { titre, texte: 'seulement pendant les vagues.' };
+  if (nom === 'meteore') return { titre, texte: 'déjà lancé pendant cette vague. Il revient à la suivante.' };
+  return { titre, texte: `il se recharge, encore ${Math.ceil(etat.pouvoirs[nom])} s.` };
+}
+
+// Pourquoi ce pouvoir du héros ne part pas (null : il est prêt)
+function raisonPouvoirHeros(nom) {
+  if (pouvoirHerosPret(etat, nom)) return null;
+  const h = etat.heros, { nom: titre, niveau: requis, texte } = HEROS.pouvoirs[nom];
+  if (h.niveau < requis) return { titre, texte: `le héros l’aura au niveau ${requis} (il est au niveau ${h.niveau}).`, detail: auDoigt(texte) };
+  if (h.ko) return { titre, texte: 'le héros est K.O. Il revient à la vague suivante.' };
+  if (etat.statut !== 'vague') return { titre, texte: 'seulement pendant les vagues.' };
+  if (h.saut) return null; // (il est en plein Bond : une demi-seconde)
+  return { titre, texte: `il se recharge, encore ${Math.ceil(h[nom])} s.` };
+}
+
+// Ce que dit la bulle maintenant : { bouton, titre, texte, detail, annuler }, ou null
+function messageBulle() {
+  if (!TACTILE) return null;
+  const annuler = true;
+  if (ui.visee === 'meteore') return { bouton: boutonsPouvoirs.find((b) => b.dataset.pouvoir === 'meteore'), texte: 'Touche le chemin là où le Météore doit tomber.', annuler };
+  if (ui.visee === 'bond') return { bouton: boutonsPouvoirsHeros.find((b) => b.dataset.pouvoirHeros === 'bond'), texte: 'Touche le plateau là où le héros doit sauter.', annuler };
+  if (ui.herosChoisi) return { bouton: boutonHeros, texte: 'Touche l’endroit où le héros doit aller.', annuler };
+  if (explication) {
+    const raison = performance.now() < explication.jusqua && explication.raison();
+    if (raison) return { bouton: explication.bouton, ...raison };
+    explication = null; // le temps est passé, ou le pouvoir est prêt
+  }
+  return null;
+}
+
+// À chaque image : on remplit la bulle (seulement si son message a changé), et on la pose
+// au-dessus de son bouton, sans sortir de la barre du bas (ni de l'écran)
+function majBulleBoutons() {
+  const m = messageBulle();
+  const visible = Boolean(m) && m.bouton.getClientRects().length > 0; // (un bouton caché : pas de bulle)
+  const signature = visible ? [m.titre, m.texte, m.detail, m.annuler].join('|') : '';
+  if (signature !== signatureBulle || (visible && m.bouton !== boutonBulle)) {
+    signatureBulle = signature;
+    boutonBulle = visible ? m.bouton : null;
+    bulleBoutons.hidden = !visible;
+    if (visible) {
+      ecrire(bulleBoutons.querySelector('.titre-bulle'), m.titre ?? '');
+      ecrire(bulleBoutons.querySelector('.texte-bulle'), m.titre ? ` : ${m.texte}` : m.texte);
+      ecrire(bulleBoutons.querySelector('.detail-bulle'), m.detail ?? '');
+      bulleBoutons.querySelector('.annuler-bulle').hidden = !m.annuler;
+    }
+  }
+  if (!visible) return;
+  const r = m.bouton.getBoundingClientRect();
+  const barre = (m.bouton.closest('.barre') ?? document.body).getBoundingClientRect();
+  const centre = r.left + r.width / 2, largeur = bulleBoutons.offsetWidth;
+  const x = Math.max(barre.left, Math.min(centre - largeur / 2, barre.right - largeur));
+  bulleBoutons.style.left = `${Math.round(x)}px`;
+  bulleBoutons.style.top = `${Math.round(r.top - bulleBoutons.offsetHeight - 10)}px`;
+  bulleBoutons.style.setProperty('--pointe', `${Math.round(centre - x)}px`); // la pointe montre le bouton
 }
 
 // Le voile de givre du Grand froid (une animation CSS, relancée à chaque fois)

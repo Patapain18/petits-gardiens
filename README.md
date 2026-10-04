@@ -85,6 +85,8 @@ Le jeu était fait pour une souris : un survol pour voir, un clic pour faire, et
 
 **Viser au doigt.** Il n'y a pas de survol : pour le Météore et le Bond du héros, on touche leur bouton, puis on **pose le doigt** sur le plateau : le cercle apparaît, on le **glisse**, et on **lâche** pour lancer. Le héros, lui, se laisse **emmener** : on le fait glisser jusqu'à l'endroit voulu (un simple toucher le choisit aussi, puis un toucher ailleurs l'y envoie). Un toucher un peu à côté d'un socle (à moins d'une case) compte quand même, et le héros est plus facile à toucher.
 
+**La bulle des boutons.** Sans souris, pas de curseur qui change, ni de bulle d'aide au survol. Alors une bulle sort du bouton qu'on vient de toucher, et dit quoi faire : pendant qu'on vise, « Touche le plateau là où le héros doit sauter » (ou le chemin, pour le Météore ; l'endroit où il doit aller, pour le héros), avec un bouton « Annuler ». Et un pouvoir qui ne peut pas partir dit pourquoi, quelques secondes : « seulement pendant les vagues », « il se recharge, encore 12 s », « le héros est K.O. », ou, pour un pouvoir du héros pas encore gagné, à quel niveau il l'aura et ce qu'il fait. (La question est venue des premiers essais sur un vrai téléphone : « comment on utilise les pouvoirs du héros sur mobile ? »)
+
 **Sur un téléphone couché**, les boutons flottent dans les coins, et le plateau prend toute la hauteur (`src/rendus/cadre.js` le dit aux trois styles, qui ne gardent plus de place pour les barres) :
 
 | Coin | Ce qu'on y trouve |
@@ -92,7 +94,7 @@ Le jeu était fait pour une souris : un survol pour voir, un clic pour faire, et
 | En haut à gauche | l'or et la vague (et le record, dans l'arène) |
 | En haut à droite | la pause, et le menu ☰ : le style, l'ambiance, la vitesse, recommencer, les options, la carte des époques, et le plein écran (sur Android) |
 | En bas à gauche | « Lancer la vague », avec l'aperçu de la prochaine vague au-dessus (ses alertes en quelques mots) |
-| En bas à droite | les pouvoirs du château et le héros, avec des noms courts (« Froid », « Héros ») ; les pouvoirs du héros n'y apparaissent qu'une fois gagnés |
+| En bas à droite | les pouvoirs du château et le héros, avec des noms courts (« Froid », « Héros ») ; les pouvoirs du héros pas encore gagnés y sont tout petits : un cadenas et le niveau où il les aura (on les touche : la bulle dit ce qu'ils font) |
 
 **Debout**, le plateau serait minuscule (24 cases sur la largeur d'un téléphone : des socles d'un centimètre). Le jeu demande donc de **tourner le téléphone**, et se met en pause.
 

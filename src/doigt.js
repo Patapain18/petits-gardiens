@@ -22,6 +22,8 @@ export function auDoigt(texte) {
   return String(texte)
     // « (touche H) », « (ou appuie sur Espace) », « (touche O) » : pas de clavier
     .replace(/\s*\((?:ou )?(?:appuie sur )?(?:la )?(?:touche|Espace|Échap)[^)]*\)/g, '')
+    // « clique sur lui, puis sur la carte » : au doigt, le second verbe ne se sous-entend plus
+    .replace(/\b([Cc])lique sur lui, puis sur\b/g, (_, c) => `${c === 'C' ? 'T' : 't'}ouche-le, puis touche`)
     .replace(/\bClique sur lui\b/g, 'Touche-le')
     .replace(/\bclique sur lui\b/g, 'touche-le')
     .replace(/\bClique\b/g, 'Touche')
