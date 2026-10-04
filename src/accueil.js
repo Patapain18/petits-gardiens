@@ -13,16 +13,18 @@ import { envoyerPartiesEnAttente } from './parties.js';
 import { compterVisite } from './compteur.js';
 import { imagePersonnage } from './rendus/pixel.js';
 import { creerFenetreOptions } from './fenetre-options.js';
+import { insecables } from './typographie.js';
 
 const FICHES = import.meta.glob('./niveaux/*.json', { eager: true, import: 'default' });
 const ficheParId = (id) => FICHES[`./niveaux/${id}.json`] || null;
 const $ = (s) => document.querySelector(s);
 
-// Fabrique un élément ; le texte passe par textContent (jamais interprété comme du HTML)
+// Fabrique un élément ; le texte passe par textContent (jamais interprété comme du HTML), avec des
+// espaces insécables avant « ! ? : ; » (voir typographie.js : un « ! » ne finit plus seul sur sa ligne)
 function el(balise, classe, texte) {
   const e = document.createElement(balise);
   if (classe) e.className = classe;
-  if (texte !== undefined) e.textContent = texte;
+  if (texte !== undefined) e.textContent = insecables(texte);
   return e;
 }
 

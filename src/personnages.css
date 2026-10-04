@@ -10,7 +10,12 @@ body {
   min-height: 100vh;
   padding: 0 16px 40px;
   color: #fff4e0;
-  font: 17px/1.4 'Pixelify Sans', system-ui, sans-serif;
+  /* la police en trois morceaux, et pas avec le raccourci « font » : en fabriquant le site, l'outil qui
+     compresse le CSS changeait l'ordre des lignes, et « font » (qui remet à zéro tous les réglages de la
+     police) passait après « font-variant-ligatures » et l'effaçait : en ligne, « fi » ressemblait à un A */
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
   font-variant-ligatures: none; /* la police Pixelify Sans dessine « fi » d'un seul glyphe, qui ressemble à un A */
   background:
     radial-gradient(ellipse 90% 50% at 50% 0%, rgba(255, 170, 90, 0.18), transparent 70%),

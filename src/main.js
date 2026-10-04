@@ -25,6 +25,7 @@ import { Didacticiel } from './didacticiel.js';
 import { creerSon } from './son/son.js';
 import { lireOptions, changerOptions, quandOptionsChangent } from './options.js';
 import { creerFenetreOptions } from './fenetre-options.js';
+import { insecables } from './typographie.js';
 
 // Toutes les fiches de src/niveaux/ (Vite les rassemble ici automatiquement)
 const FICHES = import.meta.glob('./niveaux/*.json', { eager: true, import: 'default' });
@@ -64,11 +65,12 @@ function chargerOuSignaler(fiche) {
 }
 
 // Petits outils pour fabriquer les cartes de message. Le texte passe par
-// textContent : il est affiché tel quel, jamais interprété comme du HTML.
+// textContent : il est affiché tel quel, jamais interprété comme du HTML (avec des espaces
+// insécables avant « ! ? : ; », voir typographie.js).
 function element(balise, classe, texte) {
   const e = document.createElement(balise);
   if (classe) e.className = classe;
-  if (texte !== undefined) e.textContent = texte;
+  if (texte !== undefined) e.textContent = insecables(texte);
   return e;
 }
 // boutons([{ texte, action } ou { texte, lien }]) : le premier est le bouton principal
@@ -246,7 +248,8 @@ function traiterEvenements() {
 // dans Safari, un clic commencé sur ce texte était perdu s'il était remplacé avant qu'on relâche
 // la souris (il fallait parfois cliquer plusieurs fois sur « Lancer la vague »).
 function ecrire(el, texte) {
-  if (el.textContent !== texte) el.textContent = texte;
+  const t = insecables(texte);
+  if (el.textContent !== t) el.textContent = t;
 }
 
 function majInterface() {
@@ -599,7 +602,7 @@ function remplirBenediction() {
   fermerMenu();
   arreterVisee();
   lacherHeros();
-  $('#benediction-titre').textContent = `Vague ${vaguesTerminees(etat)} tenue !`;
+  $('#benediction-titre').textContent = insecables(`Vague ${vaguesTerminees(etat)} tenue !`);
   $('#choix-benedictions').replaceChildren(...etat.offre.map((id, i) => {
     const b = BENEDICTIONS[id];
     const bouton = element('button', 'choix-benediction');

@@ -25,6 +25,7 @@ Ce qui change en ligne :
 - **Le site vit dans un sous-dossier** (`…github.io/petits-gardiens/`) : `vite.config.js` fabrique donc des adresses relatives (`base: './'`).
 - **Les outils de développement n'existent pas en ligne** : pas d'« Ouvrir tous les niveaux (test) », pas de captures d'écran ni de sons enregistrés. Dans l'éditeur, on peut ouvrir les niveaux du jeu (ils sont rangés dans le site), les modifier, les tester et télécharger leur fiche, mais pas les enregistrer dans le projet : ça demande `npm run dev`.
 - **La progression et les options sont gardées par chaque navigateur** : chacun a les siennes, sur son ordinateur.
+- **Le CSS est compressé**, et l'outil qui le compresse peut changer l'ordre des lignes d'une règle. Un piège trouvé ainsi : la police Pixelify Sans dessine « fi » d'un seul signe, qui ressemble à un A, et une ligne `font-variant-ligatures: none` l'en empêche. Mais le raccourci `font: 17px/1.4 'Pixelify Sans'…` remet à zéro tous les réglages de la police : compressé, il passait *après* cette ligne et l'effaçait. En ligne, on lisait « DéA : la survie ». La police s'écrit donc maintenant en trois morceaux (`font-family`, `font-size`, `line-height`), que rien ne peut effacer.
 - **Le classement du mode survie, lui, est en ligne**, sur un petit serveur à part (avec les parties enregistrées et le compteur de visites). Il ne part pas avec le site : il se met en ligne sur Vercel (voir « Le classement en ligne »).
 
 ## Comment on joue
@@ -1023,6 +1024,7 @@ src/
 ├── revoir.js          la page « Revoir la partie » : la partie rejouée et dessinée (+ revoir.css)
 ├── compteur.js        le compteur de visites : chaque page prévient le serveur qu'on l'a ouverte
 ├── visites.js         la page des visites : les chiffres additionnés et dessinés (+ visites.css)
+├── typographie.js     les espaces insécables : un « ! » ou un « ? » ne finit jamais seul au début d'une ligne
 ├── style.css          l'interface du jeu (elle change de look selon le style choisi)
 ├── niveaux/           LES FICHES DE NIVEAU (des données pures, sans code)
 │   ├── monde1-1.json … monde1-4.json   les quatre niveaux du monde 1

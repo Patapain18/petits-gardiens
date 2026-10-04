@@ -12,7 +12,12 @@ body {
   margin: 0;
   min-height: 100vh;
   color: #fff4e0;
-  font: 17px/1.4 'Pixelify Sans', system-ui, sans-serif;
+  /* la police en trois morceaux, et pas avec le raccourci « font » : en fabriquant le site, l'outil qui
+     compresse le CSS changeait l'ordre des lignes, et « font » (qui remet à zéro tous les réglages de la
+     police) passait après « font-variant-ligatures » et l'effaçait : en ligne, « fi » ressemblait à un A */
+  font-family: 'Pixelify Sans', system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
   font-variant-ligatures: none; /* la police Pixelify Sans dessine « fi » d'un seul glyphe, qui ressemble à un A */
   background:
     radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 170, 90, 0.22), transparent 70%),
@@ -184,7 +189,9 @@ body {
 }
 .lien-niveau {
   display: flex;
-  align-items: center;
+  /* la médaille en haut, à côté du nom du niveau (pas au milieu du texte) : le pointillé qui part de
+     sous elle (52 px plus bas que le haut du niveau) ne la traverse plus quand la description est longue */
+  align-items: flex-start;
   gap: 12px;
   padding: 8px;
   color: inherit;

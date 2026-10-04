@@ -16,6 +16,7 @@ import { estDisponible, prixAmelioration } from './jeu/moteur.js';
 import { classerSocles } from './jeu/equilibrage.js';
 import { lireProgression, noterVu } from './progression.js';
 import { lireOptions, quandOptionsChangent } from './options.js';
+import { insecables } from './typographie.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -155,16 +156,17 @@ export class Didacticiel {
     const fiche = gardien ? caracteristiques(type, 1) : MONSTRES[type];
     const sorte = gardien ? 'gardien' : fiche.boss ? 'boss' : 'monstre';
     $('#presentation').dataset.sorte = sorte;
-    $('#presentation-sorte').textContent = { gardien: 'Nouveau gardien !', monstre: 'Nouveau monstre !', boss: 'Le chef des monstres !' }[sorte];
+    // (des espaces insécables avant « ! ? : ; » : un signe ne finit jamais seul sur sa ligne, voir typographie.js)
+    $('#presentation-sorte').textContent = insecables({ gardien: 'Nouveau gardien !', monstre: 'Nouveau monstre !', boss: 'Le chef des monstres !' }[sorte]);
     $('#presentation-nom').textContent = fiche.nom;
-    $('#presentation-description').textContent = fiche.description;
-    $('#presentation-conseil').textContent = fiche.conseil;
+    $('#presentation-description').textContent = insecables(fiche.description);
+    $('#presentation-conseil').textContent = insecables(fiche.conseil);
     const chiffres = gardien
       ? [`Prix : ${fiche.cout} pièces`, ...(fiche.portee ? [`Portée : ${virgule(fiche.portee)} cases`] : []), ...pouvoirs(fiche)]
       : [`Points de vie : ${fiche.pv} (${motSolidite(fiche.pv)})`, `Vitesse : ${motVitesse(fiche.vitesse)}`, `Rapporte ${fiche.prime} pièces`, ...pouvoirs(fiche)];
     $('#presentation-chiffres').replaceChildren(...chiffres.map((texte) => {
       const li = document.createElement('li');
-      li.textContent = texte;
+      li.textContent = insecables(texte);
       return li;
     }));
     // le portrait est dessiné par le style graphique actif, dans son époque
@@ -201,8 +203,8 @@ export class Didacticiel {
       document.querySelectorAll('.indice-bouton').forEach((b) => b.classList.remove('indice-bouton'));
       $('#lecon').hidden = !lecon;
       if (lecon) {
-        $('#lecon-titre').textContent = lecon.titre;
-        $('#lecon-texte').textContent = lecon.texte;
+        $('#lecon-titre').textContent = insecables(lecon.titre);
+        $('#lecon-texte').textContent = insecables(lecon.texte);
       }
     }
     if (!lecon) {
