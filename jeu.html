@@ -50,20 +50,24 @@
 
   <!-- Commandes du bas -->
   <footer class="barre bas">
-    <div class="panneau">
-      <button id="lancer" class="principal">Lancer la vague 1</button>
-      <!-- Les pouvoirs du château (seulement dans les niveaux qui en donnent, comme l'arène) -->
-      <span id="pouvoirs" class="pouvoirs" hidden>
-        <button class="pouvoir" data-pouvoir="meteore"><span class="nom-pouvoir">Météore</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
-        <button class="pouvoir" data-pouvoir="froid"><span class="nom-pouvoir">Grand froid</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
-      </span>
-      <!-- Le héros (seulement dans les niveaux qui en ont un) : son niveau, sa vie et son expérience -->
-      <button id="bouton-heros" class="bouton-heros" hidden><span class="nom-heros">Grand Gardien</span><span class="niveau-heros"></span><kbd class="touche">H</kbd><span class="vie-heros" aria-hidden="true"></span><span class="xp-heros" aria-hidden="true"></span></button>
-      <!-- Les pouvoirs du héros : ses niveaux les débloquent (l'Onde de choc au 4, le Bond au 6) -->
-      <span id="pouvoirs-heros" class="pouvoirs" hidden>
-        <button class="pouvoir" data-pouvoir-heros="onde"><span class="nom-pouvoir">Onde</span><span class="etat-pouvoir"></span><kbd class="touche">O</kbd></button>
-        <button class="pouvoir" data-pouvoir-heros="bond"><span class="nom-pouvoir">Bond</span><span class="etat-pouvoir"></span><kbd class="touche">B</kbd></button>
-      </span>
+    <div class="colonne-bas">
+      <!-- L'aperçu de la prochaine vague, juste au-dessus du bouton, pendant la préparation (rempli par main.js) -->
+      <div id="apercu" class="panneau apercu" role="status" aria-live="polite" hidden></div>
+      <div class="panneau">
+        <button id="lancer" class="principal">Lancer la vague 1</button>
+        <!-- Les pouvoirs du château (seulement dans les niveaux qui en donnent, comme l'arène) -->
+        <span id="pouvoirs" class="pouvoirs" hidden>
+          <button class="pouvoir" data-pouvoir="meteore"><span class="nom-pouvoir">Météore</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
+          <button class="pouvoir" data-pouvoir="froid"><span class="nom-pouvoir">Grand froid</span><span class="etat-pouvoir"></span><kbd class="touche"></kbd></button>
+        </span>
+        <!-- Le héros (seulement dans les niveaux qui en ont un) : son niveau, sa vie et son expérience -->
+        <button id="bouton-heros" class="bouton-heros" hidden><span class="nom-heros">Grand Gardien</span><span class="niveau-heros"></span><kbd class="touche">H</kbd><span class="vie-heros" aria-hidden="true"></span><span class="xp-heros" aria-hidden="true"></span></button>
+        <!-- Les pouvoirs du héros : ses niveaux les débloquent (l'Onde de choc au 4, le Bond au 6) -->
+        <span id="pouvoirs-heros" class="pouvoirs" hidden>
+          <button class="pouvoir" data-pouvoir-heros="onde"><span class="nom-pouvoir">Onde</span><span class="etat-pouvoir"></span><kbd class="touche">O</kbd></button>
+          <button class="pouvoir" data-pouvoir-heros="bond"><span class="nom-pouvoir">Bond</span><span class="etat-pouvoir"></span><kbd class="touche">B</kbd></button>
+        </span>
+      </div>
     </div>
     <div class="panneau">
       <button id="vitesse" title="Vitesse du jeu">Vitesse ×1</button>

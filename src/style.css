@@ -235,7 +235,11 @@ body[data-style='pixel'] .choix-benediction { line-height: 1.5; }
 }
 .barre > * { pointer-events: auto; }
 .barre { top: 12px; }
-.barre.bas { top: auto; bottom: 12px; align-items: flex-end; }
+.barre.bas { top: auto; bottom: 12px; align-items: flex-end; flex-wrap: wrap; row-gap: 8px; }
+/* quand tout ne tient pas sur une ligne (l'arène en pixel : les pouvoirs, le héros, et une police large),
+   les boutons de droite passent dessous, toujours à droite (avant, ils sortaient de l'écran) */
+.barre.bas > :last-child { margin-left: auto; }
+.barre.bas .panneau { flex-wrap: wrap; } /* et dans une fenêtre étroite, leurs boutons passent à la ligne */
 
 .ressources { gap: 18px; padding: 8px 14px; }
 .ressource { display: inline-flex; align-items: center; gap: 8px; color: var(--texte-doux); }
@@ -440,6 +444,45 @@ body[data-style='pixel'] .classement td { line-height: 1.6; }
 /* « Revoir » : la partie de ce score a été enregistrée */
 .classement td.revoir-score { width: 1%; white-space: nowrap; }
 .classement td.revoir-score a { color: inherit; font-size: 0.85em; }
+
+/* ── L'aperçu de la prochaine vague (pendant la préparation) ──
+   Un bandeau qui flotte juste au-dessus du bouton « Lancer la vague » : il est rangé dans la colonne
+   de gauche de la barre du bas (il suit sa hauteur), mais il ne l'élargit pas. On clique à travers :
+   il ne gêne jamais le jeu. */
+.barre > .colonne-bas { position: relative; display: flex; flex-direction: column; align-items: flex-start; pointer-events: none; }
+.colonne-bas > * { pointer-events: auto; }
+.apercu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  width: max-content;
+  max-width: min(620px, calc(100vw - 24px));
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  pointer-events: none !important;
+}
+.titre-apercu { margin: 0; font-size: 0.8em; color: var(--texte-doux); }
+.monstres-apercu { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; }
+.monstre-apercu { display: flex; align-items: center; gap: 6px; pointer-events: auto; cursor: help; } /* (au survol : la phrase complète) */
+.portrait-apercu { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 236, 190, 0.28), rgba(255, 236, 190, 0) 70%); }
+.portrait-apercu canvas { display: block; max-width: 100%; max-height: 100%; }
+body[data-style='pixel'] .portrait-apercu { border-radius: 0; }
+body[data-style='pixel'] .portrait-apercu canvas { image-rendering: pixelated; }
+.monstre-apercu.chef .portrait-apercu { background: radial-gradient(circle, rgba(255, 120, 60, 0.45), rgba(255, 120, 60, 0) 70%); }
+.texte-apercu { display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+.nom-apercu { white-space: nowrap; }
+.nom-apercu b { color: var(--accent); }
+.monstre-apercu.chef .nom-apercu { color: #ffb09a; }
+.traits-apercu { font-size: 0.72em; color: var(--texte-doux); }
+.nouveau-apercu { color: #ff9a86; }
+.nouveau-apercu + .liste-traits::before { content: ' · '; }
+.alerte-apercu { margin: 0; font-size: 0.78em; line-height: 1.35; color: var(--texte-doux); }
+.alerte-apercu.forte { padding: 5px 8px; color: #fff0e8; background: rgba(208, 59, 59, 0.35); border-left: 4px solid #ff6a4a; border-radius: calc(var(--rayon) * 0.4); }
+/* un « ! » dans une pastille (le signe ⚠ manque à la police 8 bits du pixel) */
+.alerte-apercu.forte::before { content: '!'; display: inline-block; min-width: 1.3em; margin-right: 6px; font-weight: 700; text-align: center; color: #2a0f08; background: #ff8a6a; border-radius: calc(var(--rayon) * 0.3); }
+body[data-style='pixel'] .apercu :is(.titre-apercu, .texte-apercu, .alerte-apercu) { line-height: 1.7; }
 
 /* ── Didacticiel : la fiche qui présente un nouveau personnage ── */
 .voile-presentation { z-index: 30; background: rgba(20, 12, 24, 0.5); }

@@ -12,7 +12,8 @@
 import {
   creerPartie, majPartie, tourSur, prixAmelioration, prixRevente, estDisponible, vaguesTerminees, pouvoirPret, pouvoirHerosPret, PAS,
 } from './jeu/moteur.js';
-import { NIVEAU_MAX, POUVOIRS, HEROS, caracteristiques } from './jeu/donnees.js';
+import { NIVEAU_MAX, POUVOIRS, HEROS, MONSTRES, caracteristiques } from './jeu/donnees.js';
+import { apercuVague } from './jeu/apercu.js';
 import { BENEDICTIONS, TOUTES_LES, ficheDe, pouvoirDe, ficheDuHeros } from './jeu/benedictions.js';
 import { nouvelEnregistrement, agir as agirEtNoter, noterControle } from './jeu/enregistrement.js';
 import { VERSION, preparerEnvoi, garderEtEnvoyer, garderEnAttente, envoyerPartiesEnAttente } from './parties.js';
@@ -272,6 +273,7 @@ function majInterface() {
     bouton.disabled = true;
     ecrire(bouton, etat.statut === 'vague' ? 'Vague en cours…' : 'Partie terminée');
   }
+  majApercu();
   if (etat.pouvoirs) majPouvoirs();
   if (niveau.benedictions) majBenedictions();
   if (etat.heros) { majBoutonHeros(); majPouvoirsHeros(); }
@@ -288,6 +290,63 @@ function majInterface() {
     // Suivre le socle si la caméra bouge (style cinéma)
     placerMenu(ui.selection);
   }
+}
+
+// ── L'aperçu de la prochaine vague (voir jeu/apercu.js) ──
+// Pendant la préparation, un bandeau juste au-dessus du bouton « Lancer la vague » : les monstres qui
+// arrivent, avec leur portrait (dessiné par le style de l'époque, comme dans les fiches du
+// didacticiel), combien, « Nouveau ! » pour ceux qu'on n'a encore jamais rencontrés, ce qu'ils ont de
+// spécial, et les trous de la défense. majInterface() tourne à chaque image : on ne refait le bandeau
+// que si quelque chose a changé (la vague, les gardiens, l'or, le style).
+const portraits = new Map(); // « style:monstre » → son portrait (un portrait 3D prend un peu de temps : on le garde)
+let signatureApercu = '';
+function portraitDe(type) {
+  const cle = `${styleActif}:${type}`;
+  if (!portraits.has(cle)) portraits.set(cle, rendu?.portrait?.(MONSTRES[type].apparence) || null);
+  const image = portraits.get(cle);
+  if (!image) return null;
+  // une copie (une même image ne peut pas être à deux endroits de la page)
+  const copie = document.createElement('canvas');
+  copie.width = image.width;
+  copie.height = image.height;
+  copie.getContext('2d').drawImage(image, 0, 0);
+  return copie;
+}
+function majApercu() {
+  const zone = $('#apercu');
+  const montrer = etat.statut === 'preparation' && !etat.offre && rendu;
+  const signature = montrer ? `${styleActif}|${etat.vague}|${etat.or}|${etat.tours.map((t) => t.type + t.niveau).join(',')}` : '';
+  if (signature === signatureApercu) return;
+  signatureApercu = signature;
+  const apercu = montrer ? apercuVague(etat) : null;
+  zone.hidden = !apercu;
+  if (!apercu) return;
+  const titre = element('p', 'titre-apercu', `Vague ${apercu.numero}${niveau.survie ? '' : ` / ${niveau.vagues.length}`} :`);
+  zone.replaceChildren(titre, listeApercu(apercu), ...apercu.alertes.map((a) => element('p', `alerte-apercu${a.fort ? ' forte' : ''}`, a.texte)));
+}
+// La liste des monstres de l'aperçu : portrait, nombre, nom, « Nouveau ! » et ce qu'ils ont de spécial
+function listeApercu(apercu) {
+  const liste = element('ul', 'monstres-apercu');
+  for (const m of apercu.monstres) {
+    const li = element('li', `monstre-apercu${MONSTRES[m.type].boss ? ' chef' : ''}`);
+    li.title = insecables([`${m.nombre} × ${m.nom}`, ...m.traits.map((t) => t.phrase)].join('\n'));
+    const cadre = element('span', 'portrait-apercu');
+    const portrait = portraitDe(m.type);
+    if (portrait) cadre.append(portrait);
+    const nom = element('span', 'nom-apercu');
+    nom.append(element('b', '', String(m.nombre)), document.createTextNode(` ${m.nom}${m.nombre > 1 ? 's' : ''}`));
+    // la deuxième ligne : « Nouveau ! » (jamais rencontré, ni dans les parties d'avant ni dans celle-ci :
+    // il aura sa fiche en arrivant), puis ce qu'il a de spécial
+    const details = element('span', 'traits-apercu');
+    if (!didacticiel.vus.has(m.type) && !didacticiel.presentes.has(m.type)) details.append(element('span', 'nouveau-apercu', 'Nouveau !'));
+    if (m.traits.length) details.append(element('span', 'liste-traits', m.traits.map((t) => t.mot).join(' · ')));
+    const texte = element('span', 'texte-apercu');
+    texte.append(nom);
+    if (details.childNodes.length) texte.append(details);
+    li.append(cadre, texte);
+    liste.append(li);
+  }
+  return liste;
 }
 
 // Un nombre écrit à la française (0.62 → « 0,62 »)

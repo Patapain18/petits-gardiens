@@ -32,6 +32,7 @@ Ce qui change en ligne :
 
 - Sur la carte des époques, choisis un niveau. Gagner un niveau ouvre le suivant. Le premier niveau, « La clairière », est un didacticiel : il explique tout en jouant.
 - Clique sur un socle de pierre (le petit cube doré ou le « + » qui flotte) et choisis un gardien.
+- Juste au-dessus du bouton, un **bandeau montre la prochaine vague** : les monstres qui arrivent (leur portrait, combien, « Nouveau ! » si tu ne les as encore jamais rencontrés, et ce qu'ils ont de spécial : ils volent, ils sont rapides, ils ont une carapace…). Il prévient aussi quand ta défense a un trou (des volants, et aucun gardien qui les touche) ou quand il te reste de l'or à dépenser. Voir « L'aperçu de la prochaine vague ».
 - Clique sur **Lancer la vague** (ou appuie sur Espace) quand tu es prêt.
 - Chaque monstre tué rapporte de l'or, et chaque vague terminée donne un bonus.
 - Clique sur un gardien déjà posé : tu vois ses chiffres et sa portée, tu peux l'**améliorer** (niveau 2, puis 3) ou le revendre (tu récupères 60 % de tout ce que tu as dépensé pour lui).
@@ -61,6 +62,19 @@ Ce qui change en ligne :
 | Carapace, monde 3 | Une tortue : chaque coup perd 5 dégâts sur sa carapace |
 | Taupe, monde 3 | Elle creuse sous le chemin : sous terre, personne ne peut la viser |
 | Dragon, monde 3 | Le chef du monde 3 : il vole, et son feu assomme les gardiens |
+
+## L'aperçu de la prochaine vague
+
+Les vraies parties l'ont montré (voir « L'atelier de l'équilibrage ») : dans la vallée du Colosse, 9 parties sur 13 ont été perdues à la vague 2, celle des Voltigeurs, que les rochers du Grondin ne touchent pas. Et rien ne disait qu'ils arrivaient. Désormais, pendant la préparation, un bandeau juste au-dessus du bouton « Lancer la vague » montre ce qui arrive :
+
+- **les monstres de la vague**, dans l'ordre où ils entrent, avec leur portrait dessiné par le style de l'époque (comme dans les fiches du didacticiel), leur nombre, et ce qu'ils ont de spécial, en un mot : *vole*, *rapide*, *solide*, *carapace*, *creuse*, *crache du feu*, *chef*, *3 Gluants dedans*, ou *renforcé ×2,5* dans l'arène. En survolant un monstre, on lit la phrase complète ;
+- **« Nouveau ! »** sous un monstre qu'on n'a encore jamais rencontré (sa fiche s'ouvrira quand il arrivera) ;
+- **les trous de la défense**, d'après les gardiens posés : aucun gardien qui tire encore ; des volants, et que des Grondin (en rouge : c'est un vrai danger) ; une carapace, et que des petits coups ;
+- **l'or qui dort** : à partir de 100 pièces, « Il te reste 130 pièces : de quoi poser une Braise » (une vraie partie a été perdue aux deux étangs avec une seule Braise, et 130 pièces en poche).
+
+Le bandeau disparaît dès que la vague est lancée. On clique à travers (il ne gêne jamais la pose d'un gardien), sauf sur les monstres, pour pouvoir les survoler. `src/jeu/apercu.js` ne connaît que les règles (ce qui arrive, et les trous de la défense) ; `main.js` dessine le bandeau, et ne le refait que si quelque chose a changé (la vague, les gardiens, l'or, le style).
+
+Au passage, la barre du bas a été réparée : dans l'arène en pixel art (les pouvoirs, le héros, et une police large), les boutons de droite sortaient de l'écran sur un ordinateur portable. Maintenant, quand tout ne tient pas sur une ligne, ils passent dessous, toujours à droite, et les boutons d'un panneau passent à la ligne plutôt que de se plier.
 
 ## Les améliorations
 
@@ -983,8 +997,8 @@ Le **Grondin** est le plus rentable contre les foules au sol : 35 dégâts pour 
 **5. L'arène : le plafond se voit.** Dès la vague 13, la force des gardiens plafonne à ×20 (tous les socles sont au niveau 3) pendant que celle des monstres grimpe jusqu'à ×500 vers la vague 27. Ce sont le Météore et le héros qui comblent l'écart, et l'or inutilisé grimpe jusqu'à 9 000 pièces. C'était déjà connu ; maintenant, ça se voit.
 
 **Ce qui reste, à décider plus tard :**
-- **montrer la prochaine vague** avant de la lancer (« 8 Voltigeurs : des volants ! »). C'est le vrai remède au piège des volants : l'équilibrage seul n'y suffit pas, puisqu'un débutant qui ouvre avec un Grondin ne passe la vague 2 de la vallée que 12 fois sur 100 (au lieu de 0) ;
-- **prévenir quand on lance une vague avec beaucoup d'or en poche** (une défaite aux deux étangs avec une seule Braise et 130 pièces) ;
+- ~~**montrer la prochaine vague** avant de la lancer (« 8 Voltigeurs : des volants ! »)~~ (fait : voir « L'aperçu de la prochaine vague »). C'était le vrai remède au piège des volants : l'équilibrage seul n'y suffit pas, puisqu'un débutant qui ouvre avec un Grondin ne passe la vague 2 de la vallée que 12 fois sur 100 (au lieu de 0) ;
+- ~~**prévenir quand on lance une vague avec beaucoup d'or en poche**~~ (fait : le même bandeau le dit, à partir de 100 pièces) ;
 - le Blizzard et la Bourrasque.
 
 ## L'atelier du son
@@ -1161,6 +1175,7 @@ src/
 │   ├── niveau.js      lit et vérifie une fiche, puis calcule chemin, relief et décor
 │   ├── equilibrage.js les joueurs imaginaires, le débutant et le verdict d'équilibrage
 │   ├── releve.js      le relevé d'une partie, vague par vague (pour les courbes de l'atelier de l'équilibrage)
+│   ├── apercu.js      l'aperçu de la prochaine vague : ses monstres, ce qu'ils ont de spécial, les trous de la défense
 │   ├── banc.js        le banc d'essai : chaque gardien face à une file de chaque monstre
 │   ├── donnees.js     les fiches des personnages : noms, textes, chiffres (lus dans chiffres.json) et apparence
 │   ├── chiffres.json  les chiffres du jeu, la « table d'équilibrage » (l'atelier de l'équilibrage la modifie)
@@ -1506,3 +1521,5 @@ Dans la console du navigateur (F12) :
 12. ~~Un atelier des textures, et des textures refaites dans les trois styles~~ (fait : des recettes réglables et mesurées ; le voxel, puis le pixel art et le cartoon).
 13. ~~Un atelier des modèles, pour que chaque personnage se voie bien, même pour un joueur daltonien~~ (fait : le Filou gris-bleu, le Gluant vert citron, la gelée qui luit en voxel).
 14. ~~Un atelier de l'équilibrage, avec les vraies parties par-dessus~~ (fait : les niveaux en courbes, les chiffres du jeu dans une table, le banc d'essai et le débutant ; les pièges des premières vagues retirés de trois niveaux, et la vague 2 de la vallée du Colosse adoucie).
+15. ~~Un atelier du son, pour mesurer les bruitages comme l'oreille les entend~~ (fait : chaque bruitage comparé à la musique dans les trois époques, cinq situations de jeu rejouées ; les bruits aigus et les « boum » égalisés d'une époque à l'autre, les sons trop discrets montés).
+16. ~~Montrer la prochaine vague avant de la lancer~~ (fait : le bandeau au-dessus du bouton, avec les trous de la défense et l'or qui dort).
